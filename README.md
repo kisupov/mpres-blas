@@ -18,7 +18,7 @@ Currently the following level-1 multiple-precision functions are only supported:
 * WAXPBY --- Scaled vector addition (`mp_array_waxpby`)
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries 
-that are not distributed with this repository. Pleas check `lib/` directory for details.
+that are not distributed with this repository. Please check `tests/3rdparty/` subdirectory for details.
 
 ### Details and notes
 
