@@ -1,0 +1,234 @@
+#ifndef __GMP_ARRAY_FUNC_CU__
+#define __GMP_ARRAY_FUNC_CU__
+
+#include "gmp_array_func.h"
+#include "garprec.cu"
+
+
+
+/**
+* this file warp the math function for the map primitive
+*/
+
+__global__
+void gmparray_exp2_kernel0(const double* d_a, double* d_b, const int interval,
+                         const int numElement, const int prec_words,
+                         double* d_buf, double* sk0, double* sk1, double* sk2, double* sk3) {
+        const unsigned int index = blockIdx.x*blockDim.x + threadIdx.x;
+        const unsigned int delta = blockDim.x*gridDim.x;
+
+        double* d = d_buf + index;
+        const int d_interval = delta;
+
+        for( int i = index; i < numElement; i += delta ) {
+                gmpexp( d_a + i, interval, d_b + i, interval, prec_words, d, d_interval,
+                        sk0 + index, sk1 + index, sk2 + index, sk3 + index, delta );
+        }
+}
+
+
+
+__global__
+void gmparray_exp2_kernel1(const double* d_a, double* d_b, const int interval,
+                         const int numElement, const int prec_words,
+                         double* sk0, double* sk1, double* sk2, double* sk3) {
+        const unsigned int index = blockIdx.x*blockDim.x + threadIdx.x;
+        const unsigned int delta = blockDim.x*gridDim.x;
+	double d[MAX_D_SIZE];
+	
+        for( int i = index; i < numElement; i += delta ) {
+                gmpexp( d_a + i, interval, d_b + i, interval, prec_words, d, 1,
+                        sk0 + index, sk1 + index, sk2 + index, sk3 + index, delta );
+        }
+}
+
+__global__
+void gmparray_exp2_kernel2(const double* d_a, double* d_b, const int interval,
+                         const int numElement, const int prec_words,
+                         double* sk1, double* sk2, double* sk3) {
+        const unsigned int index = blockIdx.x*blockDim.x + threadIdx.x;
+        const unsigned int delta = blockDim.x*gridDim.x;
+        double d[MAX_D_SIZE];
+	double sk0[EXP_TMP_SIZE];
+
+        for( int i = index; i < numElement; i += delta ) {
+                gmpexp( d_a + i, interval, d_b + i, interval, prec_words, 
+			d, 1,
+                        sk0, 1, 
+			sk1 + index, delta, 
+			sk2 + index, delta, 
+			sk3 + index, delta );
+        }
+}
+
+__global__
+void gmparray_exp2_kernel3(const double* d_a, double* d_b, const int interval,
+                         const int numElement, const int prec_words,
+                         double* sk2, double* sk3) {
+        const unsigned int index = blockIdx.x*blockDim.x + threadIdx.x;
+        const unsigned int delta = blockDim.x*gridDim.x;
+        double d[MAX_D_SIZE];
+        double sk0[EXP_TMP_SIZE];
+	double sk1[EXP_TMP_SIZE];
+
+        for( int i = index; i < numElement; i += delta ) {
+                gmpexp( d_a + i, interval, d_b + i, interval, prec_words, 
+			d, 1,
+                        sk0, 1, 
+			sk1, 1, 
+			sk2 + index, delta, 
+			sk3 + index, delta );
+        }
+}
+
+__global__
+void gmparray_exp2_kernel4(const double* d_a, double* d_b, const int interval,
+                         const int numElement, const int prec_words,
+                         double* sk3) {
+        const unsigned int index = blockIdx.x*blockDim.x + threadIdx.x;
+        const unsigned int delta = blockDim.x*gridDim.x;
+        double d[MAX_D_SIZE];
+        double sk0[EXP_TMP_SIZE];
+        double sk1[EXP_TMP_SIZE];
+	double sk2[EXP_TMP_SIZE];
+
+        for( int i = index; i < numElement; i += delta ) {
+                gmpexp( d_a + i, interval, d_b + i, interval, prec_words,
+                        d, 1,
+                        sk0, 1,
+                        sk1, 1,
+                        sk2, 1,
+                        sk3 + index, delta );
+        }
+}
+
+
+
+__global__ void 
+gmparray_exp2_kernel5(const double* d_a, double* d_b, const int interval,
+                         const int numElement, const int prec_words) {
+        const unsigned int index = blockIdx.x*blockDim.x + threadIdx.x;
+        const unsigned int delta = blockDim.x*gridDim.x;
+      	double d[MAX_D_SIZE];
+	//extern __shared__ double d[];
+        double sk0[EXP_TMP_SIZE];
+        double sk1[EXP_TMP_SIZE];
+        double sk2[EXP_TMP_SIZE];
+	double sk3[EXP_TMP_SIZE];
+
+        for( int i = index; i < numElement; i += delta ) {
+                gmpexp( d_a + i, interval, d_b + i, interval, prec_words,
+                        d, 1,
+                        sk0, 1,
+                        sk1, 1,
+                        sk2, 1,
+                        sk3, 1);
+        }
+}
+
+
+__global__ void
+gmparray_exp2_shared_kernel(const double* d_a, double* d_b, const int interval,
+                         const int numElement, const int prec_words) {
+        const unsigned int index = blockIdx.x*blockDim.x + threadIdx.x;
+        const unsigned int delta = blockDim.x*gridDim.x;
+        extern __shared__ double d[];
+        double sk0[EXP_TMP_SIZE];
+        double sk1[EXP_TMP_SIZE];
+        double sk2[EXP_TMP_SIZE];
+        double sk3[EXP_TMP_SIZE];
+
+        for( int i = index; i < numElement; i += delta ) {
+                gmpexp( d_a + i, interval, d_b + i, interval, prec_words,
+                        d + threadIdx.x, blockDim.x,
+                        sk0, 1,
+                        sk1, 1,
+                        sk2, 1,
+                        sk3, 1);
+        }
+}
+
+void gmparray_exp(gmp_array* d_a, gmp_array* d_b, 
+		  unsigned int numBlock, unsigned int numThread) {
+	const unsigned int numElement = d_a->numElement;
+	double* d_sk0 = NULL;
+	double* d_sk1 = NULL;
+	double* d_sk2 = NULL;
+	double* d_sk3 = NULL;
+	double* d_buf = NULL;
+	GPUMALLOC( (void**)&d_buf, sizeof(double)*(prec_words + 9)*numBlock*numThread );
+	GPUMALLOC( (void**)&d_sk0, sizeof(double)*(prec_words + 6)*numBlock*numThread );
+	GPUMALLOC( (void**)&d_sk1, sizeof(double)*(prec_words + 6)*numBlock*numThread );
+	GPUMALLOC( (void**)&d_sk2, sizeof(double)*(prec_words + 6)*numBlock*numThread );
+	GPUMALLOC( (void**)&d_sk3, sizeof(double)*(prec_words + 6)*numBlock*numThread );
+
+	const unsigned int sharedMemSize = sizeof(double)*(prec_words + 9)*numThread;
+	printf("numBlock = %d, numThread = %d\n", numBlock, numThread);
+	StopWatchInterface *timer;
+	
+        printf("none is stored in the registers.\n");
+        startTimer((timer));
+        gmparray_exp2_kernel0<<<numBlock, numThread>>>(d_a->d_mpr, d_b->d_mpr, numElement, numElement, prec_words, d_buf, d_sk0, d_sk1, d_sk2, d_sk3);
+        //cutilCheckMsg( "gmparray_exp2_kernel" );
+        cutilSafeCall( cudaThreadSynchronize() );
+        endTimer((timer), "gmparray_exp_kernel");
+
+
+        printf("d_buf is stored in the registers.\n");
+        startTimer((timer));
+        gmparray_exp2_kernel1<<<numBlock, numThread>>>(d_a->d_mpr, d_b->d_mpr, numElement, numElement, prec_words, d_sk0, d_sk1, d_sk2, d_sk3);
+        //cutilCheckMsg( "gmparray_exp2_kernel" );
+        cutilSafeCall( cudaThreadSynchronize() );
+        endTimer((timer), "gmparray_exp_kernel");
+
+        printf("d_buf, d_sk0 is stored in the registers.\n");
+        startTimer((timer));
+        gmparray_exp2_kernel2<<<numBlock, numThread>>>(d_a->d_mpr, d_b->d_mpr, numElement, numElement, prec_words, d_sk1, d_sk2, d_sk3);
+        //cutilCheckMsg( "gmparray_exp2_kernel" );
+        cutilSafeCall( cudaThreadSynchronize() );
+        endTimer((timer), "gmparray_exp_kernel");
+
+        printf("d_buf, d_sk0, d_sk1 is stored in the registers.\n");
+        startTimer((timer));
+        gmparray_exp2_kernel3<<<numBlock, numThread>>>(d_a->d_mpr, d_b->d_mpr, numElement, numElement, prec_words, d_sk2, d_sk3);
+        //cutilCheckMsg( "gmparray_exp2_kernel" );
+        cutilSafeCall( cudaThreadSynchronize() );
+        endTimer((timer), "gmparray_exp_kernel");
+
+	
+        printf("d_buf, d_sk0, d_sk1, d_sk2 is stored in the registers.\n");
+        startTimer((timer));
+        gmparray_exp2_kernel4<<<numBlock, numThread>>>(d_a->d_mpr, d_b->d_mpr, numElement, numElement, prec_words, d_sk3);
+        //cutilCheckMsg( "gmparray_exp2_kernel" );
+        cutilSafeCall( cudaThreadSynchronize() );
+        endTimer((timer), "gmparray_exp_kernel");
+
+	printf("d_buf, d_sk0, d_sk1, d_sk2, d_sk3 are stored in the registers.\n");
+	startTimer((timer));
+	gmparray_exp2_kernel5<<<numBlock, numThread>>>( d_a->d_mpr, d_b->d_mpr, numElement, numElement, prec_words);
+	//cutilCheckMsg( "gmparray_exp2_kernel" );
+	cutilSafeCall( cudaThreadSynchronize() );
+	endTimer((timer), "gmparray_exp_kernel");
+
+	/*
+        printf("d_buf is stored in the shared memory, d_sk0, d_sk1, d_sk2, d_sk3 are stored in the registers.\n");
+        startTimer((timer));
+        gmparray_exp2_shared_kernel<<<numBlock, numThread, sharedMemSize>>>( d_a->d_mpr, d_b->d_mpr, numElement, numElement, prec_words);
+        //cutilCheckMsg( "gmparray_exp2_shared_kernel" );
+        cutilSafeCall( cudaThreadSynchronize() );
+        endTimer((timer), "gmparray_exp_kernel");
+	*/
+
+
+	GPUFREE( d_sk0 );
+	GPUFREE( d_sk1 );
+	GPUFREE( d_sk2 );
+	GPUFREE( d_sk3 );
+	GPUFREE( d_buf );
+}
+
+
+#endif /* __GMP_ARRAY_FUNC_CU__ */
+
+
+
