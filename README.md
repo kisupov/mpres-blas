@@ -17,8 +17,8 @@ Currently the following level-1 multiple-precision functions are only supported:
 * AXPY --- Constant times a vector plus a vector (`mp_array_axpy`)
 * WAXPBY --- Scaled vector addition (`mp_array_waxpby`)
 
-For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries 
-that are not distributed with this repository. Please check `tests/3rdparty/` subdirectory for details.
+For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
+Please check `tests/3rdparty/` subdirectory for details.
 
 ### Details and notes
 
