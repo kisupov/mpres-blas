@@ -456,82 +456,6 @@ void mpres_test(mpfr_t *x, mpfr_t alpha, int n) {
     cudaCheckErrors();
 }
 
-//////
-// CUMP
-//////
-using cump::mpf_array_t;
-
-__global__ void cump_scal(int n, mpf_array_t alpha, mpf_array_t x) {
-    using namespace cump;
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    while (idx < n) {
-        mpf_mul(x[idx], alpha[0], x[idx]);
-        idx += gridDim.x * blockDim.x;
-    }
-}
-
-void cump_test(mpfr_t *x, mpfr_t alpha, int n){
-    Logger::printDash();
-    InitCudaTimer();
-    PrintTimerName("[GPU] CUMP scal");
-
-    //Set precision
-    mpf_set_default_prec(MP_PRECISION);
-    cumpf_set_default_prec(MP_PRECISION);
-
-    //Execution configuration
-    int threads = 64;
-    int blocks = n / threads + (n % threads ? 1 : 0);
-
-    //Host data
-    mpf_t *hx = new mpf_t[n];
-    mpf_t halpha;
-
-    //GPU data
-    cumpf_array_t dx;
-    cumpf_array_t dalpha;
-
-    cumpf_array_init2(dx, n, MP_PRECISION);
-    cumpf_array_init2(dalpha, 1, MP_PRECISION);
-
-    //Convert from MPFR
-    for(int i = 0; i < n; i ++){
-        mpf_init2(hx[i], MP_PRECISION);
-        mpf_set_str(hx[i], convert_to_string_sci(x[i], INP_DIGITS).c_str(), 10);
-    }
-    mpf_init2(halpha, MP_PRECISION);
-    mpf_set_str(halpha, convert_to_string_sci(alpha, INP_DIGITS).c_str(), 10);
-
-    //Copying alpha to the GPU
-    cumpf_array_set_mpf(dalpha, &halpha, 1);
-
-    //Launch
-    for(int i = 0; i < REPEAT_TEST; i ++){
-        cumpf_array_set_mpf(dx, hx, n);
-        cudaDeviceSynchronize();
-        StartCudaTimer();
-        cump_scal<<<blocks, threads>>>(n, dalpha, dx);
-        EndCudaTimer();
-    }
-    PrintCudaTimer("took");
-
-    //Copying to the host
-    mpf_array_set_cumpf(hx, dx, n);
-    for(int i = 1; i < n; i ++){
-        mpf_add(hx[0], hx[i], hx[0]);
-    }
-    gmp_printf ("result: %.70Ff \n", hx[0]);
-
-    //Cleanup
-    mpf_clear(halpha);
-    for(int i = 0; i < n; i ++){
-        mpf_clear(hx[i]);
-    }
-    delete [] hx;
-    cumpf_array_clear(dalpha);
-    cumpf_array_clear(dx);
-}
-
 
 /********************* Main test *********************/
 
@@ -580,7 +504,7 @@ int main() {
     mpres_test(vectorX, alpha[0], N);
     garprec_scal_test(N, alpha[0], vectorX, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
     //campary_scal_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, INP_DIGITS, REPEAT_TEST);
-    cump_test(vectorX, alpha[0], N);
+    cump_scal_test(N, alpha[0], vectorX, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
     
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure

@@ -36,7 +36,7 @@
 //libmpdec - https://www.bytereef.org/mpdecimal/
 #include "mpdecimal.h"
 //CUMP - https://github.com/skystar0227/CUMP
-#include "cump/cump.cuh"
+#include "../lib/cump_blas.cuh"
 //GARPREC - https://code.google.com/archive/p/gpuprec/downloads
 #include "../lib/garprec_blas.cuh"
 //CAMPARY - http://homepages.laas.fr/mmjoldes/campary/

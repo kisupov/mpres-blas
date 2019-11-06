@@ -79,7 +79,7 @@ __global__ void garprec_sum_kernel1(int n, double *result, int int_result, doubl
 }
 
 /*
- * Computes the sum of the elements of vector x, Kernel #2 (optimized)
+ * Computes the sum of the elements of vector x, Kernel #2 (optimized kernel)
  */
 __global__ void garprec_sum_kernel2(int n, double *result, int interval_result, double *x, int interval_x, int prec_words){
     unsigned int tid = threadIdx.x;
@@ -135,7 +135,7 @@ __global__ void garprec_axpy_kernel(int n, double *alpha, int interval_alpha, do
 }
 
 /*
- * Reset array
+ * Set the elements of an array to zero
  */
 __global__ void garprec_reset_array(int n, double *temp, int int_temp, int prec_words) {
     int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
@@ -152,8 +152,9 @@ __global__ void garprec_reset_array(int n, double *temp, int int_temp, int prec_
 
 /*
  * SUM test
+ * Note that the sum is calculated instead of the sum of absolute values
  */
-void garprec_sum_test(int n, mpfr_t *x, int prec, int input_prec_dec, int repeat){
+void garprec_sum_test(int n, mpfr_t *x, int prec, int convert_digits, int repeat){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] GARPREC sum");
@@ -178,7 +179,7 @@ void garprec_sum_test(int n, mpfr_t *x, int prec, int input_prec_dec, int repeat
     //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
-        hx[i].read(convert_to_string_sci(x[i], input_prec_dec));
+        hx[i].read(convert_to_string_sci(x[i], convert_digits));
     }
 
     //Launch
@@ -223,7 +224,7 @@ void garprec_sum_test(int n, mpfr_t *x, int prec, int input_prec_dec, int repeat
 /*
  * DOT test
  */
-void garprec_dot_test(int n, mpfr_t *x, mpfr_t *y, int prec, int input_prec_dec, int repeat){
+void garprec_dot_test(int n, mpfr_t *x, mpfr_t *y, int prec, int convert_digits, int repeat){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] GARPREC dot");
@@ -250,8 +251,8 @@ void garprec_dot_test(int n, mpfr_t *x, mpfr_t *y, int prec, int input_prec_dec,
     //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
-        hx[i].read(convert_to_string_sci(x[i], input_prec_dec));
-        hy[i].read(convert_to_string_sci(y[i], input_prec_dec));
+        hx[i].read(convert_to_string_sci(x[i], convert_digits));
+        hy[i].read(convert_to_string_sci(y[i], convert_digits));
     }
 
     //Launch
@@ -301,7 +302,7 @@ void garprec_dot_test(int n, mpfr_t *x, mpfr_t *y, int prec, int input_prec_dec,
 /*
  * SCAL test
  */
-void garprec_scal_test(int n, mpfr_t alpha, mpfr_t *x, int prec, int input_prec_dec, int repeat){
+void garprec_scal_test(int n, mpfr_t alpha, mpfr_t *x, int prec, int convert_digits, int repeat){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] GARPREC scal");
@@ -326,9 +327,9 @@ void garprec_scal_test(int n, mpfr_t alpha, mpfr_t *x, int prec, int input_prec_
     //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
-        lx[i].read(convert_to_string_sci(x[i], input_prec_dec));
+        lx[i].read(convert_to_string_sci(x[i], convert_digits));
     }
-    lalpha[0].read(convert_to_string_sci(alpha, input_prec_dec));
+    lalpha[0].read(convert_to_string_sci(alpha, convert_digits));
 
     //Copying to the GPU
     galpha->toGPU(lalpha, 1);
@@ -359,7 +360,7 @@ void garprec_scal_test(int n, mpfr_t alpha, mpfr_t *x, int prec, int input_prec_
 /*
  * AXPY test
  */
-void garprec_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int prec, int input_prec_dec, int repeat){
+void garprec_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int prec, int convert_digits, int repeat){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] GARPREC axpy");
@@ -387,10 +388,10 @@ void garprec_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int prec, int 
     //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
-        lx[i].read(convert_to_string_sci(x[i], input_prec_dec));
-        ly[i].read(convert_to_string_sci(y[i], input_prec_dec));
+        lx[i].read(convert_to_string_sci(x[i], convert_digits));
+        ly[i].read(convert_to_string_sci(y[i], convert_digits));
     }
-    lalpha[0].read(convert_to_string_sci(alpha, input_prec_dec));
+    lalpha[0].read(convert_to_string_sci(alpha, convert_digits));
 
     //Copying to the GPU
     gx->toGPU(lx, n);

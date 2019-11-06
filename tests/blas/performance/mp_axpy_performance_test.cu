@@ -481,93 +481,6 @@ void mpres_test(mpfr_t * x, mpfr_t * y, mpfr_t alpha, int n) {
 }
 
 
-//////
-// CUMP
-//////
-using cump::mpf_array_t;
-
-__global__  void cump_axpy(int n, mpf_array_t a, mpf_array_t X, mpf_array_t Y) {
-    using namespace cump;
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    while (idx < n) {
-        mpf_mul(X[idx], a[0], X[idx]);
-        mpf_add(Y[idx], X[idx], Y[idx]);
-        idx += gridDim.x * blockDim.x;
-    }
-}
-
-void cump_test(mpfr_t *x, mpfr_t *y, mpfr_t alpha, int n){
-    Logger::printDash();
-    InitCudaTimer();
-    PrintTimerName("[GPU] CUMP axpy");
-
-    //Set precision
-    mpf_set_default_prec(MP_PRECISION);
-    cumpf_set_default_prec(MP_PRECISION);
-
-    //Execution configuration
-    int threads = 64;
-    int blocks = n / threads + (n % threads ? 1 : 0);
-
-    //Host data
-    mpf_t *hx = new mpf_t[n];
-    mpf_t *hy = new mpf_t[n];
-    mpf_t halpha;
-
-    //GPU data
-    cumpf_array_t dx;
-    cumpf_array_t dy;
-    cumpf_array_t dalpha;
-
-    cumpf_array_init2(dx, n, MP_PRECISION);
-    cumpf_array_init2(dy, n, MP_PRECISION);
-    cumpf_array_init2(dalpha, 1, MP_PRECISION);
-
-    //Convert from MPFR
-    for(int i = 0; i < n; i ++){
-        mpf_init2(hx[i], MP_PRECISION);
-        mpf_init2(hy[i], MP_PRECISION);
-        mpf_set_str(hx[i], convert_to_string_sci(x[i], INP_DIGITS).c_str(), 10);
-        mpf_set_str(hy[i], convert_to_string_sci(y[i], INP_DIGITS).c_str(), 10);
-    }
-    mpf_init2(halpha, MP_PRECISION);
-    mpf_set_str(halpha, convert_to_string_sci(alpha, INP_DIGITS).c_str(), 10);
-
-    //Copying alpha to the GPU
-    cumpf_array_set_mpf(dalpha, &halpha, 1);
-
-    //Launch
-    for(int i = 0; i < REPEAT_TEST; i ++){
-        cumpf_array_set_mpf(dx, hx, n);
-        cumpf_array_set_mpf(dy, hy, n);
-        cudaDeviceSynchronize();
-        StartCudaTimer();
-        cump_axpy<<<blocks, threads>>>(n, dalpha, dx, dy);
-        EndCudaTimer();
-    }
-    PrintCudaTimer("took");
-
-    //Copying to the host
-    mpf_array_set_cumpf(hy, dy, n);
-    for(int i = 1; i < n; i ++){
-        mpf_add(hy[0], hy[i], hy[0]);
-    }
-    gmp_printf ("result: %.70Ff \n", hy[0]);
-
-    //Cleanup
-    mpf_clear(halpha);
-    for(int i = 0; i < n; i ++){
-        mpf_clear(hx[i]);
-        mpf_clear(hy[i]);
-    }
-    delete [] hx;
-    delete [] hy;
-    cumpf_array_clear(dx);
-    cumpf_array_clear(dy);
-    cumpf_array_clear(dalpha);
-}
-
-
 /********************* Main test *********************/
 
 
@@ -620,7 +533,7 @@ int main() {
     mpres_test(vectorX, vectorY, alpha[0], N);
     garprec_axpy_test(N, alpha[0], vectorX, vectorY, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
     //campary_axpy_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
-    cump_test(vectorX, vectorY, alpha[0], N);
+    cump_axpy_test(N, alpha[0], vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
