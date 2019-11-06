@@ -39,14 +39,14 @@
 
 #define OPENBLAS_THREADS 4
 
-int INPUT_PRECISION; //in bits
-int INPUT_PRECISION_DEC; //in decimal digits
 int MP_PRECISION_DEC; //in decimal digits
+int INP_BITS; //in bits
+int INP_DIGITS; //in decimal digits
 
 void setPrecisions(){
-    INPUT_PRECISION = (int)(MP_PRECISION / 4);
-    INPUT_PRECISION_DEC = (int)(INPUT_PRECISION / 3.32 + 1);
     MP_PRECISION_DEC = (int)(MP_PRECISION / 3.32 + 1);
+    INP_BITS = (int)(MP_PRECISION / 4);
+    INP_DIGITS = (int)(INP_BITS / 3.32 + 1);
 }
 
 void initialize(){
@@ -232,14 +232,14 @@ void arprec_test(mpfr_t *x, mpfr_t alpha, int n) {
     //Init
     mp_real *mp_real_x = new mp_real[n];
     mp_real mp_real_alpha;
-    mp_real_alpha.read(convert_to_string_sci(alpha, INPUT_PRECISION_DEC));
+    mp_real_alpha.read(convert_to_string_sci(alpha, INP_DIGITS));
 
     //Launch
     for(int i = 0; i < REPEAT_TEST; i ++){
         #pragma omp parallel for
         for (int j = 0; j < n; j++) {
             mp_real_x[j] = 0;
-            mp_real_x[j].read(convert_to_string_sci(x[j], INPUT_PRECISION_DEC));
+            mp_real_x[j].read(convert_to_string_sci(x[j], INP_DIGITS));
         }
         StartCpuTimer();
         arprec_scal(n, mp_real_x, mp_real_alpha);
@@ -359,7 +359,7 @@ void mpdecimal_test(mpfr_t *x, mpfr_t alpha, int n){
     //Init
     mpd_t *malpha  = mpd_new(&ctx);
     mpd_t **mx = new mpd_t*[n];
-    mpd_set_string(malpha, convert_to_string_fix(alpha, INPUT_PRECISION_DEC).c_str(), &ctx);
+    mpd_set_string(malpha, convert_to_string_fix(alpha, INP_DIGITS).c_str(), &ctx);
     for(int i = 0; i < n; i ++){
         mx[i] = mpd_new(&ctx);
     }
@@ -368,7 +368,7 @@ void mpdecimal_test(mpfr_t *x, mpfr_t alpha, int n){
     for(int j = 0; j < REPEAT_TEST; j ++){
         #pragma omp parallel for
         for(int i = 0; i < n; i ++){
-            mpd_set_string(mx[i], convert_to_string_fix(x[i], INPUT_PRECISION_DEC).c_str(), &ctx);
+            mpd_set_string(mx[i], convert_to_string_fix(x[i], INP_DIGITS).c_str(), &ctx);
         }
         StartCpuTimer();
         mpdecimal_scal(n, mx, malpha, &ctx);
@@ -456,82 +456,6 @@ void mpres_test(mpfr_t *x, mpfr_t alpha, int n) {
     cudaCheckErrors();
 }
 
-//////
-// CUMP
-//////
-using cump::mpf_array_t;
-
-__global__ void cump_scal(int n, mpf_array_t alpha, mpf_array_t x) {
-    using namespace cump;
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    while (idx < n) {
-        mpf_mul(x[idx], alpha[0], x[idx]);
-        idx += gridDim.x * blockDim.x;
-    }
-}
-
-void cump_test(mpfr_t *x, mpfr_t alpha, int n){
-    Logger::printDash();
-    InitCudaTimer();
-    PrintTimerName("[GPU] CUMP scal");
-
-    //Set precision
-    mpf_set_default_prec(MP_PRECISION);
-    cumpf_set_default_prec(MP_PRECISION);
-
-    //Execution configuration
-    int threads = 64;
-    int blocks = n / threads + (n % threads ? 1 : 0);
-
-    //Host data
-    mpf_t *hx = new mpf_t[n];
-    mpf_t halpha;
-
-    //GPU data
-    cumpf_array_t dx;
-    cumpf_array_t dalpha;
-
-    cumpf_array_init2(dx, n, MP_PRECISION);
-    cumpf_array_init2(dalpha, 1, MP_PRECISION);
-
-    //Convert from MPFR
-    for(int i = 0; i < n; i ++){
-        mpf_init2(hx[i], MP_PRECISION);
-        mpf_set_str(hx[i], convert_to_string_sci(x[i], INPUT_PRECISION_DEC).c_str(), 10);
-    }
-    mpf_init2(halpha, MP_PRECISION);
-    mpf_set_str(halpha, convert_to_string_sci(alpha, INPUT_PRECISION_DEC).c_str(), 10);
-
-    //Copying alpha to the GPU
-    cumpf_array_set_mpf(dalpha, &halpha, 1);
-
-    //Launch
-    for(int i = 0; i < REPEAT_TEST; i ++){
-        cumpf_array_set_mpf(dx, hx, n);
-        cudaDeviceSynchronize();
-        StartCudaTimer();
-        cump_scal<<<blocks, threads>>>(n, dalpha, dx);
-        EndCudaTimer();
-    }
-    PrintCudaTimer("took");
-
-    //Copying to the host
-    mpf_array_set_cumpf(hx, dx, n);
-    for(int i = 1; i < n; i ++){
-        mpf_add(hx[0], hx[i], hx[0]);
-    }
-    gmp_printf ("result: %.70Ff \n", hx[0]);
-
-    //Cleanup
-    mpf_clear(halpha);
-    for(int i = 0; i < n; i ++){
-        mpf_clear(hx[i]);
-    }
-    delete [] hx;
-    cumpf_array_clear(dalpha);
-    cumpf_array_clear(dx);
-}
-
 
 /********************* Main test *********************/
 
@@ -554,8 +478,8 @@ int main() {
     //Inputs
     mpfr_t * vectorX;
     mpfr_t * alpha;
-    vectorX = create_random_array(N, INPUT_PRECISION);
-    alpha = create_random_array(1, INPUT_PRECISION);
+    vectorX = create_random_array(N, INP_BITS);
+    alpha = create_random_array(1, INP_BITS);
 
     //Double tests
     double dalpha;
@@ -576,11 +500,11 @@ int main() {
     arprec_test(vectorX, alpha[0], N);
     mpack_test(vectorX, alpha[0], N);
     mpdecimal_test(vectorX, alpha[0], N);
-    //arbitraire_test(N, vectorX, alpha[0], INPUT_PRECISION, REPEAT_TEST); // arbitraire performs too long
+    //arbitraire_test(N, vectorX, alpha[0], INP_BITS, REPEAT_TEST); // performs too long
     mpres_test(vectorX, alpha[0], N);
-    garprec_scal_test(N, alpha[0], vectorX, MP_PRECISION_DEC, INPUT_PRECISION_DEC, REPEAT_TEST);
-    //campary_scal_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, INPUT_PRECISION_DEC, REPEAT_TEST);
-    cump_test(vectorX, alpha[0], N);
+    garprec_scal_test(N, alpha[0], vectorX, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    //campary_scal_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, INP_DIGITS, REPEAT_TEST);
+    cump_scal_test(N, alpha[0], vectorX, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
     
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure

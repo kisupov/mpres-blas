@@ -27,7 +27,7 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "../../3rdparty/campary/Doubles/src_gpu/multi_prec.h" //campary
+#include "../../3rdparty/campary/Doubles/src_gpu/multi_prec.h"
 
 #define CAMPARY_REDUCTION_BLOCKS 1024
 #define CAMPARY_REDUCTION_THREADS 32
@@ -277,7 +277,7 @@ static void printResult(multi_prec<nterms> result){
  * ASUM test
  */
 template <int prec>
-void campary_asum_test(int n, mpfr_t *x, int convert_prec, int repeats) {
+void campary_asum_test(int n, mpfr_t *x, int convert_digits, int repeats) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY asum");
@@ -296,7 +296,7 @@ void campary_asum_test(int n, mpfr_t *x, int convert_prec, int repeats) {
     //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i ++){
-        hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
+        hx[i] = convert_to_string_sci(x[i], convert_digits).c_str();
     }
 
     //Copying to the GPU
@@ -328,7 +328,7 @@ void campary_asum_test(int n, mpfr_t *x, int convert_prec, int repeats) {
  * DOT test
  */
 template <int prec>
-void campary_dot_test(int n, mpfr_t *x, mpfr_t *y, int convert_prec, int repeats){
+void campary_dot_test(int n, mpfr_t *x, mpfr_t *y, int convert_digits, int repeats){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY dot");
@@ -350,8 +350,8 @@ void campary_dot_test(int n, mpfr_t *x, mpfr_t *y, int convert_prec, int repeats
     //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i ++){
-        hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
-        hy[i] = convert_to_string_sci(y[i], convert_prec).c_str();
+        hx[i] = convert_to_string_sci(x[i], convert_digits).c_str();
+        hy[i] = convert_to_string_sci(y[i], convert_digits).c_str();
     }
 
     //Copying to the GPU
@@ -391,7 +391,7 @@ void campary_dot_test(int n, mpfr_t *x, mpfr_t *y, int convert_prec, int repeats
  * SCAL test
  */
 template<int prec>
-void campary_scal_test(int n, mpfr_t alpha, mpfr_t *x, int convert_prec, int repeats){
+void campary_scal_test(int n, mpfr_t alpha, mpfr_t *x, int convert_digits, int repeats){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY scal");
@@ -410,9 +410,9 @@ void campary_scal_test(int n, mpfr_t alpha, mpfr_t *x, int convert_prec, int rep
     //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i ++){
-        hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
+        hx[i] = convert_to_string_sci(x[i], convert_digits).c_str();
     }
-    halpha = convert_to_string_sci(alpha, convert_prec).c_str();
+    halpha = convert_to_string_sci(alpha, convert_digits).c_str();
 
     //Copying alpha to the GPU
     cudaMemcpy(dalpha, &halpha, sizeof(multi_prec<prec>), cudaMemcpyHostToDevice);
@@ -448,7 +448,7 @@ void campary_scal_test(int n, mpfr_t alpha, mpfr_t *x, int convert_prec, int rep
  * AXPY test
  */
 template<int prec>
-void campary_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int convert_prec, int repeats){
+void campary_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int convert_digits, int repeats){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY axpy");
@@ -470,10 +470,10 @@ void campary_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int convert_pr
     //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i ++){
-        hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
-        hy[i] = convert_to_string_sci(y[i], convert_prec).c_str();
+        hx[i] = convert_to_string_sci(x[i], convert_digits).c_str();
+        hy[i] = convert_to_string_sci(y[i], convert_digits).c_str();
     }
-    halpha = convert_to_string_sci(alpha, convert_prec).c_str();
+    halpha = convert_to_string_sci(alpha, convert_digits).c_str();
 
     //Copying alpha to the GPU
     cudaMemcpy(dalpha, &halpha, sizeof(multi_prec<prec>), cudaMemcpyHostToDevice);
