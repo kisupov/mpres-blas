@@ -39,14 +39,14 @@
 
 #define OPENBLAS_THREADS 4
 
-int INPUT_PRECISION; //in bits
-int INPUT_PRECISION_DEC; //in decimal digits
 int MP_PRECISION_DEC; //in decimal digits
+int INP_BITS; //in bits
+int INP_DIGITS; //in decimal digits
 
 void setPrecisions(){
-    INPUT_PRECISION = (int)(MP_PRECISION / 4);
-    INPUT_PRECISION_DEC = (int)(INPUT_PRECISION / 3.32 + 1);
     MP_PRECISION_DEC = (int)(MP_PRECISION / 3.32 + 1);
+    INP_BITS = (int)(MP_PRECISION / 4);
+    INP_DIGITS = (int)(INP_BITS / 3.32 + 1);
 }
 
 void initialize(){
@@ -272,17 +272,17 @@ void arprec_test(mpfr_t *x, mpfr_t *y, mpfr_t alpha, int n) {
     mp_real *mp_real_y = new mp_real[n];
     mp_real mp_real_alpha;
 
-    mp_real_alpha.read(convert_to_string_sci(alpha, INPUT_PRECISION_DEC));
+    mp_real_alpha.read(convert_to_string_sci(alpha, INP_DIGITS));
     #pragma omp parallel for
     for (int i = 0; i < n; i++) {
-        mp_real_x[i].read(convert_to_string_sci(x[i], INPUT_PRECISION_DEC));
+        mp_real_x[i].read(convert_to_string_sci(x[i], INP_DIGITS));
     }
     //Launch
     for(int i = 0; i < REPEAT_TEST; i ++) {
         #pragma omp parallel for
         for (int j = 0; j < n; j++) {
             mp_real_y[j] = 0;
-            mp_real_y[j].read(convert_to_string_sci(y[j], INPUT_PRECISION_DEC));
+            mp_real_y[j].read(convert_to_string_sci(y[j], INP_DIGITS));
         }
         StartCpuTimer();
         arprec_axpy(n, mp_real_x, mp_real_y, mp_real_alpha);
@@ -373,18 +373,18 @@ void mpdecimal_test(mpfr_t *x, mpfr_t *y, mpfr_t alpha, int n){
     mpd_t **mx = new mpd_t*[n];
     mpd_t **my = new mpd_t*[n];
 
-    mpd_set_string(malpha, convert_to_string_fix(alpha, INPUT_PRECISION_DEC).c_str(), &ctx);
+    mpd_set_string(malpha, convert_to_string_fix(alpha, INP_DIGITS).c_str(), &ctx);
     for(int i = 0; i < n; i ++){
         mx[i] = mpd_new(&ctx);
         my[i] = mpd_new(&ctx);
-        mpd_set_string(mx[i], convert_to_string_fix(x[i], INPUT_PRECISION_DEC).c_str(), &ctx);
+        mpd_set_string(mx[i], convert_to_string_fix(x[i], INP_DIGITS).c_str(), &ctx);
     }
 
     //Launch
     for(int j = 0; j < REPEAT_TEST; j ++){
         #pragma omp parallel for
         for(int i = 0; i < n; i ++){
-            mpd_set_string(my[i], convert_to_string_fix(y[i], INPUT_PRECISION_DEC).c_str(), &ctx);
+            mpd_set_string(my[i], convert_to_string_fix(y[i], INP_DIGITS).c_str(), &ctx);
         }
         StartCpuTimer();
         mpdecimal_axpy(n, mx, malpha, my, &ctx);
@@ -527,11 +527,11 @@ void cump_test(mpfr_t *x, mpfr_t *y, mpfr_t alpha, int n){
     for(int i = 0; i < n; i ++){
         mpf_init2(hx[i], MP_PRECISION);
         mpf_init2(hy[i], MP_PRECISION);
-        mpf_set_str(hx[i], convert_to_string_sci(x[i], INPUT_PRECISION_DEC).c_str(), 10);
-        mpf_set_str(hy[i], convert_to_string_sci(y[i], INPUT_PRECISION_DEC).c_str(), 10);
+        mpf_set_str(hx[i], convert_to_string_sci(x[i], INP_DIGITS).c_str(), 10);
+        mpf_set_str(hy[i], convert_to_string_sci(y[i], INP_DIGITS).c_str(), 10);
     }
     mpf_init2(halpha, MP_PRECISION);
-    mpf_set_str(halpha, convert_to_string_sci(alpha, INPUT_PRECISION_DEC).c_str(), 10);
+    mpf_set_str(halpha, convert_to_string_sci(alpha, INP_DIGITS).c_str(), 10);
 
     //Copying alpha to the GPU
     cumpf_array_set_mpf(dalpha, &halpha, 1);
@@ -590,9 +590,9 @@ int main() {
     mpfr_t * vectorX;
     mpfr_t * vectorY;
     mpfr_t * alpha;
-    vectorX = create_random_array(N, INPUT_PRECISION);
-    vectorY = create_random_array(N, INPUT_PRECISION);
-    alpha = create_random_array(1, INPUT_PRECISION);
+    vectorX = create_random_array(N, INP_BITS);
+    vectorY = create_random_array(N, INP_BITS);
+    alpha = create_random_array(1, INP_BITS);
 
     //Double and double-double tests
     double  *dx = new double[N];
@@ -603,7 +603,7 @@ int main() {
         dx[i] = mpfr_get_d(vectorX[i], MPFR_RNDN);
         dy[i] = mpfr_get_d(vectorY[i], MPFR_RNDN);
     }
-    xblas_test(dx, dy, dalpha, N);
+    //xblas_test(dx, dy, dalpha, N);
     openblas_test(dx, dy, dalpha, N);
     cublas_test(dx, dy, dalpha, N);
     delete [] dx;
@@ -618,9 +618,9 @@ int main() {
     mpack_test(vectorX, vectorY, alpha[0], N);
     mpdecimal_test(vectorX, vectorY, alpha[0], N);
     mpres_test(vectorX, vectorY, alpha[0], N);
-    garprec_axpy_test(N, alpha[0], vectorX, vectorY, MP_PRECISION_DEC, INPUT_PRECISION_DEC, REPEAT_TEST);
-    //campary_axpy_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, vectorY, INPUT_PRECISION_DEC, REPEAT_TEST);
-    cump_test(vectorX, vectorY, alpha[0], N);  // cump must be always last - some error in initialisation!
+    garprec_axpy_test(N, alpha[0], vectorX, vectorY, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    //campary_axpy_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
+    cump_test(vectorX, vectorY, alpha[0], N);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure

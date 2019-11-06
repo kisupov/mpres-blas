@@ -39,14 +39,14 @@
 
 #define CAMPARY_PRECISION 8 //in n-double (e.g., 2-double, 3-double, 4-double, 8-double, etc.)
 
-int INPUT_PRECISION; //in bits
-int INPUT_PRECISION_DEC; //in decimal digits
 int MP_PRECISION_DEC; //in decimal digits
+int INP_BITS; //in bits
+int INP_DIGITS; //in decimal digits
 
 void setPrecisions(){
-    INPUT_PRECISION = (int)(MP_PRECISION / 4);
-    INPUT_PRECISION_DEC = (int)(INPUT_PRECISION / 3.32 + 1);
     MP_PRECISION_DEC = (int)(MP_PRECISION / 3.32 + 1);
+    INP_BITS = (int)(MP_PRECISION / 4);
+    INP_DIGITS = (int)(INP_BITS / 3.32 + 1);
 }
 
 void initialize(){
@@ -222,8 +222,8 @@ void arprec_test(mpfr_t *x, mpfr_t *y, int n){
     mp_real *mp_real_y = new mp_real[n]; // Arprec vector
     mp_real mp_real_product = 0.0;
     for (int i = 0; i < n; i++) {
-        mp_real_x[i].read(convert_to_string_sci(x[i], INPUT_PRECISION_DEC));
-        mp_real_y[i].read(convert_to_string_sci(y[i], INPUT_PRECISION_DEC));
+        mp_real_x[i].read(convert_to_string_sci(x[i], INP_DIGITS));
+        mp_real_y[i].read(convert_to_string_sci(y[i], INP_DIGITS));
     }
 
     //Launch
@@ -317,8 +317,8 @@ void mpdecimal_test(mpfr_t *x, mpfr_t *y, int n){
     for(int i = 0; i < n; i ++){
         mx[i] = mpd_new(&ctx);
         my[i] = mpd_new(&ctx);
-        mpd_set_string(mx[i], convert_to_string_fix(x[i], INPUT_PRECISION_DEC).c_str(), &ctx);
-        mpd_set_string(my[i], convert_to_string_fix(y[i], INPUT_PRECISION_DEC).c_str(), &ctx);
+        mpd_set_string(mx[i], convert_to_string_fix(x[i], INP_DIGITS).c_str(), &ctx);
+        mpd_set_string(my[i], convert_to_string_fix(y[i], INP_DIGITS).c_str(), &ctx);
     }
 
     //Launch
@@ -540,8 +540,8 @@ void cump_test(mpfr_t *x, mpfr_t *y, int n){
     for(int i = 0; i < n; i ++){
         mpf_init2(hx[i], MP_PRECISION);
         mpf_init2(hy[i], MP_PRECISION);
-        mpf_set_str(hx[i], convert_to_string_sci(x[i], INPUT_PRECISION_DEC).c_str(), 10);
-        mpf_set_str(hy[i], convert_to_string_sci(y[i], INPUT_PRECISION_DEC).c_str(), 10);
+        mpf_set_str(hx[i], convert_to_string_sci(x[i], INP_DIGITS).c_str(), 10);
+        mpf_set_str(hy[i], convert_to_string_sci(y[i], INP_DIGITS).c_str(), 10);
     }
     mpf_init2(hresult, MP_PRECISION);
     mpf_set_d(hresult, 0);
@@ -604,8 +604,8 @@ int main() {
     //Inputs
     mpfr_t * vectorX;
     mpfr_t * vectorY;
-    vectorX = create_random_array(N, INPUT_PRECISION);
-    vectorY = create_random_array(N, INPUT_PRECISION);
+    vectorX = create_random_array(N, INP_BITS);
+    vectorY = create_random_array(N, INP_BITS);
 
     //Double and double-double tests
     double  *dx;
@@ -616,7 +616,7 @@ int main() {
         dx[i] = mpfr_get_d(vectorX[i], MPFR_RNDN);
         dy[i] = mpfr_get_d(vectorY[i], MPFR_RNDN);
     }
-    xblas_test(dx, dy, N);
+    //xblas_test(dx, dy, N);
     openblas_test(dx, dy, N);
     cublas_test(dx, dy, N);
     delete [] dx;
@@ -631,8 +631,8 @@ int main() {
     mpack_test(vectorX, vectorY, N);
     mpdecimal_test(vectorX, vectorY, N);
     mpres_test(vectorX, vectorY, N);
-    garprec_dot_test(N, vectorX, vectorY, MP_PRECISION_DEC, INPUT_PRECISION_DEC, REPEAT_TEST);
-    //campary_dot_test<CAMPARY_PRECISION>(N, vectorX, vectorY, INPUT_PRECISION_DEC, REPEAT_TEST);
+    garprec_dot_test(N, vectorX, vectorY, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    //campary_dot_test<CAMPARY_PRECISION>(N, vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
     cump_test(vectorX, vectorY, N);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());

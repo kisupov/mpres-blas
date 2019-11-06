@@ -27,7 +27,6 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-//garprec
 #include "../../3rdparty/garprec/inc/garprec.cu"
 #include "../../3rdparty/garprec/inc/gmp_array.h"
 #include "../../3rdparty/garprec/inc/gmp_array_func.h"
@@ -332,7 +331,6 @@ void garprec_scal_test(int n, mpfr_t alpha, mpfr_t *x, int prec, int input_prec_
     lalpha[0].read(convert_to_string_sci(alpha, input_prec_dec));
 
     //Copying to the GPU
-    //gx->toGPU(lx, n);
     galpha->toGPU(lalpha, 1);
 
     //Launch
@@ -396,7 +394,6 @@ void garprec_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int prec, int 
 
     //Copying to the GPU
     gx->toGPU(lx, n);
-    //gy->toGPU(ly, n);
     galpha->toGPU(lalpha, 1);
 
     //Launch

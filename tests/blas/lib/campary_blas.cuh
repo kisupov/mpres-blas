@@ -27,7 +27,7 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "../../3rdparty/campary/Doubles/src_gpu/multi_prec.h" //campary
+#include "../../3rdparty/campary/Doubles/src_gpu/multi_prec.h"
 
 #define CAMPARY_REDUCTION_BLOCKS 1024
 #define CAMPARY_REDUCTION_THREADS 32
