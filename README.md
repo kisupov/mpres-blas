@@ -18,7 +18,7 @@ Currently the following level-1 multiple-precision functions are only supported:
 * WAXPBY --- Scaled vector addition (`mp_array_waxpby`)
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
-Please check `tests/3rdparty/` subdirectory for details.
+Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for details.
 
 ### Details and notes
 
@@ -27,7 +27,7 @@ The subdirectory `src/params/` contains some predefined moduli sets that provide
 levels of precision. Using these moduli sets is preferred. Just replace the content of
 `src/params.h` with the content of the file you want to use.
 
-For now, when using custom or changing existing moduli set or its size,
+For now, when using a custom or changing an existing moduli set or its size,
 you need to change the following #defines in `src/params.h`:
 
 * `RNS_MODULI_PRODUCT_LOG2`
@@ -37,7 +37,7 @@ you need to change the following #defines in `src/params.h`:
 
 To compute `RNS_EVAL_MIN_LIMIT` and `RNS_EVAL_OFFSET_VEC_SIZE` use `rns_eval_const_calc()` from `src/rns.cuh`.
 These two constants will be removed in the near future, as soon as an improved algorithm for computing
-the interval evaluation of the RNS number is implemented.
+the interval evaluation of an RNS number is implemented.
 
 If the size of the moduli set increases, make sure that the loop-unrolled methods from `src/modular.cuh` remain correct.
 
