@@ -7,7 +7,7 @@ The MPRES-BLAS library provides a number of parallel multiple-precision BLAS
 The library uses a residue number system (RNS) to represent multiple-precision
 floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS
 a good tool for high-performance computing. The library also supports floating-point arithmetic
-in extended range using CUDA and provides several useful RNS computation techniques.
+in extended range using CUDA and provides several useful RNS computation algorithms.
 
 Currently the following level-1 multiple-precision functions are only supported:
 
