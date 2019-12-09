@@ -27,7 +27,7 @@
 #include "../../../src/blas/mprot.cuh"
 
 #define N 1000000 //Operation size
-#define REPEAT_TEST 1 //Number of repeats
+#define REPEAT_TEST 10 //Number of repeats
 
 //Execution configuration for mp_array_rot
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND   512
