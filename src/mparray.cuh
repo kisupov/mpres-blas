@@ -180,6 +180,7 @@ namespace cuda {
     /*!
      * Parallel componentwise vector multiplication (result = x * y)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
+     * @note For example of usage see mpdot.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
@@ -230,6 +231,7 @@ namespace cuda {
     /*!
      * Parallel componentwise vector multiplication (result = x * y)
      * Kernel #2 --- Computing the significands in the RNS (digits)
+     * @note For example of usage see mpdot.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
@@ -286,6 +288,7 @@ namespace cuda {
     /*!
      * Parallel componentwise multiplication of a vector by a scalar (result = alpha * x)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
+     * @note For example of usage see mpscal.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the vector in the GPU memory
@@ -341,6 +344,7 @@ namespace cuda {
     /*!
      * Parallel componentwise multiplication of a vector by a scalar (result = alpha * x)
      * Kernel #2 --- Computing the significands in the RNS (digits)
+     * @note For example of usage see mpscal.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
@@ -388,12 +392,13 @@ namespace cuda {
     }
 
 
-    /********************* Vector-vector (vv) addition kernels *********************/
+    /********************* Vector-vector (vv) addition and subtraction kernels *********************/
 
 
     /*!
      * Parallel componentwise vector addition (result = x + y)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
+     * @note For example of usage see mpaxpy.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
@@ -580,6 +585,7 @@ namespace cuda {
     /*!
      * Parallel componentwise vector addition (result = x + y)
      * Kernel #2 --- Computing the significands in the RNS (digits)
+     * @note For example of usage see mpaxpy.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
@@ -653,6 +659,193 @@ namespace cuda {
                 iy += gridDim.x * blockDim.x * incy;
                 ir += gridDim.x * blockDim.x * incr;
                 numberIdx = ir / RNS_MODULI_SIZE; //may be optimized
+            }
+        }
+    }
+
+    /*!
+     * Parallel componentwise vector subtraction (result = x - y)
+     * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
+     * @note Kernel 2 is the same as for vector addition algorithm, i.e, mp_array_add_digits_vv
+     * @param result - pointer to the result vector in the GPU memory
+     * @param incr - storage spacing between elements of result (must be non-zero)
+     * @param x - pointer to the first vector in the GPU memory
+     * @param incx -  storage spacing between elements of x (must be non-zero)
+     * @param y - pointer to the second vector in the GPU memory
+     * @param incy -  storage spacing between elements of y (must be non-zero)
+     * @param n - operation size
+     */
+    __global__
+    __launch_bounds__(BND_MAX_THREADS_IN_BLOCK_ADD_ESI_VV, BND_MIN_BLOCKS_IN_SM_ADD_ESI_VV)
+    void mp_array_sub_esi_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
+        int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
+        // Actual vector lengths (may differ from the operation size, n)
+        int lenx = x.len[0];
+        int leny = y.len[0];
+        int lenr = result.len[0];
+
+        er_float_t eval_x[2];
+        er_float_t eval_y[2];
+        int exp_x;
+        int exp_y;
+        int sign_x;
+        int sign_y;
+
+        // code for all increments equal to 1
+        if(incr == 1 && incx == 1 && incy == 1){
+            while (numberIdx < n) {
+                eval_x[0] = x.eval[numberIdx];
+                eval_x[1] = x.eval[numberIdx + lenx];
+                eval_y[0] = y.eval[numberIdx];
+                eval_y[1] = y.eval[numberIdx + leny];
+
+                exp_x = x.exp[numberIdx];
+                exp_y = y.exp[numberIdx];
+                sign_x = x.sign[numberIdx];
+                sign_y = y.sign[numberIdx] ^ 1; //invert the sign of y to perform subtraction instead of addition
+
+                //Exponent alignment
+                int dexp = exp_x - exp_y;
+                int gamma =  dexp * (dexp > 0); //if dexp > 0, then gamma =  dexp; otherwise gamma = 0
+                int theta = -dexp * (dexp < 0); //if dexp < 0, then theta = -dexp; otherwise theta = 0
+
+                int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < cuda::MP_J); //nzx (u) = 1 if x not need be zeroed; otherwise nzx = 0
+                int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < cuda::MP_J); //nzy (v) = 1 if y not need be zeroed; otherwise nzy = 0
+
+                gamma = gamma * nzy; //if nzy = 0 (y needs to be zeroed), then gamma = 0, i.e. we will multiply x by 2^0 without actually changing the value of x
+                theta = theta * nzx; //if nzx = 0 (x needs to be zeroed), then theta = 0, i.e. we will multiply y by 2^0 without actually changing the value of y
+
+                //Correction of the exponents
+                exp_x = (exp_x - gamma) * nzx; //if x needs to be zeroed, exp_x will be equal to 0
+                exp_y = (exp_y - theta) * nzy; //if y needs to be zeroed, exp_y will be equal to 0
+
+                //Correction of the signs
+                sign_x *= nzx;
+                sign_y *= nzy;
+
+                int factor_x = (1 - 2 * sign_x) * nzx; //-1 if  x is negative, 1 if x is positive, 0 if x needs to be zeroed (the exponent of x is too small)
+                int factor_y = (1 - 2 * sign_y) * nzy; //-1 if  y is negative, 1 if y is positive, 0 if y needs to be zeroed (the exponent of y is too small)
+
+                //Correction of the interval evaluations (multiplication by 2^gamma or 2^theta)
+                eval_x[0].exp += gamma;
+                eval_x[1].exp += gamma;
+                eval_y[0].exp += theta;
+                eval_y[1].exp += theta;
+
+                //Change the signs of the interval evaluation bounds when the number is negative
+                //The signs will not change when the number is positive
+                //If the number needs to be reset, then the bounds will also be reset
+                eval_x[0].frac *=  factor_x;
+                eval_x[1].frac *=  factor_x;
+                eval_y[0].frac *=  factor_y;
+                eval_y[1].frac *=  factor_y;
+
+                //Interval addition
+                cuda::er_add_rd(&result.eval[numberIdx], &eval_x[sign_x], &eval_y[sign_y]);
+                cuda::er_add_ru(&result.eval[numberIdx + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
+
+                //Calculation of the exponent and preliminary calculation of the sign (the sign will be changed if restoring is required)
+                result.sign[numberIdx] = 0;
+                result.exp[numberIdx] = (exp_x == 0) ? exp_y : exp_x;
+
+                //Restoring the negative result
+                //int plus  = result.eval[numberIdx].frac >= 0 && result.eval[numberIdx + lenr].frac >= 0;
+                int minus = result.eval[numberIdx].frac < 0 && result.eval[numberIdx + lenr].frac < 0;
+                if(minus){
+                    result.sign[numberIdx] = 1;
+                    er_float_t tmp = result.eval[numberIdx];
+                    result.eval[numberIdx].frac = -result.eval[numberIdx + lenr].frac;
+                    result.eval[numberIdx].exp  = result.eval[numberIdx + lenr].exp;
+                    result.eval[numberIdx + lenr].frac = -tmp.frac;
+                    result.eval[numberIdx + lenr].exp  = tmp.exp;
+                }
+
+                //Storing data for Kernel #2 in the buffer
+                int4 intBuf;
+                intBuf.x = gamma;
+                intBuf.y = theta;
+                intBuf.z = factor_x;
+                intBuf.w = factor_y;
+                result.buf[numberIdx] = intBuf;
+
+                //Go to the next iteration
+                numberIdx +=  gridDim.x * blockDim.x;
+            }
+        }
+        // code for unequal increments or equal increments not equal to 1
+        else{
+            int ix = incx > 0 ? numberIdx * incx : (-n + numberIdx + 1)*incx;
+            int iy = incy > 0 ? numberIdx * incy : (-n + numberIdx + 1)*incy;
+            int ir = incr > 0 ? numberIdx * incr : (-n + numberIdx + 1)*incr;
+            while (numberIdx < n) {
+                eval_x[0] = x.eval[ix];
+                eval_x[1] = x.eval[ix + lenx];
+                eval_y[0] = y.eval[iy];
+                eval_y[1] = y.eval[iy + leny];
+
+                exp_x = x.exp[ix];
+                exp_y = y.exp[iy];
+                sign_x = x.sign[ix];
+                sign_y = y.sign[iy] ^ 1; //invert the sign of y to perform subtraction instead of addition
+
+                int dexp = exp_x - exp_y;
+                int gamma =  dexp * (dexp > 0);
+                int theta = -dexp * (dexp < 0);
+
+                int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < cuda::MP_J);
+                int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < cuda::MP_J);
+
+                gamma = gamma * nzy;
+                theta = theta * nzx;
+
+                exp_x = (exp_x - gamma) * nzx;
+                exp_y = (exp_y - theta) * nzy;
+
+                sign_x *= nzx;
+                sign_y *= nzy;
+
+                int factor_x = (1 - 2 * sign_x) * nzx;
+                int factor_y = (1 - 2 * sign_y) * nzy;
+
+                eval_x[0].exp += gamma;
+                eval_x[1].exp += gamma;
+                eval_y[0].exp += theta;
+                eval_y[1].exp += theta;
+
+                eval_x[0].frac *=  factor_x;
+                eval_x[1].frac *=  factor_x;
+                eval_y[0].frac *=  factor_y;
+                eval_y[1].frac *=  factor_y;
+
+                cuda::er_add_rd(&result.eval[ir], &eval_x[sign_x], &eval_y[sign_y]);
+                cuda::er_add_ru(&result.eval[ir + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
+
+                result.sign[ir] = 0;
+                result.exp[ir] = (exp_x == 0) ? exp_y : exp_x;
+
+                //int plus  = result.eval[ir].frac >= 0 && result.eval[ir + lenr].frac >= 0;
+                int minus = result.eval[ir].frac < 0 && result.eval[ir + lenr].frac < 0;
+                if(minus){
+                    result.sign[ir] = 1;
+                    er_float_t tmp = result.eval[ir];
+                    result.eval[ir].frac = -result.eval[ir+lenr].frac;
+                    result.eval[ir].exp  = result.eval[ir+lenr].exp;
+                    result.eval[ir+lenr].frac = -tmp.frac;
+                    result.eval[ir+lenr].exp  = tmp.exp;
+                }
+
+                int4 intBuf;
+                intBuf.x = gamma;
+                intBuf.y = theta;
+                intBuf.z = factor_x;
+                intBuf.w = factor_y;
+                result.buf[ir] = intBuf;
+
+                //Go to the next iteration
+                numberIdx +=  gridDim.x * blockDim.x;
+                ix += gridDim.x * blockDim.x * incx;
+                iy += gridDim.x * blockDim.x * incy;
+                ir += gridDim.x * blockDim.x * incr;
             }
         }
     }
