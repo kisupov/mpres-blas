@@ -667,6 +667,7 @@ namespace cuda {
      * Parallel componentwise vector subtraction (result = x - y)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note Kernel 2 is the same as for vector addition algorithm, i.e, mp_array_add_digits_vv
+     * @note For example of usage see mprot.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
