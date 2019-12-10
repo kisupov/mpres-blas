@@ -126,6 +126,27 @@ __global__  void cump_axpy_kernel(int n, mpf_array_t a, mpf_array_t X, mpf_array
     }
 }
 
+/*
+ * Performs rotation of points in the plane
+ */
+__global__  void cump_rot_kernel(int n, mpf_array_t x, mpf_array_t y, mpf_array_t c, mpf_array_t s, mpf_array_t buffer1, mpf_array_t buffer2) {
+    using namespace cump;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    while (idx < n) {
+        //perform c * x
+        mpf_mul(buffer1[idx], c[0], x[idx]);
+        //perform s * y
+        mpf_mul(buffer2[idx], s[0], y[idx]);
+        //perform y = c * y - s * x
+        mpf_mul(x[idx], x[idx], s[0]);
+        mpf_mul(y[idx], y[idx], c[0]);
+        mpf_sub(y[idx], y[idx], x[idx]);
+        //perform x = c * x + s * y
+        mpf_add(x[idx], buffer1[idx], buffer2[idx]);
+        idx += gridDim.x * blockDim.x;
+    }
+}
+
 
 /*
  * Set the elements of an array to zero
@@ -431,6 +452,97 @@ void cump_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int prec, int con
     cumpf_array_clear(dx);
     cumpf_array_clear(dy);
     cumpf_array_clear(dalpha);
+}
+
+/*
+ * ROT test
+ */
+void cump_rot_test(int n, mpfr_t * x, mpfr_t * y, mpfr_t c, mpfr_t s, int prec, int convert_digits, int repeat) {
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CUMP rot");
+
+    //Set precision
+    mpf_set_default_prec(prec);
+    cumpf_set_default_prec(prec);
+
+    //Execution configuration
+    int threads = 64;
+    int blocks = n / threads + (n % threads ? 1 : 0);
+
+    //Host data
+    mpf_t *hx = new mpf_t[n];
+    mpf_t *hy = new mpf_t[n];
+    mpf_t hs;
+    mpf_t hc;
+
+    //GPU data
+    cumpf_array_t dx;
+    cumpf_array_t dy;
+    cumpf_array_t ds;
+    cumpf_array_t dc;
+    cumpf_array_t dbuffer1;
+    cumpf_array_t dbuffer2;
+
+    cumpf_array_init2(dx, n, prec);
+    cumpf_array_init2(dy, n, prec);
+    cumpf_array_init2(dbuffer1, n, prec);
+    cumpf_array_init2(dbuffer2, n, prec);
+    cumpf_array_init2(ds, 1, prec);
+    cumpf_array_init2(dc, 1, prec);
+
+    //Convert from MPFR
+    for(int i = 0; i < n; i++){
+        mpf_init2(hx[i], prec);
+        mpf_init2(hy[i], prec);
+        mpf_set_str(hx[i], convert_to_string_sci(x[i], convert_digits).c_str(), 10);
+        mpf_set_str(hy[i], convert_to_string_sci(y[i], convert_digits).c_str(), 10);
+    }
+    mpf_init2(hs, prec);
+    mpf_set_str(hs, convert_to_string_sci(s, convert_digits).c_str(), 10);
+    mpf_init2(hc, prec);
+    mpf_set_str(hc, convert_to_string_sci(c, convert_digits).c_str(), 10);
+
+    //Copying alpha to the GPU
+    cumpf_array_set_mpf(ds, &hs, 1);
+    cumpf_array_set_mpf(dc, &hc, 1);
+
+    //Launch
+    for(int i = 0; i < repeat; i++){
+        cumpf_array_set_mpf(dx, hx, n);
+        cumpf_array_set_mpf(dy, hy, n);
+        cudaDeviceSynchronize();
+        StartCudaTimer();
+        cump_rot_kernel<<<blocks, threads>>>(n, dx, dy, dc, ds, dbuffer1, dbuffer2);
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+
+    //Copying to the host
+    mpf_array_set_cumpf(hx, dx, n);
+    mpf_array_set_cumpf(hy, dy, n);
+    for(int i = 1; i < n; i++){
+        mpf_add(hx[0], hx[i], hx[0]);
+        mpf_add(hy[0], hy[i], hy[0]);
+    }
+    gmp_printf ("result x: %.70Ff \n", hx[0]);
+    gmp_printf ("result y: %.70Ff \n", hy[0]);
+
+    //Cleanup
+    mpf_clear(hc);
+    mpf_clear(hs);
+    for(int i = 0; i < n; i++){
+        mpf_clear(hx[i]);
+        mpf_clear(hy[i]);
+    }
+    delete [] hx;
+    delete [] hy;
+    cumpf_array_clear(dx);
+    cumpf_array_clear(dy);
+    cumpf_array_clear(ds);
+    cumpf_array_clear(dc);
+    cumpf_array_clear(dbuffer1);
+    cumpf_array_clear(dbuffer2);
 }
 
 

@@ -32,6 +32,7 @@ namespace Logger {
         BLAS_DOT_PERFORMANCE_TEST,
         BLAS_SCAL_PERFORMANCE_TEST,
         BLAS_AXPY_PERFORMANCE_TEST,
+        BLAS_ROT_PERFORMANCE_TEST,
         BLAS_ASUM_ACCURACY_TEST,
         BLAS_DOT_ACCURACY_TEST,
         BLAS_SCAL_ACCURACY_TEST,
@@ -49,6 +50,8 @@ namespace Logger {
                 return "Performance test for BLAS SCAL routines";
             case BLAS_AXPY_PERFORMANCE_TEST:
                 return "Performance test for BLAS AXPY routines";
+            case BLAS_ROT_PERFORMANCE_TEST:
+                return "Performance test for BLAS ROT routines";
             case BLAS_ASUM_ACCURACY_TEST:
                 return "Accuracy test for MPRES-BLAS ASUM routine";
             case BLAS_DOT_ACCURACY_TEST:

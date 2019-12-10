@@ -177,6 +177,20 @@ __global__ void campary_axpy_kernel(multi_prec<prec> *alpha, multi_prec<prec> *x
     }
 }
 
+/*
+ * Performs rotation of points in the plane
+ */
+template<int prec>
+__global__ void campary_rot_kernel(multi_prec<prec> *x, multi_prec<prec> *y, multi_prec<prec> *c, multi_prec<prec> *s, int n) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    multi_prec<prec> temp;
+    if( index < n){
+        temp = c[0] * x[index] + s[0] * y[index];
+        y[index] = c[0] * y[index] - s[0] * x[index];
+        x[index] = temp;
+    }
+}
+
 /********************* BLAS fuctions *********************/
 
 /*
@@ -250,6 +264,15 @@ void campary_axpy(int n, multi_prec<prec> *alpha, multi_prec<prec> *x, multi_pre
     campary_axpy_kernel <prec> <<<BLOCKS, CAMPARY_VECTOR_MULTIPLY_THREADS>>>(alpha, x, y, n);
 }
 
+/*
+ * ROT
+ */
+template <int prec>
+void campary_rot(int n, multi_prec<prec> *x, multi_prec<prec> *y, multi_prec<prec> *c, multi_prec<prec> *s){
+    int BLOCKS = n / CAMPARY_VECTOR_MULTIPLY_THREADS + 1;
+    campary_rot_kernel <prec> <<<BLOCKS, CAMPARY_VECTOR_MULTIPLY_THREADS>>>(x, y, c, s, n);
+}
+
 /********************* Benchmarks *********************/
 
 // Printing the result, which is a CAMPARY's floating-point expansion (ONE multiple precision number)
@@ -267,8 +290,8 @@ static void printResult(multi_prec<nterms> result){
         mpfr_add(r, r, x, MPFR_RNDN);
     }
     mpfr_printf("result: %.70Rf \n", r);
-    printf("RAW Data:\n");
-    result.prettyPrint();
+    /* printf("RAW Data:\n");
+    result.prettyPrint(); */
     mpfr_clear(x);
     mpfr_clear(r);
 }
@@ -505,6 +528,77 @@ void campary_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int convert_di
     cudaFree(dalpha);
     cudaFree(dx);
     cudaFree(dy);
+}
+
+
+template<int prec>
+void campary_rot_test(int n, mpfr_t *x, mpfr_t *y, mpfr_t c, mpfr_t s, int convert_digits, int repeats){
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CAMPARY rot");
+
+    //Host data
+    multi_prec<prec> hc;
+    multi_prec<prec> hs;
+    multi_prec<prec> *hx = new multi_prec<prec>[n];
+    multi_prec<prec> *hy = new multi_prec<prec>[n];
+
+    //GPU data
+    multi_prec<prec> *dx;
+    multi_prec<prec> *dy;
+    multi_prec<prec> *dc;
+    multi_prec<prec> *ds;
+
+    cudaMalloc(&dx, sizeof(multi_prec<prec>) * n);
+    cudaMalloc(&dy, sizeof(multi_prec<prec>) * n);
+    cudaMalloc(&dc, sizeof(multi_prec<prec>));
+    cudaMalloc(&ds, sizeof(multi_prec<prec>));
+
+    //Convert from MPFR
+    #pragma omp parallel for
+    for(int i = 0; i < n; i++){
+        hx[i] = convert_to_string_sci(x[i], convert_digits).c_str();
+        hy[i] = convert_to_string_sci(y[i], convert_digits).c_str();
+    }
+    hc = convert_to_string_sci(c, convert_digits).c_str();
+    hs = convert_to_string_sci(s, convert_digits).c_str();
+
+    //Copying scalars to the GPU
+    cudaMemcpy(dc, &hc, sizeof(multi_prec<prec>), cudaMemcpyHostToDevice);
+    cudaMemcpy(ds, &hs, sizeof(multi_prec<prec>), cudaMemcpyHostToDevice);
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    for(int i = 0; i < repeats; i++){
+        cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
+        cudaMemcpy(dy, hy, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
+        StartCudaTimer();
+        campary_rot(n, dx, dy, dc, ds);
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hy, dy, sizeof(multi_prec<prec>) * n, cudaMemcpyDeviceToHost);
+    cudaMemcpy(hx, dx, sizeof(multi_prec<prec>) * n, cudaMemcpyDeviceToHost);
+
+    for(int i = 1; i < n; i++){
+        hx[0] += hx[i];
+        hy[0] += hy[i];
+    }
+    printResult<prec>(hx[0]);
+    printResult<prec>(hy[0]);
+
+    //Cleanup
+    delete [] hx;
+    delete [] hy;
+    cudaFree(dx);
+    cudaFree(dy);
+    cudaFree(dc);
+    cudaFree(ds);
 }
 
 
