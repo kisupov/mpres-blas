@@ -57,7 +57,6 @@ __global__ void campary_asum_kernel(int n, multi_prec<prec> *x, multi_prec<prec>
         i += k;
     }
     __syncthreads();
-
     // do reduction in shared mem
     i = nextPow2 >> 1; // half of nextPow2
     while(i >= 1){
@@ -95,7 +94,6 @@ __global__ void campary_sum_kernel(int n, multi_prec<prec> *x, multi_prec<prec> 
         i += k;
     }
     __syncthreads();
-
     // do reduction in shared mem
     i = nextPow2 >> 1; // half of nextPow2
     while(i >= 1){
@@ -136,7 +134,6 @@ __global__ void campary_dot_kernel(int n, multi_prec<prec> *x, multi_prec<prec> 
         i += k;
     }
     __syncthreads();
-
     // do reduction in shared mem
     i = nextPow2 >> 1; // half of nextPow2
     while(i >= 1){
@@ -191,7 +188,48 @@ __global__ void campary_rot_kernel(multi_prec<prec> *x, multi_prec<prec> *y, mul
     }
 }
 
-/********************* BLAS fuctions *********************/
+/*
+ * Combines an axpy and a dot product and stores the results of each block in the result array
+ * For final reduction, campary_sum_kernel should be used
+ */
+template<int prec>
+__global__ void campary_axpy_dot_kernel(int n, multi_prec<prec> *alpha, multi_prec<prec> *w, multi_prec<prec> *v,  multi_prec<prec> *u, multi_prec<prec> *result,  const unsigned int nextPow2) {
+
+    __shared__ multi_prec<prec> sdata[CAMPARY_REDUCTION_THREADS];
+    multi_prec<prec> tmp;
+
+    const unsigned int tid = threadIdx.x;
+    const unsigned int bid = blockIdx.x;
+    const unsigned int bsize = blockDim.x;
+    const unsigned int k = gridDim.x * bsize;
+    unsigned int i = bid * bsize + tid;
+
+    sdata[tid] = 0.0;
+    while (i < n) {
+        tmp = w[i] - alpha[0] * v[i];
+        w[i] = tmp;
+        sdata[tid] += u[i] * tmp;
+        i += k;
+    }
+    __syncthreads();
+    // do reduction in shared mem
+    i = nextPow2 >> 1; // half of nextPow2
+    while(i >= 1){
+        if ((tid < i) && (tid + i < bsize)) {
+            sdata[tid] += sdata[tid + i];
+        }
+        i = i >> 1;
+        __syncthreads();
+    }
+    // write result for this block to global mem
+    if (tid == 0) {
+        result[bid] = sdata[tid];
+    };
+    __syncthreads();
+
+}
+
+/********************* BLAS functions *********************/
 
 /*
  * ASUM
@@ -273,6 +311,33 @@ void campary_rot(int n, multi_prec<prec> *x, multi_prec<prec> *y, multi_prec<pre
     campary_rot_kernel <prec> <<<BLOCKS, CAMPARY_VECTOR_MULTIPLY_THREADS>>>(x, y, c, s, n);
 }
 
+/*
+ * AXPY_DOT
+ */
+template <int prec>
+void campary_axpy_dot(int n, multi_prec<prec> *alpha, multi_prec<prec> *w, multi_prec<prec> *v,  multi_prec<prec> *u, multi_prec<prec> *r) {
+    multi_prec<prec> *d_buf; // device buffer
+
+    // Allocate memory buffers for the device results
+    cudaMalloc((void **) &d_buf, sizeof(multi_prec<prec>) * CAMPARY_REDUCTION_BLOCKS);
+
+    // Power of two that is greater that or equals to CAMPARY_REDUCTION_THREADS
+    const unsigned int POW = nextPow2(CAMPARY_REDUCTION_THREADS);
+
+    // Kernel memory configurations. We prefer shared memory
+    cudaFuncSetCacheConfig(campary_asum_kernel <prec>, cudaFuncCachePreferShared);
+    cudaFuncSetCacheConfig(campary_dot_kernel <prec>, cudaFuncCachePreferShared);
+
+    //Launch the 1st CUDA kernel
+    campary_axpy_dot_kernel <prec> <<< CAMPARY_REDUCTION_BLOCKS, CAMPARY_REDUCTION_THREADS >>> (n, alpha, w, v, u, d_buf, POW);
+
+    //Launch the 2nd CUDA kernel to perform summation of the results of parallel blocks on the GPU
+    campary_sum_kernel <prec> <<< 1, CAMPARY_REDUCTION_THREADS >>> (CAMPARY_REDUCTION_BLOCKS, d_buf, r, POW);
+
+    // Cleanup
+    cudaFree(d_buf);
+}
+
 /********************* Benchmarks *********************/
 
 // Printing the result, which is a CAMPARY's floating-point expansion (ONE multiple precision number)
@@ -322,7 +387,7 @@ void campary_asum_test(int n, mpfr_t *x, int convert_digits, int repeats) {
         hx[i] = convert_to_string_sci(x[i], convert_digits).c_str();
     }
 
-    //Copying to the GPU
+    //Copying data to the GPU
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
 
     //Launch
@@ -377,10 +442,9 @@ void campary_dot_test(int n, mpfr_t *x, mpfr_t *y, int convert_digits, int repea
         hy[i] = convert_to_string_sci(y[i], convert_digits).c_str();
     }
 
-    //Copying to the GPU
+    //Copying data to the GPU
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(dy, hy, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
-
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -498,7 +562,7 @@ void campary_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int convert_di
     }
     halpha = convert_to_string_sci(alpha, convert_digits).c_str();
 
-    //Copying alpha to the GPU
+    //Copying data to the GPU
     cudaMemcpy(dalpha, &halpha, sizeof(multi_prec<prec>), cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -530,7 +594,9 @@ void campary_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int convert_di
     cudaFree(dy);
 }
 
-
+/*
+ * ROT test
+ */
 template<int prec>
 void campary_rot_test(int n, mpfr_t *x, mpfr_t *y, mpfr_t c, mpfr_t s, int convert_digits, int repeats){
     Logger::printDash();
@@ -574,7 +640,7 @@ void campary_rot_test(int n, mpfr_t *x, mpfr_t *y, mpfr_t c, mpfr_t s, int conve
         cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
         cudaMemcpy(dy, hy, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
         StartCudaTimer();
-        campary_rot(n, dx, dy, dc, ds);
+        campary_rot<prec>(n, dx, dy, dc, ds);
         EndCudaTimer();
     }
     PrintCudaTimer("took");
@@ -599,6 +665,83 @@ void campary_rot_test(int n, mpfr_t *x, mpfr_t *y, mpfr_t c, mpfr_t s, int conve
     cudaFree(dy);
     cudaFree(dc);
     cudaFree(ds);
+}
+
+/*
+ * AXPY_DOT test
+ */
+template<int prec>
+void campary_axpy_dot_test(int n, mpfr_t alpha, mpfr_t *w, mpfr_t *v, mpfr_t *u, int convert_digits, int repeats){
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CAMPARY axpy_dot");
+
+    //Host data
+    multi_prec<prec> halpha;
+    multi_prec<prec> *hv = new multi_prec<prec>[n];
+    multi_prec<prec> *hu = new multi_prec<prec>[n];
+    multi_prec<prec> *hw = new multi_prec<prec>[n];
+    multi_prec<prec> *hr = new multi_prec<prec>[1];
+
+    //GPU data
+    multi_prec<prec> *dalpha;
+    multi_prec<prec> *dv;
+    multi_prec<prec> *du;
+    multi_prec<prec> *dw;
+    multi_prec<prec> *dr;
+
+    cudaMalloc(&dalpha, sizeof(multi_prec<prec>));
+    cudaMalloc(&dv, sizeof(multi_prec<prec>) * n);
+    cudaMalloc(&du, sizeof(multi_prec<prec>) * n);
+    cudaMalloc(&dw, sizeof(multi_prec<prec>) * n);
+    cudaMalloc(&dr, sizeof(multi_prec<prec>));
+
+    //Convert from MPFR
+    #pragma omp parallel for
+    for(int i = 0; i < n; i ++){
+        hv[i] = convert_to_string_sci(v[i], convert_digits).c_str();
+        hu[i] = convert_to_string_sci(u[i], convert_digits).c_str();
+        hw[i] = convert_to_string_sci(w[i], convert_digits).c_str();
+    }
+    halpha = convert_to_string_sci(alpha, convert_digits).c_str();
+
+    //Copying data to the GPU
+    cudaMemcpy(dalpha, &halpha, sizeof(multi_prec<prec>), cudaMemcpyHostToDevice);
+    cudaMemcpy(dv, hv, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(du, hu, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    for(int i = 0; i < repeats; i ++){
+        cudaMemcpy(dw, hw, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
+        StartCudaTimer();
+        campary_axpy_dot<prec>(n, dalpha, dw, dv, du, dr);
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hr, dr, sizeof(multi_prec<prec>), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hw, dw, sizeof(multi_prec<prec>) * n, cudaMemcpyDeviceToHost);
+    for(int i = 1; i < n; i++){
+        hw[0] += hw[i];
+    }
+    printResult<prec>(hw[0]);
+    printResult<prec>(hr[0]);
+
+    //Cleanup
+    delete [] hv;
+    delete [] hu;
+    delete [] hw;
+    delete [] hr;
+    cudaFree(dalpha);
+    cudaFree(dv);
+    cudaFree(du);
+    cudaFree(dw);
+    cudaFree(dr);
 }
 
 
