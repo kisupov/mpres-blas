@@ -17,6 +17,7 @@ Currently the following level-1 multiple-precision functions are only supported:
 * AXPY --- Constant times a vector plus a vector (`mp_array_axpy`)
 * WAXPBY --- Scaled vector addition (`mp_array_waxpby`)
 * ROT --- Apply a plane rotation to vectors (`mp_array_rot`)
+* AXPY_DOT --- Combined AXPY and DOT (`mp_array_axpy_dot`)
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
 Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for details.
