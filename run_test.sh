@@ -5,12 +5,17 @@ test_name=$1
 rns_moduli_size=$2
 starting_time="$(date +"%I:%M:%S")"
 log_file_name=${test_name}-${rns_moduli_size}-${starting_time}.txt
-iterations=1
+iterations=3
 
 #copy desired parameters
 cp ./src/params/32-bit-moduli/params.${rns_moduli_size}.h ./src/params.h
 #remove old executable
-rm ./${cmake_base_dir}/${tests_path}/${test_name}
+rm -r ${cmake_base_dir} \
+    && mkdir ${cmake_base_dir} \
+    && cd ${cmake_base_dir} \
+    && cmake ../ -DCMAKE_BUILD_TYPE=Release \
+    && cd ../
+
 #run test by configured variables
 echo "building test ${log_file_name}"
 #change directory to cmake base path
