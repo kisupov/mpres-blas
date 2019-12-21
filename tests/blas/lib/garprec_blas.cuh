@@ -532,7 +532,7 @@ void garprec_rot_test(int n, mpfr_t *x, mpfr_t *y, mpfr_t c, mpfr_t s, int prec,
 void garprec_axpy_dot_test(int n, mpfr_t alpha, mpfr_t *w, mpfr_t *v, mpfr_t *u, int prec, int convert_digits, int repeat){
     Logger::printDash();
     InitCudaTimer();
-    PrintTimerName("[GPU] GARPREC axpy dot");
+    PrintTimerName("[GPU] GARPREC axpy_dot");
 
     //Init and set precision
     int maxPrecWords = initializeGarprec(prec);
