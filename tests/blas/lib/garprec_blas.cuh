@@ -215,7 +215,6 @@ void garprec_sum_test(int n, mpfr_t *x, int prec, int convert_digits, int repeat
                  dtemp->d_mpr,
                  dtemp->interval,
                  maxPrecWords);
-
         garprec_sum_kernel2<<<1, blocks>>>(
                 blocks,
                 dx->d_mpr,
@@ -279,10 +278,8 @@ void garprec_dot_test(int n, mpfr_t *x, mpfr_t *y, int prec, int convert_digits,
         dx->toGPU(hx, n);
         dy->toGPU(hy, n);
         garprec_reset_array<<<blocks_mul, threads>>>(n,  dtemp->d_mpr, dtemp->interval, maxPrecWords);
-
         StartCudaTimer();
         garprec_vec_mul_kernel<<<blocks_mul, threads>>>(n, dx->d_mpr, dx->interval, dy->d_mpr, dy->interval, dx->d_mpr, dx->interval, maxPrecWords);
-
         garprec_sum_kernel1<<<blocks_red, threads>>>(
                 n,
                 dy->d_mpr,
@@ -292,7 +289,6 @@ void garprec_dot_test(int n, mpfr_t *x, mpfr_t *y, int prec, int convert_digits,
                 dtemp->d_mpr,
                 dtemp->interval,
                 maxPrecWords);
-
         garprec_sum_kernel2<<<1, blocks_red>>>(
                 blocks_red,
                 dx->d_mpr,
@@ -371,8 +367,9 @@ void garprec_scal_test(int n, mpfr_t alpha, mpfr_t *x, int prec, int convert_dig
 
     //Cleanup
     delete [] lx;
-    galpha->release();
+    delete [] lalpha;
     gx->release();
+    galpha->release();
     garprecFinalize();
 }
 
@@ -434,9 +431,12 @@ void garprec_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int prec, int 
 
     //Cleanup
     delete [] lx;
-    galpha->release();
+    delete [] ly;
+    delete [] lalpha;
     gx->release();
     gy->release();
+    gtmp->release();
+    galpha->release();
     garprecFinalize();
 }
 
@@ -515,10 +515,114 @@ void garprec_rot_test(int n, mpfr_t *x, mpfr_t *y, mpfr_t c, mpfr_t s, int prec,
     //Cleanup
     delete [] lx;
     delete [] ly;
+    delete [] lc;
+    delete [] ls;
     gx->release();
     gy->release();
     gc->release();
     gs->release();
+    gtmp->release();
+    gtmp2->release();
+    garprecFinalize();
+}
+
+/*
+ * AXPY_DOT test
+ */
+void garprec_axpy_dot_test(int n, mpfr_t alpha, mpfr_t *w, mpfr_t *v, mpfr_t *u, int prec, int convert_digits, int repeat){
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] GARPREC axpy dot");
+
+    //Init and set precision
+    int maxPrecWords = initializeGarprec(prec);
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Execution configuration
+    int threads = 64;
+    int blocks_mul = n / threads + (n % threads ? 1 : 0);
+    int blocks_red = 1024;
+
+    //Host data
+    mp_real *lalpha = new mp_real[1];
+    mp_real *lv = new mp_real[n];
+    mp_real *lu = new mp_real[n];
+    mp_real *lw = new mp_real[n];
+
+    //GPU data
+    gmp_array *galpha = new gmp_array(maxPrecWords, 1, true);
+    gmp_array *gv = new gmp_array(maxPrecWords, n, true);
+    gmp_array *gu = new gmp_array(maxPrecWords, n, true);
+    gmp_array *gw = new gmp_array(maxPrecWords, n, true);
+    gmp_array *gtmp = new gmp_array(maxPrecWords, n, true);
+    gmp_array *gtmp2 = new gmp_array(maxPrecWords, n, true);
+
+    //Convert from MPFR
+    #pragma omp parallel for
+    for(int i = 0; i < n; i++){
+        lv[i].read(convert_to_string_sci(v[i], convert_digits));
+        lu[i].read(convert_to_string_sci(u[i], convert_digits));
+        lw[i].read(convert_to_string_sci(w[i], convert_digits));
+    }
+    lalpha[0].read(convert_to_string_sci(alpha, convert_digits));
+    lalpha[0] = lalpha[0] * -1.0;
+
+    //Copying unchangeable data to the GPU
+    galpha->toGPU(lalpha, 1);
+    gv->toGPU(lv, n);
+
+    //Launch
+    for(int j = 0; j < repeat; j ++){
+        gu->toGPU(lu, n);
+        gw->toGPU(lw, n);
+        garprec_reset_array<<<blocks_mul, threads>>>(n,  gtmp2->d_mpr, gtmp2->interval, maxPrecWords);
+        StartCudaTimer();
+        garprec_axpy_kernel<<<blocks_mul, threads>>>(n,
+                galpha->d_mpr, galpha->interval,
+                gv->d_mpr, gv->interval,
+                gw->d_mpr, gw->interval,
+                gtmp->d_mpr, gtmp->interval,
+                maxPrecWords);
+        garprec_vec_mul_kernel<<<blocks_mul, threads>>>(n, gu->d_mpr, gu->interval, gw->d_mpr, gw->interval, gu->d_mpr, gu->interval, maxPrecWords);
+        garprec_sum_kernel1<<<blocks_red, threads>>>(
+                n,
+                gtmp->d_mpr,
+                gtmp->interval,
+                gu->d_mpr,
+                gu->interval,
+                gtmp2->d_mpr,
+                gtmp2->interval,
+                maxPrecWords);
+        garprec_sum_kernel2<<<1, blocks_red>>>(
+                blocks_red,
+                gu->d_mpr,
+                gu->interval,
+                gtmp->d_mpr,
+                gtmp->interval,
+                maxPrecWords);
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+
+    //Copying to the host
+    gu->fromGPU(lu, n);
+    gw->fromGPU(lw, n);
+    for(int i = 1; i < n; i ++){
+        lw[0] += lw[i];
+    }
+    printf("result w: %.83s \n", lw[0].to_string().c_str());
+    printf("result r: %.83s \n", lu[0].to_string().c_str());
+
+    //Cleanup
+    delete [] lv;
+    delete [] lu;
+    delete [] lw;
+    delete [] lalpha;
+    galpha->release();
+    gv->release();
+    gu->release();
+    gw->release();
     gtmp->release();
     gtmp2->release();
     garprecFinalize();

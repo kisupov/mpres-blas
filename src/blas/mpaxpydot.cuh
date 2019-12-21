@@ -61,7 +61,26 @@ namespace cuda {
             return;
         }
 
-        cuda::mp_array_axpy< gridDim1, blockDim1, gridDim2 >(n, alpha, v, incv, w, incw, buffer);
+        //Multiplication buffer = alpha * v - Computing the signs, exponents, and interval evaluations
+        mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer, 1, v, incv, alpha, n);
+
+        //Multiplication buffer = alpha * v - Multiplying the digits in the RNS
+        mp_array_mul_digits_vs<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, 1, v, incv, alpha, n);
+
+        //Rounding the intermediate result (buffer)
+        mp_array_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
+
+        //Subtraction  w = w - buffer - Computing the signs, exponents, and interval evaluations
+        mp_array_sub_esi_vv<<< gridDim1, blockDim1 >>> (w, incw, w, incw, buffer, 1, n);
+
+        //Subtraction  w = w - buffer - Adding the digits in the RNS
+        //We call mp_array_add_digits_vv since the sign has been changed in mp_array_sub_esi_vv
+        mp_array_add_digits_vv<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (w, incw, w, incw, buffer, 1, n);
+
+        //Rounding the vector w
+        mp_array_round<<< gridDim1, blockDim1 >>> (w, incw, n);
+
+        //Call dot to compute r
         cuda::mp_array_dot< gridDim1, blockDim1, gridDim2, gridDim3, blockDim3 >(n, u, incu, w, incw, r, buffer);
     }
 
