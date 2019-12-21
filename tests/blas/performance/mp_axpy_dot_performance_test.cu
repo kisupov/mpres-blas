@@ -224,8 +224,11 @@ int main() {
 
     // Multiple-precision tests
     mpres_test(N, alpha[0], vectorW, vectorV, vectorU);
+    cudaDeviceReset();
     garprec_axpy_dot_test(N, alpha[0], vectorW, vectorV, vectorU, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    cudaDeviceReset();
     campary_axpy_dot_test<CAMPARY_PRECISION>(N, alpha[0], vectorW, vectorV, vectorU, INP_DIGITS, REPEAT_TEST);
+    cudaDeviceReset();
     cump_axpy_dot_test(N, alpha[0], vectorW, vectorV, vectorU, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     //cudaCheckErrors(); //CUMP gives failure
