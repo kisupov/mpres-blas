@@ -25,7 +25,6 @@
 #ifndef MPAXPYDOT_CUH
 #define MPAXPYDOT_CUH
 
-#include "mpaxpy.cuh"
 #include "mpdot.cuh"
 
 namespace cuda {
