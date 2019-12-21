@@ -223,7 +223,7 @@ int main() {
     alpha = create_random_array(1, INP_BITS);
 
     // Multiple-precision tests
-    mpres_test(n, alpha[0], vectorW, vectorV, vectorU);
+    mpres_test(N, alpha[0], vectorW, vectorV, vectorU);
     garprec_axpy_dot_test(N, alpha[0], vectorW, vectorV, vectorU, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
     campary_axpy_dot_test<CAMPARY_PRECISION>(N, alpha[0], vectorW, vectorV, vectorU, INP_DIGITS, REPEAT_TEST);
     cump_axpy_dot_test(N, alpha[0], vectorW, vectorV, vectorU, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
