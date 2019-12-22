@@ -83,7 +83,7 @@ __global__ void garprec_sum_kernel1(int n, double *result, int int_result, doubl
  */
 __global__ void garprec_sum_kernel2(int n, double *result, int interval_result, double *x, int interval_x, int prec_words){
     unsigned int tid = threadIdx.x;
-    double d[MAX_PREC_WORDS];
+    double d[MAX_D_SIZE];
     // do reduction in global mem
     gmpeq(x + tid, interval_x, result + tid, interval_result, prec_words); //здесь x - это результат работы блоков с предыдущего запуска
     __syncthreads();

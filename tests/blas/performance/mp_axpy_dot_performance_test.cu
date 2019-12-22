@@ -35,7 +35,7 @@
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
 #define MPRES_CUDA_BLOCKS_REDUCE         256
-#define MPRES_CUDA_THREADS_REDUCE        128
+#define MPRES_CUDA_THREADS_REDUCE        64
 
 #define CAMPARY_PRECISION 4 //in n-double (e.g., 2-double, 3-double, 4-double, 8-double, etc.)
 
@@ -54,13 +54,12 @@ void initialize(){
     rns_const_init();
     mp_const_init();
     setPrecisions();
-    mp_real::mp_init(MP_PRECISION_DEC);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 }
 
 void finalize(){
-    mp_real::mp_finalize();
+    cudaDeviceReset();
 }
 
 void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
@@ -80,16 +79,6 @@ void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
     mpfr_clear(mpfr_result);
 }
 
-void print_mpfr_sum(mpfr_t *result, int v_length, const char *name) {
-    mpfr_t tmp_sum;
-    mpfr_init2(tmp_sum, MP_PRECISION);
-    mpfr_set_d(tmp_sum, 0.0, MPFR_RNDN);
-    for (int i = 0; i < v_length; i++) {
-        mpfr_add(tmp_sum, tmp_sum, result[i], MPFR_RNDN);
-    }
-    mpfr_printf("result %s: %.70Rf\n", name, tmp_sum);
-    mpfr_clear(tmp_sum);
-}
 
 /********************* Benchmarks *********************/
 
@@ -226,9 +215,7 @@ int main() {
     mpres_test(N, alpha[0], vectorW, vectorV, vectorU);
     cudaDeviceReset();
     garprec_axpy_dot_test(N, alpha[0], vectorW, vectorV, vectorU, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
-    cudaDeviceReset();
-    campary_axpy_dot_test<CAMPARY_PRECISION>(N, alpha[0], vectorW, vectorV, vectorU, INP_DIGITS, REPEAT_TEST);
-    cudaDeviceReset();
+    //campary_axpy_dot_test<CAMPARY_PRECISION>(N, alpha[0], vectorW, vectorV, vectorU, INP_DIGITS, REPEAT_TEST);
     cump_axpy_dot_test(N, alpha[0], vectorW, vectorV, vectorU, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     //cudaCheckErrors(); //CUMP gives failure
@@ -244,7 +231,6 @@ int main() {
     delete [] vectorV;
     delete [] vectorU;
     delete [] vectorW;
-    cudaDeviceReset();
 
     //Finalize
     finalize();

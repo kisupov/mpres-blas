@@ -35,7 +35,7 @@
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
 #define MPRES_CUDA_BLOCKS_REDUCE         256
-#define MPRES_CUDA_THREADS_REDUCE        128
+#define MPRES_CUDA_THREADS_REDUCE        64
 
 #define CAMPARY_PRECISION 8 //in n-double (e.g., 2-double, 3-double, 4-double, 8-double, etc.)
 
@@ -54,13 +54,12 @@ void initialize(){
     rns_const_init();
     mp_const_init();
     setPrecisions();
-    mp_real::mp_init(MP_PRECISION_DEC);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 }
 
 void finalize(){
-    mp_real::mp_finalize();
+    cudaDeviceReset();
 }
 
 
@@ -218,6 +217,7 @@ void arprec_test(mpfr_t *x, mpfr_t *y, int n){
     PrintTimerName("[CPU] ARPREC dot");
 
     //Init
+    mp_real::mp_init(MP_PRECISION_DEC);
     mp_real *mp_real_x = new mp_real[n]; // Arprec vector
     mp_real *mp_real_y = new mp_real[n]; // Arprec vector
     mp_real mp_real_product = 0.0;
@@ -239,6 +239,7 @@ void arprec_test(mpfr_t *x, mpfr_t *y, int n){
     //Clear
     delete [] mp_real_x;
     delete [] mp_real_y;
+    mp_real::mp_finalize();
 }
 
 /////////
@@ -491,7 +492,6 @@ int main() {
     }
     delete [] vectorX;
     delete [] vectorY;
-    cudaDeviceReset();
 
     //Finalize
     finalize();

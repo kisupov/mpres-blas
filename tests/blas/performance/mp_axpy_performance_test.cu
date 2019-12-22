@@ -54,13 +54,12 @@ void initialize(){
     rns_const_init();
     mp_const_init();
     setPrecisions();
-    mp_real::mp_init(MP_PRECISION_DEC);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 }
 
 void finalize(){
-    mp_real::mp_finalize();
+    cudaDeviceReset();
 }
 
 void print_double_sum(double *result, int v_length) {
@@ -268,6 +267,7 @@ void arprec_test(mpfr_t *x, mpfr_t *y, mpfr_t alpha, int n) {
     PrintTimerName("[CPU] ARPREC axpy");
 
     //Init
+    mp_real::mp_init(MP_PRECISION_DEC);
     mp_real *mp_real_x = new mp_real[n];
     mp_real *mp_real_y = new mp_real[n];
     mp_real mp_real_alpha;
@@ -297,6 +297,7 @@ void arprec_test(mpfr_t *x, mpfr_t *y, mpfr_t alpha, int n) {
     //Cleanup
     delete [] mp_real_x;
     delete [] mp_real_y;
+    mp_real::mp_finalize();
 }
 
 /////////
@@ -548,7 +549,6 @@ int main() {
     delete [] vectorX;
     delete [] vectorY;
     delete [] alpha;
-    cudaDeviceReset();
 
     //Finalize
     finalize();

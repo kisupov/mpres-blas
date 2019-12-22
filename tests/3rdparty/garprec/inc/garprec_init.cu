@@ -28,7 +28,8 @@ int garprecInit(const unsigned int numDigit, const int device) {
 
 void garprecFinalize() {
 	mp_real::mp_finalize();
-	cudaThreadExit();
+    cudaDeviceReset();
+    //cudaThreadExit();
 }
 
 

@@ -51,13 +51,12 @@ void initialize(){
     rns_const_init();
     mp_const_init();
     setPrecisions();
-    mp_real::mp_init(MP_PRECISION_DEC);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 }
 
 void finalize(){
-    mp_real::mp_finalize();
+    cudaDeviceReset();
 }
 
 void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
@@ -245,7 +244,7 @@ int main() {
     mpack_test(N, vectorX, vectorY, c[0], s[0]);
     mpres_test(N, vectorX, vectorY, c[0], s[0]);
     garprec_rot_test(N, vectorX, vectorY, c[0], s[0], MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
-    campary_rot_test<CAMPARY_PRECISION>(N, vectorX, vectorY, c[0], s[0], INP_DIGITS, REPEAT_TEST);
+    //campary_rot_test<CAMPARY_PRECISION>(N, vectorX, vectorY, c[0], s[0], INP_DIGITS, REPEAT_TEST);
     cump_rot_test(N, vectorX, vectorY, c[0], s[0], MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -262,7 +261,6 @@ int main() {
     delete [] vectorY;
     delete [] c;
     delete [] s;
-    cudaDeviceReset();
 
     //Finalize
     finalize();
