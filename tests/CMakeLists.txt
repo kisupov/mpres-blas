@@ -63,6 +63,10 @@ add_executable(mp_rot_performance_test blas/performance/mp_rot_performance_test.
 target_compile_options(mp_rot_performance_test PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(mp_rot_performance_test gmp mpfr arprec gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cump)
 
+# Performance test for AXPY_DOT
+add_executable(mp_axpy_dot_performance_test blas/performance/mp_axpy_dot_performance_test.cu)
+target_compile_options(mp_axpy_dot_performance_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(mp_axpy_dot_performance_test gmp mpfr arprec OpenMP::OpenMP_CXX cump)
 
 #########################
 ## Accuracy tests for BLAS routines

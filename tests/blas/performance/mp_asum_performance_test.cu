@@ -33,9 +33,7 @@
 
 //Execution configuration for mp_array_asum
 #define MPRES_CUDA_BLOCKS_REDUCE   256
-#define MPRES_CUDA_THREADS_REDUCE  128
-
-#define CAMPARY_PRECISION 8 //in n-double (e.g., 2-double, 3-double, 4-double, 8-double, etc.)
+#define MPRES_CUDA_THREADS_REDUCE  64
 
 int MP_PRECISION_DEC; //in decimal digits
 int INP_BITS; //in bits
@@ -52,13 +50,12 @@ void initialize(){
     rns_const_init();
     mp_const_init();
     setPrecisions();
-    mp_real::mp_init(MP_PRECISION_DEC);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 }
 
 void finalize(){
-    mp_real::mp_finalize();
+    cudaDeviceReset();
 }
 
 
@@ -213,6 +210,7 @@ void arprec_test(mpfr_t *x, int n){
     PrintTimerName("[CPU] ARPREC asum");
 
     //Init
+    mp_real::mp_init(MP_PRECISION_DEC);
     mp_real mp_real_result;
     mp_real *mp_real_x = new mp_real[n];
     mp_real_result = 0.0;
@@ -232,6 +230,7 @@ void arprec_test(mpfr_t *x, int n){
 
     //Clear
     delete [] mp_real_x;
+    mp_real::mp_finalize();
 }
 
 /////////
@@ -410,6 +409,7 @@ int main() {
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
     Logger::printParam("MPRES_CUDA_BLOCKS_REDUCE", MPRES_CUDA_BLOCKS_REDUCE);
     Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
+    Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
 
     //Inputs
@@ -436,7 +436,7 @@ int main() {
     mpdecimal_test(vectorX, N);
     mpres_test(vectorX, N);
     garprec_sum_test(N, vectorX, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
-    //campary_asum_test<CAMPARY_PRECISION>(N, vectorX, INP_DIGITS, REPEAT_TEST);
+    campary_asum_test<CAMPARY_PRECISION>(N, vectorX, INP_DIGITS, REPEAT_TEST);
     cump_sum_test(N, vectorX, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -447,7 +447,6 @@ int main() {
         mpfr_clear(vectorX[i]);
     }
     delete[] vectorX;
-    cudaDeviceReset();
 
     //Finalize
     finalize();

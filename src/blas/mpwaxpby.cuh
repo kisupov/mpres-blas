@@ -1,6 +1,7 @@
 /*
  *  Multiple-precision WAXPBY function for GPU (updated set of BLAS Level-1)
  *  Scaled vector addition: w = alpha * x + beta * y
+ *  Details: http://www.netlib.org/blas/blast-forum/
  *
  *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
  *

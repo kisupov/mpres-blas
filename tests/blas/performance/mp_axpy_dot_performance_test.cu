@@ -1,5 +1,5 @@
 /*
- *  Performance test for BLAS ROT routines
+ *  Performance test for BLAS AXPY_DOT routines
  *
  *  Copyright 2019 by Konstantin Isupov and Alexander Kuvaev.
  *
@@ -23,16 +23,19 @@
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/blas/mpaxpydot.cuh"
 #include "3rdparty.cuh"
-#include "../../../src/blas/mprot.cuh"
+
 
 #define N 1000000 //Operation size
 #define REPEAT_TEST 10 //Number of repeats
 
-//Execution configuration for mp_array_rot
+//Execution configuration for mp_array_axpy_dot
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND   512
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
+#define MPRES_CUDA_BLOCKS_REDUCE         256
+#define MPRES_CUDA_THREADS_REDUCE        64
 
 int MP_PRECISION_DEC; //in decimal digits
 int INP_BITS; //in bits
@@ -74,82 +77,39 @@ void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
     mpfr_clear(mpfr_result);
 }
 
+
 /********************* Benchmarks *********************/
 
-/////////
-// MPACK
-/////////
-void mpack_test( int n, mpfr_t * x, mpfr_t *y, mpfr_t c, mpfr_t s) {
-    Logger::printDash();
-    InitCpuTimer();
-    PrintTimerName("[CPU] MPACK rot");
-
-    //Set precision
-    mpfr::mpreal::set_default_prec ( MP_PRECISION );
-
-    //Init
-    mpreal *mpreal_x = new mpreal[n];
-    mpreal *mpreal_y = new mpreal[n];
-    mpreal mpreal_c = c;
-    mpreal mpreal_s = s;
-    for (int j = 0; j < n; j++) {
-        mpreal_x[j] = x[j];
-    }
-
-    //Launch
-    for(int i = 0; i < REPEAT_TEST; i++) {
-        #pragma omp parallel for
-        for (int j = 0; j < n; j++) {
-            mpreal_x[j] = x[j];
-            mpreal_y[j] = y[j];
-        }
-        StartCpuTimer();
-        Rrot(n, mpreal_x, 1, mpreal_y, 1, mpreal_c, mpreal_s);
-        EndCpuTimer();
-    }
-    PrintCpuTimer("took");
-
-    //Print
-    for (int i = 1; i < n; i++) {
-        mpreal_x[0] += mpreal_x[i];
-        mpreal_y[0] += mpreal_y[i];
-    }
-    mpfr_printf("result x: %.70Rf\n", &mpreal_x[0]);
-    mpfr_printf("result y: %.70Rf\n", &mpreal_y[0]);
-
-    //Cleanup
-    delete [] mpreal_x;
-    delete [] mpreal_y;
-}
 
 /////////
 // MPRES-BLAS
 /////////
-void mpres_test(int n, mpfr_t * x, mpfr_t * y, mpfr_t c, mpfr_t s) {
+void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     Logger::printDash();
     InitCudaTimer();
-    PrintTimerName("[GPU] MPRES-BLAS rot");
+    PrintTimerName("[GPU] MPRES-BLAS axpy_dot");
 
     //Host data
-    mp_float_ptr hx = new mp_float_t[n];
-    mp_float_ptr hy = new mp_float_t[n];
-    mp_float_t hc;
-    mp_float_t hs;
+    mp_float_ptr hw = new mp_float_t[n];
+    mp_float_ptr hv = new mp_float_t[n];
+    mp_float_ptr hu = new mp_float_t[n];
+    mp_float_ptr halpha = new mp_float_t[1];
+    mp_float_ptr hr = new mp_float_t[1];
 
     //GPU data
-    mp_array_t dx;
-    mp_array_t dy;
-    mp_array_t dc;
-    mp_array_t ds;
-    mp_array_t dbuffer1;
-    mp_array_t dbuffer2;
+    mp_array_t dw;
+    mp_array_t dv;
+    mp_array_t du;
+    mp_array_t dalpha;
+    mp_float_ptr dr;
+    mp_array_t dbuffer;
 
-    cuda::mp_array_init(dx, n);
-    cuda::mp_array_init(dy, n);
-    cuda::mp_array_init(dc, 1);
-    cuda::mp_array_init(ds, 1);
-    cuda::mp_array_init(dbuffer1, n);
-    cuda::mp_array_init(dbuffer2, n);
+    cuda::mp_array_init(dw, n);
+    cuda::mp_array_init(dv, n);
+    cuda::mp_array_init(du, n);
+    cuda::mp_array_init(dalpha, 1);
+    cuda::mp_array_init(dbuffer, n);
+    cudaMalloc((void **) &dr, sizeof(mp_float_t));
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -157,29 +117,31 @@ void mpres_test(int n, mpfr_t * x, mpfr_t * y, mpfr_t c, mpfr_t s) {
     //Convert from MPFR
     #pragma omp parallel for
     for (int i = 0; i < n; i++) {
-        mp_set_mpfr(&hx[i], x[i]);
-        mp_set_mpfr(&hy[i], y[i]);
+        mp_set_mpfr(&hw[i], w[i]);
+        mp_set_mpfr(&hv[i], v[i]);
+        mp_set_mpfr(&hu[i], u[i]);
     }
-    mp_set_mpfr(&hc, c);
-    mp_set_mpfr(&hs, s);
+    mp_set_mpfr(halpha, alpha);
 
     //Copying to the GPU
-    cuda::mp_array_host2device(dc, &hc, 1);
-    cuda::mp_array_host2device(ds, &hs, 1);
+    cuda::mp_array_host2device(dv, hv, n);
+    cuda::mp_array_host2device(du, hu, n);
+    cuda::mp_array_host2device(dalpha, halpha, 1);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Launch
     for (int i = 0; i < REPEAT_TEST; i++) {
-        cuda::mp_array_host2device(dx, hx, n);
-        cuda::mp_array_host2device(dy, hy, n);
+        cuda::mp_array_host2device(dw, hw, n);
         StartCudaTimer();
-        cuda::mp_array_rot<
+        cuda::mp_array_axpy_dot<
                 MPRES_CUDA_BLOCKS_FIELDS_ROUND,
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
-                MPRES_CUDA_BLOCKS_RESIDUES>
-                (n, dx, 1, dy, 1, dc, ds, dbuffer1, dbuffer2);
+                MPRES_CUDA_BLOCKS_RESIDUES,
+                MPRES_CUDA_BLOCKS_REDUCE,
+                MPRES_CUDA_THREADS_REDUCE>
+                (n, dalpha, dw, 1, dv, 1, du, 1, dr, dbuffer);
         EndCudaTimer();
     }
     PrintCudaTimer("took");
@@ -187,21 +149,31 @@ void mpres_test(int n, mpfr_t * x, mpfr_t * y, mpfr_t c, mpfr_t s) {
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
-    //Copying to the host
-    cuda::mp_array_device2host(hx, dx, n);
-    cuda::mp_array_device2host(hy, dy, n);
-    print_mp_sum(hx, N, "x");
-    print_mp_sum(hy, N, "y");
+    mpfr_t mpfr_result;
+    mpfr_init2(mpfr_result, MP_PRECISION);
+    mpfr_set_d(mpfr_result, 0, MPFR_RNDN);
 
+    //Copying to the host
+    cudaMemcpy(hr, dr, sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    cuda::mp_array_device2host(hw, dw, n);
+
+    print_mp_sum(hw, n, "w");
+    mp_get_mpfr(mpfr_result, hr);
+    mpfr_printf("result r: %.70Rf \n", mpfr_result);
+    
     //Cleanup
-    delete [] hx;
-    delete [] hy;
-    cuda::mp_array_clear(dx);
-    cuda::mp_array_clear(dy);
-    cuda::mp_array_clear(dc);
-    cuda::mp_array_clear(ds);
-    cuda::mp_array_clear(dbuffer1);
-    cuda::mp_array_clear(dbuffer2);
+    delete [] hv;
+    delete [] hu;
+    delete [] hw;
+    delete [] hr;
+    delete [] halpha;
+    cuda::mp_array_clear(dv);
+    cuda::mp_array_clear(du);
+    cuda::mp_array_clear(dw);
+    cuda::mp_array_clear(dalpha);
+    cuda::mp_array_clear(dbuffer);
+    cudaFree(dr);
+    mpfr_clear(mpfr_result);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 }
@@ -215,50 +187,48 @@ int main() {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::BLAS_ROT_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::BLAS_AXPY_PERFORMANCE_TEST);
     Logger::printTestParameters(N, REPEAT_TEST, MP_PRECISION, MP_PRECISION_DEC);
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
     Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    Logger::printParam("MPRES_CUDA_BLOCKS_REDUCE", MPRES_CUDA_BLOCKS_REDUCE);
+    Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
 
     //Inputs
-    mpfr_t * vectorX;
-    mpfr_t * vectorY;
-    mpfr_t * c;
-    mpfr_t * s;
-    vectorX = create_random_array(N, INP_BITS);
-    vectorY = create_random_array(N, INP_BITS);
-    c = create_random_array(1, INP_BITS);
-    s = create_random_array(1, INP_BITS);
-
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
+    mpfr_t * vectorV;
+    mpfr_t * vectorU;
+    mpfr_t * vectorW;
+    mpfr_t * alpha;
+    vectorU = create_random_array(N, INP_BITS);
+    vectorV = create_random_array(N, INP_BITS);
+    vectorW = create_random_array(N, INP_BITS);
+    alpha = create_random_array(1, INP_BITS);
 
     // Multiple-precision tests
-    mpack_test(N, vectorX, vectorY, c[0], s[0]);
-    mpres_test(N, vectorX, vectorY, c[0], s[0]);
-    garprec_rot_test(N, vectorX, vectorY, c[0], s[0], MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
-    campary_rot_test<CAMPARY_PRECISION>(N, vectorX, vectorY, c[0], s[0], INP_DIGITS, REPEAT_TEST);
-    cump_rot_test(N, vectorX, vectorY, c[0], s[0], MP_PRECISION, INP_DIGITS, REPEAT_TEST);
-
+    mpres_test(N, alpha[0], vectorW, vectorV, vectorU);
+    cudaDeviceReset();
+    garprec_axpy_dot_test(N, alpha[0], vectorW, vectorV, vectorU, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    campary_axpy_dot_test<CAMPARY_PRECISION>(N, alpha[0], vectorW, vectorV, vectorU, INP_DIGITS, REPEAT_TEST);
+    cump_axpy_dot_test(N, alpha[0], vectorW, vectorV, vectorU, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     //cudaCheckErrors(); //CUMP gives failure
 
     //Cleanup
-    mpfr_clear(c[0]);
-    mpfr_clear(s[0]);
+    mpfr_clear(alpha[0]);
     for(int i = 0; i < N; i++){
-        mpfr_clear(vectorX[i]);
-        mpfr_clear(vectorY[i]);
+        mpfr_clear(vectorW[i]);
+        mpfr_clear(vectorV[i]);
+        mpfr_clear(vectorU[i]);
     }
-    delete [] vectorX;
-    delete [] vectorY;
-    delete [] c;
-    delete [] s;
+    delete [] alpha;
+    delete [] vectorV;
+    delete [] vectorU;
+    delete [] vectorW;
 
     //Finalize
     finalize();

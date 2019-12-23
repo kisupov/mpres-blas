@@ -84,10 +84,9 @@ mpfr_t * create_random_matrix(unsigned long m, unsigned long n, unsigned long bi
  */
 std::string convert_to_string_sci(mpfr_t number, int ndigits){
     char * significand;
-    char *str;
     long exp = 0;
     //Convert number to a string of digits in base 10
-    significand = mpfr_get_str(str, &exp, 10, ndigits, number, MPFR_RNDN);
+    significand = mpfr_get_str(NULL, &exp, 10, ndigits, number, MPFR_RNDN);
     //Convert to std::string
     std::string number_string(significand);
     //Set decimal point
@@ -101,7 +100,6 @@ std::string convert_to_string_sci(mpfr_t number, int ndigits){
     number_string += std::to_string(exp);
     //Cleanup
     mpfr_free_str(significand);
-    delete [] str;
     return number_string;
 }
 
@@ -112,10 +110,9 @@ std::string convert_to_string_sci(mpfr_t number, int ndigits){
  */
 std::string convert_to_string_fix(mpfr_t number, int ndigits){
     char * significand;
-    char *str;
     long exp = 0;
     //Convert number to a string of digits in base 10
-    significand = mpfr_get_str(str, &exp, 10, ndigits, number, MPFR_RNDN);
+    significand = mpfr_get_str(NULL, &exp, 10, ndigits, number, MPFR_RNDN);
     std::string number_string(significand);
     std::string zeroes = "";
     for(int i = 0; i < abs(exp); i++){
@@ -132,7 +129,6 @@ std::string convert_to_string_fix(mpfr_t number, int ndigits){
     }
     number_string.insert(insert_offset, "0.");
     mpfr_free_str(significand);
-    delete [] str;
     return number_string;
 }
 

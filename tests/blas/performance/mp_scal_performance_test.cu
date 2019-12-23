@@ -35,8 +35,6 @@
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
 
-#define CAMPARY_PRECISION 8 //in n-double (e.g., 2-double, 3-double, 4-double, 8-double, etc.)
-
 #define OPENBLAS_THREADS 4
 
 int MP_PRECISION_DEC; //in decimal digits
@@ -54,13 +52,12 @@ void initialize(){
     rns_const_init();
     mp_const_init();
     setPrecisions();
-    mp_real::mp_init(MP_PRECISION_DEC);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 }
 
 void finalize(){
-    mp_real::mp_finalize();
+    cudaDeviceReset();
 }
 
 void print_double_sum(double *result, int v_length) {
@@ -230,6 +227,7 @@ void arprec_test(mpfr_t *x, mpfr_t alpha, int n) {
     PrintTimerName("[CPU] ARPREC scal");
 
     //Init
+    mp_real::mp_init(MP_PRECISION_DEC);
     mp_real *mp_real_x = new mp_real[n];
     mp_real mp_real_alpha;
     mp_real_alpha.read(convert_to_string_sci(alpha, INP_DIGITS));
@@ -253,6 +251,7 @@ void arprec_test(mpfr_t *x, mpfr_t alpha, int n) {
 
     //Cleanup
     delete [] mp_real_x;
+    mp_real::mp_finalize();
 }
 
 
@@ -472,6 +471,7 @@ int main() {
     Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::printParam("OPENBLAS_THREADS", OPENBLAS_THREADS);
     Logger::endSection(true);
 
@@ -503,7 +503,7 @@ int main() {
     //arbitraire_test(N, vectorX, alpha[0], INP_BITS, REPEAT_TEST); // performs too long
     mpres_test(vectorX, alpha[0], N);
     garprec_scal_test(N, alpha[0], vectorX, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
-    //campary_scal_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, INP_DIGITS, REPEAT_TEST);
+    campary_scal_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, INP_DIGITS, REPEAT_TEST);
     cump_scal_test(N, alpha[0], vectorX, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
     
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -516,7 +516,6 @@ int main() {
     mpfr_clear(alpha[0]);
     delete []alpha;
     delete []vectorX;
-    cudaDeviceReset();
 
     //Finalize
     finalize();

@@ -31,7 +31,6 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc") # Path to nvcc
 #####################################
 # CUDA
 #####################################
-set(CUDA_ARCH 61) # Target GPU architecture
 set(cuda_lang "$<COMPILE_LANGUAGE:CUDA>")
 set(CMAKE_CUDA_STANDARD 14) # Default value for CUDA_STANDARD property of targets
 
