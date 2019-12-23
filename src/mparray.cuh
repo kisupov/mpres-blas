@@ -189,9 +189,7 @@ namespace cuda {
      * @param incy -  storage spacing between elements of y (must be non-zero)
      * @param n - operation size
      */
-    __global__
-    //__launch_bounds__(BND_MAX_THREADS_IN_BLOCK_MUL_ESI_VV, BND_MIN_BLOCKS_IN_SM_MUL_ESI_VV)
-    void mp_array_mul_esi_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n) {
+    __global__ void mp_array_mul_esi_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n) {
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector lengths (may differ from the operation size, n)
         int lenx = x.len[0];
@@ -296,9 +294,7 @@ namespace cuda {
      * @param alpha - pointer to the scalar (vector of length one) in the GPU memory
      * @param n - operation size
      */
-    __global__
-    //__launch_bounds__(BND_MAX_THREADS_IN_BLOCK_MUL_ESI_VS, BND_MIN_BLOCKS_IN_SM_MUL_ESI_VS)
-    void mp_array_mul_esi_vs(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t alpha, const int n) {
+    __global__ void mp_array_mul_esi_vs(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t alpha, const int n) {
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector lengths (may differ from the operation size, n)
         int lenx = x.len[0];
@@ -407,9 +403,7 @@ namespace cuda {
      * @param incy -  storage spacing between elements of y (must be non-zero)
      * @param n - operation size
      */
-    __global__
-    //__launch_bounds__(BND_MAX_THREADS_IN_BLOCK_ADD_ESI_VV, BND_MIN_BLOCKS_IN_SM_ADD_ESI_VV)
-    void mp_array_add_esi_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
+    __global__ void mp_array_add_esi_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector lengths (may differ from the operation size, n)
         int lenx = x.len[0];
@@ -676,9 +670,7 @@ namespace cuda {
      * @param incy -  storage spacing between elements of y (must be non-zero)
      * @param n - operation size
      */
-    __global__
-    //__launch_bounds__(BND_MAX_THREADS_IN_BLOCK_ADD_ESI_VV, BND_MIN_BLOCKS_IN_SM_ADD_ESI_VV)
-    void mp_array_sub_esi_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
+    __global__ void mp_array_sub_esi_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector lengths (may differ from the operation size, n)
         int lenx = x.len[0];
@@ -862,9 +854,7 @@ namespace cuda {
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param n - operation size
      */
-    __global__
-    //__launch_bounds__(BND_MAX_THREADS_IN_BLOCK_ROUND, BND_MIN_BLOCKS_IN_SM_ROUND)
-    void mp_array_round(mp_array_t result, const int incr, int n) {
+    __global__ void mp_array_round(mp_array_t result, const int incr, int n) {
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector length (may differ from the operation size, n)
         int lenr = result.len[0];

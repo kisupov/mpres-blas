@@ -50,20 +50,4 @@
  */
 #define BLOCK_SIZE_FOR_RESIDUES (RNS_MODULI_SIZE >= MIN_BLOCK_SIZE ? RNS_MODULI_SIZE : (MIN_BLOCK_SIZE / RNS_MODULI_SIZE) * RNS_MODULI_SIZE)
 
-/*
- * CUDA launch bounds for multiple-precision kernels
- * see https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#launch-bounds
- */
-#define BND_MAX_THREADS_IN_BLOCK_MUL_ESI_VV (128) //Maximum number of threads per block for the 'mp_array_mul_esi_vv' kernel
-#define BND_MIN_BLOCKS_IN_SM_MUL_ESI_VV (8) //Minimum number of resident blocks per multiprocessor for the 'mp_array_mul_esi_vv' kernel
-
-#define BND_MAX_THREADS_IN_BLOCK_MUL_ESI_VS (128) //Maximum number of threads per block for the 'mp_array_mul_esi_vs' kernel
-#define BND_MIN_BLOCKS_IN_SM_MUL_ESI_VS (8) //Minimum number of resident blocks per multiprocessor for the 'mp_array_mul_esi_vs' kernel
-
-#define BND_MAX_THREADS_IN_BLOCK_ADD_ESI_VV (128) // Maximum number of threads per block for the 'mp_array_add_esi_vv' kernel
-#define BND_MIN_BLOCKS_IN_SM_ADD_ESI_VV (8) // Minimum number of resident blocks per multiprocessor for the 'mp_array_add_esi_vv' kernel
-
-#define BND_MAX_THREADS_IN_BLOCK_ROUND (128) // Maximum number of threads per block for the 'mp_array_round' kernel
-#define BND_MIN_BLOCKS_IN_SM_ROUND (8) // Minimum number of resident blocks per multiprocessor for the 'mp_array_round' kernel
-
 #endif //MPRES_KERNEL_CONFIG_CUH
