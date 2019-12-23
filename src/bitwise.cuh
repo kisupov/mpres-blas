@@ -28,17 +28,17 @@
 /*
  * Sign offset in IEEE 754 double precision (binary64)
  */
-#define DBL_SIGN_OFFSET  63
+#define DBL_SIGN_OFFSET (63)
 
 /*
  * Exponent bits offset in IEEE 754 double precision (binary64)
  */
-#define DBL_EXP_OFFSET   52
+#define DBL_EXP_OFFSET (52)
 
 /*
  * Exponent bias in IEEE 754 double precision (binary64)
  */
-#define DBL_EXP_BIAS     1023
+#define DBL_EXP_BIAS (1023)
 
 /*
  * When the logical AND operator (&) is applied to the double x with this mask (i.e. x & DBL_ZERO_EXP_MASK),

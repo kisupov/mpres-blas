@@ -35,8 +35,6 @@
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
 
-#define CAMPARY_PRECISION 8 //in n-double (e.g., 2-double, 3-double, 4-double, 8-double, etc.)
-
 #define OPENBLAS_THREADS 4
 
 int MP_PRECISION_DEC; //in decimal digits
@@ -534,7 +532,7 @@ int main() {
     mpdecimal_test(vectorX, vectorY, alpha[0], N);
     mpres_test(vectorX, vectorY, alpha[0], N);
     garprec_axpy_test(N, alpha[0], vectorX, vectorY, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
-    //campary_axpy_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
+    campary_axpy_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
     cump_axpy_test(N, alpha[0], vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());

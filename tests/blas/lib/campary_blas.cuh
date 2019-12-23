@@ -24,14 +24,24 @@
 
 #include <stdio.h>
 #include "mpfr.h"
+#include "../../../src/params.h"
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../3rdparty/campary/Doubles/src_gpu/multi_prec.h"
 
+/*
+ * Precision of CAMPARY in n-double
+ * For predefined RNS moduli sets from the src/32-bit-n-double-moduli/ directory:
+ * 8 moduli give 2-double, 16 moduli give 4-double, 24 moduli give 6-double, etc.
+ */
+#define CAMPARY_PRECISION (RNS_MODULI_SIZE / 4)
+
+//Execution configuration
 #define CAMPARY_REDUCTION_BLOCKS 1024
 #define CAMPARY_REDUCTION_THREADS 32
 #define CAMPARY_VECTOR_MULTIPLY_THREADS 32
+
 
 
 /********************* Computational kernels *********************/

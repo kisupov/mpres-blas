@@ -30,17 +30,17 @@
 /*
  * Maximum number of resident threads per multiprocessor for current Compute capability, see https://en.wikipedia.org/wiki/CUDA
  */
-#define MAX_THREADS_PER_SM 1024
+#define MAX_THREADS_PER_SM (1024)
 
 /*
  * Maximum number of resident blocks per multiprocessor for current Compute capability, see https://en.wikipedia.org/wiki/CUDA
  */
-#define MAX_BLOCKS_PER_SM 16
+#define MAX_BLOCKS_PER_SM (16)
 
 /*
  * Minimum block size that is enough to reach 100% occupancy of a multiprocessor
  */
-#define MIN_BLOCK_SIZE MAX_THREADS_PER_SM / MAX_BLOCKS_PER_SM
+#define MIN_BLOCK_SIZE (MAX_THREADS_PER_SM / MAX_BLOCKS_PER_SM)
 
 /*
  * The block size for multiplying and adding digits of multiple-precision numbers in componentwise vector operations.
@@ -54,16 +54,16 @@
  * CUDA launch bounds for multiple-precision kernels
  * see https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#launch-bounds
  */
-#define BND_MAX_THREADS_IN_BLOCK_MUL_ESI_VV 128 //Maximum number of threads per block for the 'mp_array_mul_esi_vv' kernel
-#define BND_MIN_BLOCKS_IN_SM_MUL_ESI_VV 8 //Minimum number of resident blocks per multiprocessor for the 'mp_array_mul_esi_vv' kernel
+#define BND_MAX_THREADS_IN_BLOCK_MUL_ESI_VV (128) //Maximum number of threads per block for the 'mp_array_mul_esi_vv' kernel
+#define BND_MIN_BLOCKS_IN_SM_MUL_ESI_VV (8) //Minimum number of resident blocks per multiprocessor for the 'mp_array_mul_esi_vv' kernel
 
-#define BND_MAX_THREADS_IN_BLOCK_MUL_ESI_VS 128 //Maximum number of threads per block for the 'mp_array_mul_esi_vs' kernel
-#define BND_MIN_BLOCKS_IN_SM_MUL_ESI_VS 8 //Minimum number of resident blocks per multiprocessor for the 'mp_array_mul_esi_vs' kernel
+#define BND_MAX_THREADS_IN_BLOCK_MUL_ESI_VS (128) //Maximum number of threads per block for the 'mp_array_mul_esi_vs' kernel
+#define BND_MIN_BLOCKS_IN_SM_MUL_ESI_VS (8) //Minimum number of resident blocks per multiprocessor for the 'mp_array_mul_esi_vs' kernel
 
-#define BND_MAX_THREADS_IN_BLOCK_ADD_ESI_VV 128 // Maximum number of threads per block for the 'mp_array_add_esi_vv' kernel
-#define BND_MIN_BLOCKS_IN_SM_ADD_ESI_VV 8 // Minimum number of resident blocks per multiprocessor for the 'mp_array_add_esi_vv' kernel
+#define BND_MAX_THREADS_IN_BLOCK_ADD_ESI_VV (128) // Maximum number of threads per block for the 'mp_array_add_esi_vv' kernel
+#define BND_MIN_BLOCKS_IN_SM_ADD_ESI_VV (8) // Minimum number of resident blocks per multiprocessor for the 'mp_array_add_esi_vv' kernel
 
-#define BND_MAX_THREADS_IN_BLOCK_ROUND 128 // Maximum number of threads per block for the 'mp_array_round' kernel
-#define BND_MIN_BLOCKS_IN_SM_ROUND 8 // Minimum number of resident blocks per multiprocessor for the 'mp_array_round' kernel
+#define BND_MAX_THREADS_IN_BLOCK_ROUND (128) // Maximum number of threads per block for the 'mp_array_round' kernel
+#define BND_MIN_BLOCKS_IN_SM_ROUND (8) // Minimum number of resident blocks per multiprocessor for the 'mp_array_round' kernel
 
 #endif //MPRES_KERNEL_CONFIG_CUH

@@ -37,8 +37,6 @@
 #define MPRES_CUDA_BLOCKS_REDUCE         256
 #define MPRES_CUDA_THREADS_REDUCE        64
 
-#define CAMPARY_PRECISION 4 //in n-double (e.g., 2-double, 3-double, 4-double, 8-double, etc.)
-
 int MP_PRECISION_DEC; //in decimal digits
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -215,7 +213,7 @@ int main() {
     mpres_test(N, alpha[0], vectorW, vectorV, vectorU);
     cudaDeviceReset();
     garprec_axpy_dot_test(N, alpha[0], vectorW, vectorV, vectorU, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
-    //campary_axpy_dot_test<CAMPARY_PRECISION>(N, alpha[0], vectorW, vectorV, vectorU, INP_DIGITS, REPEAT_TEST);
+    campary_axpy_dot_test<CAMPARY_PRECISION>(N, alpha[0], vectorW, vectorV, vectorU, INP_DIGITS, REPEAT_TEST);
     cump_axpy_dot_test(N, alpha[0], vectorW, vectorV, vectorU, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     //cudaCheckErrors(); //CUMP gives failure

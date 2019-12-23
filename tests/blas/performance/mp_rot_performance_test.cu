@@ -34,8 +34,6 @@
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
 
-#define CAMPARY_PRECISION 8 //in n-double (e.g., 2-double, 3-double, 4-double, 8-double, etc.)
-
 int MP_PRECISION_DEC; //in decimal digits
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -244,7 +242,7 @@ int main() {
     mpack_test(N, vectorX, vectorY, c[0], s[0]);
     mpres_test(N, vectorX, vectorY, c[0], s[0]);
     garprec_rot_test(N, vectorX, vectorY, c[0], s[0], MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
-    //campary_rot_test<CAMPARY_PRECISION>(N, vectorX, vectorY, c[0], s[0], INP_DIGITS, REPEAT_TEST);
+    campary_rot_test<CAMPARY_PRECISION>(N, vectorX, vectorY, c[0], s[0], INP_DIGITS, REPEAT_TEST);
     cump_rot_test(N, vectorX, vectorY, c[0], s[0], MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
