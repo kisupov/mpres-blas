@@ -49,8 +49,6 @@ namespace cuda {
      * @param incu - storage spacing between elements of u (must be non-zero)
      * @param r - pointer to the inner product in the GPU memory
      * @param buffer - array of size n in the global GPU memory
-     *
-     * @warning If either incx or incy is not equal to 1, then BLOCK_SIZE_FOR_RESIDUES must be equal to RNS_MODULI_SIZE
      */
     template <int gridDim1, int blockDim1, int gridDim2, int gridDim3, int blockDim3>
     void mp_array_axpy_dot(int n, mp_array_t &alpha, mp_array_t &w, int incw, mp_array_t &v, int incv, mp_array_t &u, int incu, mp_float_ptr r, mp_array_t &buffer) {
@@ -60,11 +58,15 @@ namespace cuda {
             return;
         }
 
+        // Setting the number of threads per block for computing residues
+        // If either incw or incv or incu is not equal to 1, then numThreads must be equal to RNS_MODULI_SIZE
+        int numThreads = (incw == 1 && incv == 1 && incu == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
+
         //Multiplication buffer = alpha * v - Computing the signs, exponents, and interval evaluations
         mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer, 1, v, incv, alpha, n);
 
         //Multiplication buffer = alpha * v - Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, 1, v, incv, alpha, n);
+        mp_array_mul_digits_vs<<< gridDim2, numThreads >>> (buffer, 1, v, incv, alpha, n);
 
         //Rounding the intermediate result (buffer)
         mp_array_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
@@ -74,7 +76,7 @@ namespace cuda {
 
         //Subtraction  w = w - buffer - Adding the digits in the RNS
         //We call mp_array_add_digits_vv since the sign has been changed in mp_array_sub_esi_vv
-        mp_array_add_digits_vv<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (w, incw, w, incw, buffer, 1, n);
+        mp_array_add_digits_vv<<< gridDim2, numThreads >>> (w, incw, w, incw, buffer, 1, n);
 
         //Rounding the vector w
         mp_array_round<<< gridDim1, blockDim1 >>> (w, incw, n);

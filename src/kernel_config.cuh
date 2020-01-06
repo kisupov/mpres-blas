@@ -47,6 +47,8 @@
  * This parameter allows for achieving full occupancy of a streaming multiprocessor under the following restriction:
  * in each thread block, only an INTEGER number of multiple-precision values is computed,
  * i.e. processing the digits of the same multiple-precision value is not split between different thread blocks.
+ *
+ * Use this parameter only if all vector strides (incx, incy, incr, etc.) are equal to one. Otherwise, use RNS_MODULI_SIZE instead
  */
 #define BLOCK_SIZE_FOR_RESIDUES (RNS_MODULI_SIZE >= MIN_BLOCK_SIZE ? RNS_MODULI_SIZE : (MIN_BLOCK_SIZE / RNS_MODULI_SIZE) * RNS_MODULI_SIZE)
 

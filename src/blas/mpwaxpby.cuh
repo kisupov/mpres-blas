@@ -45,8 +45,6 @@ namespace cuda {
      * @param w - pointer to the result vector in the global GPU memory
      * @param incw - storage spacing between elements of w (must be non-zero)
      * @param buffer - array of size n in the global GPU memory
-     *
-     * @warning If either incx or incy or incw is not equal to 1, then BLOCK_SIZE_FOR_RESIDUES must be equal to RNS_MODULI_SIZE
      */
     template <int gridDim1, int blockDim1, int gridDim2>
     void mp_array_waxpby(int n, mp_array_t &alpha, mp_array_t &x, int incx, mp_array_t &beta, mp_array_t &y, int incy, mp_array_t &w, int incw, mp_array_t &buffer) {
@@ -55,24 +53,35 @@ namespace cuda {
         if(n <= 0){
             return;
         }
+
+        // Setting the number of threads per block for computing residues
+        // If either incx or incy or incw is not equal to 1, then numThreads must be equal to RNS_MODULI_SIZE
+        int numThreads = (incx == 1 && incy == 1 && incw == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
+
         // Multiplication buffer = alpha *x - Computing the signs, exponents, and interval evaluations
         mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer, 1, x, incx, alpha, n);
-        // Multiplication buffer = alpha *x - Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, 1, x, incx, alpha, n);
+
+       // Multiplication buffer = alpha *x - Multiplying the digits in the RNS
+        mp_array_mul_digits_vs<<< gridDim2, numThreads >>> (buffer, 1, x, incx, alpha, n);
+
         // Multiplication buffer = alpha *x - Rounding the intermediate result
         mp_array_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
 
         // Multiplication w = beta * y - Computing the signs, exponents, and interval evaluations
         mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (w, incw, y, incy, beta, n);
+
         // Multiplication w = beta * y - Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (w, incw, y, incy, beta, n);
+        mp_array_mul_digits_vs<<< gridDim2, numThreads >>> (w, incw, y, incy, beta, n);
+
         // Multiplication w = beta * y - Rounding the intermediate result
         mp_array_round<<< gridDim1, blockDim1 >>> (w, incw, n);
 
         // Addition w = w + buffer - Computing the signs, exponents, and interval evaluations
         mp_array_add_esi_vv<<< gridDim1, blockDim1 >>> (w, incw, w, incw, buffer, 1, n);
+
         // Addition w = w + buffer - Adding the digits in the RNS
-        mp_array_add_digits_vv<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (w, incw, w, incw, buffer, 1, n);
+        mp_array_add_digits_vv<<< gridDim2, numThreads >>> (w, incw, w, incw, buffer, 1, n);
+
         // Final rounding
         mp_array_round<<< gridDim1, blockDim1 >>> (w, incw, n);
     }
