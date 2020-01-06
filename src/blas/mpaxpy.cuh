@@ -40,8 +40,6 @@ namespace cuda {
      * @param y - pointer to the vector in the global GPU memory
      * @param incy - storage spacing between elements of y (must be non-zero)
      * @param buffer - array of size n in the global GPU memory
-     *
-     * @warning If either incx or incy is not equal to 1, then BLOCK_SIZE_FOR_RESIDUES must be equal to RNS_MODULI_SIZE
      */
     template <int gridDim1, int blockDim1, int gridDim2>
     void mp_array_axpy(int n, mp_array_t &alpha, mp_array_t &x, int incx, mp_array_t &y, int incy, mp_array_t &buffer) {
@@ -50,11 +48,16 @@ namespace cuda {
         if(n <= 0){
             return;
         }
+
+        // Setting the number of threads per block for computing residues
+        // If either incx or incy is not equal to 1, then numThreads must be equal to RNS_MODULI_SIZE
+        int numThreads = (incx == 1 && incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
+
         //Multiplication - Computing the signs, exponents, and interval evaluations
         mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer, 1, x, incx, alpha, n);
 
         //Multiplication - Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, 1, x, incx, alpha, n);
+        mp_array_mul_digits_vs<<< gridDim2, numThreads >>> (buffer, 1, x, incx, alpha, n);
 
         //Multiplication - Rounding the intermediate result
         mp_array_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
@@ -63,7 +66,7 @@ namespace cuda {
         mp_array_add_esi_vv<<< gridDim1, blockDim1 >>> (y, incy, buffer, 1, y, incy, n);
 
         //Addition - Adding the digits in the RNS
-        mp_array_add_digits_vv<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (y, incy, buffer, 1, y, incy, n);
+        mp_array_add_digits_vv<<< gridDim2, numThreads >>> (y, incy, buffer, 1, y, incy, n);
 
         //Final rounding
         mp_array_round<<< gridDim1, blockDim1 >>> (y, incy, n);

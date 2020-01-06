@@ -230,6 +230,8 @@ namespace cuda {
      * Parallel componentwise vector multiplication (result = x * y)
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note For example of usage, see mpdot.cuh
+     * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
+     * or RNS_MODULI_SIZE as declared in the calling subprogram
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
@@ -237,19 +239,6 @@ namespace cuda {
      * @param y - pointer to the second vector in the GPU memory
      * @param incy -  storage spacing between elements of y (must be non-zero)
      * @param n - operation size
-     *
-     * @warning For this kernel, the block size is specified by the BLOCK_SIZE_FOR_RESIDUES parameter (see kernel_config.cuh).
-     * Make sure BLOCK_SIZE_FOR_RESIDUES is set properly, depending on the following variants of launch the kernel.
-     * --- VARIANTS OF LAUNCH ---
-     * 1) When incr = incx = incy = 1:
-     *    In this case, the kernel is adapted for small RNS moduli sets, and if RNS_MODULI_SIZE (i.e. the number of digits)
-     *    is less than MIN_BLOCK_SIZE, then in each block, [MIN_BLOCK_SIZE / RNS_MODULI_SIZE] * RNS_MODULI_SIZE threads
-     *    concurrently compute all RNS_MODULI_SIZE digits for [MIN_BLOCK_SIZE / RNS_MODULI_SIZE] multiple-precision numbers.
-     *    Therefore, for better performance, BLOCK_SIZE_FOR_RESIDUES should be equal to
-     *    (RNS_MODULI_SIZE >= MIN_BLOCK_SIZE ? RNS_MODULI_SIZE : (MIN_BLOCK_SIZE / RNS_MODULI_SIZE) * RNS_MODULI_SIZE)
-     * 2) When incr or incx or incy != 1:
-     *    In this case, optimizations are not available, and BLOCK_SIZE_FOR_RESIDUES *must* be equal to RNS_MODULI_SIZE;
-     *    otherwise, the wrong results will be produced.
      */
     __global__ void mp_array_mul_digits_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
         int lmodul = cuda::RNS_MODULI[threadIdx.x  % RNS_MODULI_SIZE];
@@ -341,25 +330,14 @@ namespace cuda {
      * Parallel componentwise multiplication of a vector by a scalar (result = alpha * x)
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note For example of usage, see mpscal.cuh
+     * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
+     * or RNS_MODULI_SIZE as declared in the calling subprogram
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
      * @param incx -  storage spacing between elements of x (must be non-zero)
      * @param alpha - pointer to the scalar (vector of length one) in the GPU memory
      * @param n - operation size
-     *
-     * @warning For this kernel, the block size is specified by the BLOCK_SIZE_FOR_RESIDUES parameter (see kernel_config.cuh).
-     * Make sure BLOCK_SIZE_FOR_RESIDUES is set properly, depending on the following variants of launch the kernel.
-     * --- VARIANTS OF LAUNCH ---
-     * 1) When incr = incx = incy = 1:
-     *    In this case, the kernel is adapted for small RNS moduli sets, and if RNS_MODULI_SIZE (i.e. the number of digits)
-     *    is less than MIN_BLOCK_SIZE, then in each block, [MIN_BLOCK_SIZE / RNS_MODULI_SIZE] * RNS_MODULI_SIZE threads
-     *    concurrently compute all RNS_MODULI_SIZE digits for [MIN_BLOCK_SIZE / RNS_MODULI_SIZE] multiple-precision numbers.
-     *    Therefore, for better performance, BLOCK_SIZE_FOR_RESIDUES should be equal to
-     *    (RNS_MODULI_SIZE >= MIN_BLOCK_SIZE ? RNS_MODULI_SIZE : (MIN_BLOCK_SIZE / RNS_MODULI_SIZE) * RNS_MODULI_SIZE)
-     * 2) When incr or incx or incy != 1:
-     *    In this case, optimizations are not available, and BLOCK_SIZE_FOR_RESIDUES *must* be equal to RNS_MODULI_SIZE;
-     *    otherwise, the wrong results will be produced.
      */
     __global__ void mp_array_mul_digits_vs(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t alpha, const int n){
         int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
@@ -580,6 +558,8 @@ namespace cuda {
      * Parallel componentwise vector addition (result = x + y)
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note For example of usage, see mpaxpy.cuh
+     * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
+     * or RNS_MODULI_SIZE as declared in the calling subprogram
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
@@ -587,19 +567,6 @@ namespace cuda {
      * @param y - pointer to the second vector in the GPU memory
      * @param incy -  storage spacing between elements of y (must be non-zero)
      * @param n - operation size
-     *
-     * @warning For this kernel, the block size is specified by the BLOCK_SIZE_FOR_RESIDUES parameter (see kernel_config.cuh).
-     * Make sure BLOCK_SIZE_FOR_RESIDUES is set properly, depending on the following variants of launch the kernel.
-     * --- VARIANTS OF LAUNCH ---
-     * 1) When incr = incx = incy = 1:
-     *    In this case, the kernel is adapted for small RNS moduli sets, and if RNS_MODULI_SIZE (i.e. the number of digits)
-     *    is less than MIN_BLOCK_SIZE, then in each block, [MIN_BLOCK_SIZE / RNS_MODULI_SIZE] * RNS_MODULI_SIZE threads
-     *    concurrently compute all RNS_MODULI_SIZE digits for [MIN_BLOCK_SIZE / RNS_MODULI_SIZE] multiple-precision numbers.
-     *    Therefore, for better performance, BLOCK_SIZE_FOR_RESIDUES should be equal to
-     *    (RNS_MODULI_SIZE >= MIN_BLOCK_SIZE ? RNS_MODULI_SIZE : (MIN_BLOCK_SIZE / RNS_MODULI_SIZE) * RNS_MODULI_SIZE)
-     * 2) When incr or incx or incy != 1:
-     *    In this case, optimizations are not available, and BLOCK_SIZE_FOR_RESIDUES *must* be equal to RNS_MODULI_SIZE;
-     *    otherwise, the wrong results will be produced.
      */
     __global__ void mp_array_add_digits_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
         int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
