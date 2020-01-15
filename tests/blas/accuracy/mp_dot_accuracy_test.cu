@@ -217,16 +217,20 @@ int main(){
     delete [] mpfr_y;
 
     //GPU data
-    mp_float_ptr mp_dev_product;
-    mp_array_t mp_dev_x, mp_dev_y, mp_dev_buffer;
-    cudaMalloc((void **) &mp_dev_product, sizeof(mp_float_t));
+    mp_array_t mp_dev_x;
+    mp_array_t mp_dev_y;
+    mp_array_t mp_dev_buffer;
+    mp_array_t mp_dev_product;
 
     cuda::mp_array_init(mp_dev_x, SIZE);
     cuda::mp_array_init(mp_dev_y, SIZE);
     cuda::mp_array_init(mp_dev_buffer, SIZE);
+    cuda::mp_array_init(mp_dev_product, 1);
+
     //Data transfer
     cuda::mp_array_host2device(mp_dev_x, mp_x, SIZE);
     cuda::mp_array_host2device(mp_dev_y, mp_y, SIZE);
+
     //Free the MPRES-BLAS HOST inputs
     delete [] mp_x;
     delete [] mp_y;
@@ -241,11 +245,12 @@ int main(){
             (SIZE, mp_dev_x, 1, mp_dev_y, 1, mp_dev_product, mp_dev_buffer);
 
     cudaDeviceSynchronize();
-    cudaMemcpy(&mp_result, mp_dev_product, sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    cuda::mp_array_device2host(&mp_result, mp_dev_product, 1);
 
     //Free the MPRES-BLAS DEVICE inputs
     cuda::mp_array_clear(mp_dev_x);
     cuda::mp_array_clear(mp_dev_y);
+    cuda::mp_array_clear(mp_dev_product);
     cuda::mp_array_clear(mp_dev_buffer);
 
     //Accuracy evaluation

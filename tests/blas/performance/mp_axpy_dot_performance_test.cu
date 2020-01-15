@@ -87,7 +87,7 @@ void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
 void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     Logger::printDash();
     InitCudaTimer();
-    PrintTimerName("[GPU] MPRES-BLAS axpy_dot");
+    PrintTimerName("[GPU] MPRES-BLAS axpy_dot v-2.0");
 
     //Host data
     mp_float_ptr hw = new mp_float_t[n];
@@ -101,7 +101,7 @@ void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     mp_array_t dv;
     mp_array_t du;
     mp_array_t dalpha;
-    mp_float_ptr dr;
+    mp_array_t dr;
     mp_array_t dbuffer;
 
     cuda::mp_array_init(dw, n);
@@ -109,7 +109,7 @@ void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     cuda::mp_array_init(du, n);
     cuda::mp_array_init(dalpha, 1);
     cuda::mp_array_init(dbuffer, n);
-    cudaMalloc((void **) &dr, sizeof(mp_float_t));
+    cuda::mp_array_init(dr, 1);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -154,7 +154,7 @@ void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     mpfr_set_d(mpfr_result, 0, MPFR_RNDN);
 
     //Copying to the host
-    cudaMemcpy(hr, dr, sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    cuda::mp_array_device2host(hr, dr, 1);
     cuda::mp_array_device2host(hw, dw, n);
 
     print_mp_sum(hw, n, "w");
@@ -171,8 +171,8 @@ void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     cuda::mp_array_clear(du);
     cuda::mp_array_clear(dw);
     cuda::mp_array_clear(dalpha);
+    cuda::mp_array_clear(dr);
     cuda::mp_array_clear(dbuffer);
-    cudaFree(dr);
     mpfr_clear(mpfr_result);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();

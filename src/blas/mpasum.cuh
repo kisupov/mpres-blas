@@ -69,9 +69,10 @@ namespace cuda {
 
     /*
     * Kernel that calculates the sum of the absolute values of the elements of a multiple-precision vector.
-    * This kernel is exactly the same as the previous one but takes mp_float_ptr instead of mp_array_t
+    * This kernel is exactly the same as the previous one, but takes mp_float_ptr instead of mp_array_t for the input vector
+    * and mp_array_t instead of mp_float_ptr for the result
     */
-    __global__ static void mp_array_reduce_abs_kernel2(const unsigned int n, mp_float_ptr input, int incx, mp_float_ptr result, const unsigned int nextPow2) {
+    __global__ static void mp_array_reduce_abs_kernel2(const unsigned int n, mp_float_ptr input, int incx, mp_array_t result, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
         const unsigned int tid = threadIdx.x;
         const unsigned int bid = blockIdx.x;
@@ -93,23 +94,29 @@ namespace cuda {
             __syncthreads();
         }
         if (tid == 0) {
-            result[bid] = sdata[tid];
-        };
-        __syncthreads();
+            result.sign[bid] = 0;
+            result.exp[bid] = sdata[tid].exp;
+            result.eval[bid] = sdata[tid].eval[0];
+            result.eval[bid + result.len[0]] = sdata[tid].eval[1];
+            for(int j = 0; j < RNS_MODULI_SIZE; j++){
+                result.digits[RNS_MODULI_SIZE * bid + j] = sdata[tid].digits[j];
+            }
+        }
+        //__syncthreads();
     }
 
 
     /*!
-     * Computes the sum of magnitudes of the vector elements, result = |x0| + |x1| + ... + |xn|
+     * Computes the sum of magnitudes of the vector elements, r[0] = |x0| + |x1| + ... + |xn|
      * @tparam gridDim1 - number of thread blocks for parallel summation
      * @tparam blockDim1 - number of threads per block for parallel summation
      * @param n - operation size (must be positive)
      * @param x - pointer to the vector in the global GPU memory
      * @param incx - storage spacing between elements of x (must be positive)
-     * @param result - pointer to the sum in the GPU memory
+     * @param r - pointer to the sum (vector of length one) in the GPU memory
      */
     template <int gridDim1, int blockDim1>
-    void mp_array_asum(int n, mp_array_t &x, int incx, mp_float_ptr result) {
+    void mp_array_asum(int n, mp_array_t &x, int incx, mp_array_t &r) {
 
         // Only positive operation size and vector stride are permitted for ASUM
         if(n <= 0 || incx <= 0){
@@ -134,7 +141,7 @@ namespace cuda {
         mp_array_reduce_abs_kernel1 <<< gridDim1, blockDim1, smemsize >>> (n, x, incx, d_buf, POW);
 
         //Launch the 2nd CUDA kernel to perform summation of the results of parallel blocks on the GPU
-        mp_array_reduce_abs_kernel2 <<< 1, blockDim1, smemsize >>> (gridDim1, d_buf, 1, result, POW);
+        mp_array_reduce_abs_kernel2 <<< 1, blockDim1, smemsize >>> (gridDim1, d_buf, 1, r, POW);
 
         // Cleanup
         cudaFree(d_buf);
