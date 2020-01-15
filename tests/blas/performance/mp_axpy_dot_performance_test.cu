@@ -87,7 +87,7 @@ void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
 void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     Logger::printDash();
     InitCudaTimer();
-    PrintTimerName("[GPU] MPRES-BLAS axpy_dot v-2.0");
+    PrintTimerName("[GPU] MPRES-BLAS axpy_dot");
 
     //Host data
     mp_float_ptr hw = new mp_float_t[n];
