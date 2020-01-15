@@ -95,7 +95,7 @@ namespace cuda {
             __syncthreads();
         }
         if (tid == 0) {
-            result.sign[bid] = 0;
+            result.sign[bid] = sdata[tid].sign;
             result.exp[bid] = sdata[tid].exp;
             result.eval[bid] = sdata[tid].eval[0];
             result.eval[bid + result.len[0]] = sdata[tid].eval[1];

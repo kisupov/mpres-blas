@@ -332,7 +332,7 @@ void mpdecimal_test(mpfr_t *x, int n){
 void mpres_test(mpfr_t *x, int n){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS asum v-2.0");
+    PrintTimerName("[GPU] MPRES-BLAS asum");
 
     //Host data
     mp_float_ptr hx = new mp_float_t[n];
