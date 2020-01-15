@@ -54,15 +54,15 @@ namespace cuda {
             return;
         }
 
-        // Setting the number of threads per block for computing residues
-        // If either incx or incy is not equal to 1, then numThreads must be equal to RNS_MODULI_SIZE
-        int numThreads = (incx == 1 && incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
+        //Block size for computing residues. If the corresponding vector stride is not equal to 1, then the block size must be equal to RNS_MODULI_SIZE
+        int numThreadsX = (incx == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
+        int numThreadsY = (incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         //Multiplication buffer1 = s * x - Computing the signs, exponents, and interval evaluations
         cuda::mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer1, 1, x, incx, s, n);
 
         //Multiplication buffer1 = s * x - Multiplying the digits in the RNS
-        cuda::mp_array_mul_digits_vs<<< gridDim2, numThreads >>> (buffer1, 1, x, incx, s, n);
+        cuda::mp_array_mul_digits_vs<<< gridDim2, numThreadsX >>> (buffer1, 1, x, incx, s, n);
 
         // Multiplication buffer1 = s * x - Rounding the intermediate result
         mp_array_round<<< gridDim1, blockDim1 >>> (buffer1, 1, n);
@@ -71,7 +71,7 @@ namespace cuda {
         cuda::mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer2, 1, y, incy, s, n);
 
         //Multiplication buffer2 = s * y - Multiplying the digits in the RNS
-        cuda::mp_array_mul_digits_vs<<< gridDim2, numThreads >>> (buffer2, 1, y, incy, s, n);
+        cuda::mp_array_mul_digits_vs<<< gridDim2, numThreadsY >>> (buffer2, 1, y, incy, s, n);
 
         // Multiplication buffer2 = s * y - Rounding the intermediate result
         mp_array_round<<< gridDim1, blockDim1 >>> (buffer2, 1, n);
@@ -86,14 +86,14 @@ namespace cuda {
         mp_array_add_esi_vv<<< gridDim1, blockDim1 >>> (x, incx, x, incx, buffer2, 1, n);
 
         //Addition x = x + buffer2 (in fact, we have x = c*x + s*y) - Adding the digits in the RNS
-        mp_array_add_digits_vv<<< gridDim2, numThreads >>> (x, incx, x, incx, buffer2, 1, n);
+        mp_array_add_digits_vv<<< gridDim2, numThreadsX >>> (x, incx, x, incx, buffer2, 1, n);
 
         //Subtraction y = y - buffer1 (in fact, we have y = c*y - s*x) - Computing the signs, exponents, and interval evaluations
         mp_array_sub_esi_vv<<< gridDim1, blockDim1 >>> (y, incy, y, incy, buffer1, 1, n);
 
         //Subtraction y = y - buffer1 (in fact, we have y = c*y - s*x) - Adding the digits in the RNS
         //We call mp_array_add_digits_vv since the sign has been changed in mp_array_sub_esi_vv
-        mp_array_add_digits_vv<<< gridDim2, numThreads >>> (y, incy, y, incy, buffer1, 1, n);
+        mp_array_add_digits_vv<<< gridDim2, numThreadsY >>> (y, incy, y, incy, buffer1, 1, n);
 
         //Final rounding
         mp_array_round<<< gridDim1, blockDim1 >>> (x, incx, n);

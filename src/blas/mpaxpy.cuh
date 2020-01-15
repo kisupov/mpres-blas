@@ -49,15 +49,15 @@ namespace cuda {
             return;
         }
 
-        // Setting the number of threads per block for computing residues
-        // If either incx or incy is not equal to 1, then numThreads must be equal to RNS_MODULI_SIZE
-        int numThreads = (incx == 1 && incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
+        //Block size for computing residues. If the corresponding vector stride is not equal to 1, then the block size must be equal to RNS_MODULI_SIZE
+        int numThreadsX = (incx == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
+        int numThreadsY = (incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         //Multiplication - Computing the signs, exponents, and interval evaluations
         mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer, 1, x, incx, alpha, n);
 
         //Multiplication - Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, numThreads >>> (buffer, 1, x, incx, alpha, n);
+        mp_array_mul_digits_vs<<< gridDim2, numThreadsX >>> (buffer, 1, x, incx, alpha, n);
 
         //Multiplication - Rounding the intermediate result
         mp_array_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
@@ -66,7 +66,7 @@ namespace cuda {
         mp_array_add_esi_vv<<< gridDim1, blockDim1 >>> (y, incy, buffer, 1, y, incy, n);
 
         //Addition - Adding the digits in the RNS
-        mp_array_add_digits_vv<<< gridDim2, numThreads >>> (y, incy, buffer, 1, y, incy, n);
+        mp_array_add_digits_vv<<< gridDim2, numThreadsY >>> (y, incy, buffer, 1, y, incy, n);
 
         //Final rounding
         mp_array_round<<< gridDim1, blockDim1 >>> (y, incy, n);
