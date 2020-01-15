@@ -606,16 +606,15 @@ namespace cuda {
     /*!
      * Addition of two multiple-precision numbers using the mp_array_t type for the second argument
      * @param idy - index of the desired element in the vector y
-     * @param leny - length of the vector y
      * @param result - pointer to the computed sum, result = x + y[idy]
      */
-    DEVICE_CUDA_FORCEINLINE void mp_add(mp_float_ptr result, mp_float_ptr x, mp_array_t y, int idy, int leny) {
+    DEVICE_CUDA_FORCEINLINE void mp_add(mp_float_ptr result, mp_float_ptr x, mp_array_t y, int idy) {
         er_float_t eval_x[2];
         er_float_t eval_y[2];
         eval_x[0] = x->eval[0];
         eval_x[1] = x->eval[1];
         eval_y[0] = y.eval[idy];
-        eval_y[1] = y.eval[idy + leny];
+        eval_y[1] = y.eval[idy + y.len[0]];
 
         int exp_x = x->exp;
         int exp_y = y.exp[idy];
@@ -840,16 +839,15 @@ namespace cuda {
     /*!
      * Addition of the absolute values of two multiple-precision numbers using mp_array_t type for the second argument
      * @param idy - index of the desired element in the vector y
-     * @param leny - length of the vector y
      * @param result - pointer to the computed sum, result = | x | + | y[idy] |
      */
-    DEVICE_CUDA_FORCEINLINE void mp_add_abs(mp_float_ptr result, mp_float_ptr x, mp_array_t &y, int idy, int leny){
+    DEVICE_CUDA_FORCEINLINE void mp_add_abs(mp_float_ptr result, mp_float_ptr x, mp_array_t y, int idy){
         er_float_t eval_x[2];
         er_float_t eval_y[2];
         eval_x[0] = x->eval[0];
         eval_x[1] = x->eval[1];
         eval_y[0] = y.eval[idy];
-        eval_y[1] = y.eval[idy+leny];
+        eval_y[1] = y.eval[idy + y.len[0]];
 
         int exp_x = x->exp;
         int exp_y = y.exp[idy];

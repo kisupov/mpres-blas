@@ -47,7 +47,7 @@ namespace cuda {
         // in a larger gridSize and therefore fewer elements per thread
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add(&sdata[tid], &sdata[tid], input, i, n);
+            cuda::mp_add(&sdata[tid], &sdata[tid], input, i);
             i += k;
         }
         __syncthreads();
