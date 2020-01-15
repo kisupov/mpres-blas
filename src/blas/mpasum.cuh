@@ -45,6 +45,7 @@ namespace cuda {
         // do reduction in global mem
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
+            //TODO: Ошибка !!!! И в других методах редукции тоже - не нужно n передавать, а нужно использовать len[0]
             cuda::mp_add_abs(&sdata[tid], &sdata[tid], input, i * incx, n);
             i += k;
         }
