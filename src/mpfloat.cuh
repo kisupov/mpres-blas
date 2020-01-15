@@ -746,12 +746,12 @@ namespace cuda {
                     cuda::RNS_MODULI_RECIPROCAL[i]);
             result.digits[RNS_MODULI_SIZE * idr + i] = residue < 0 ? residue + cuda::RNS_MODULI[i] : residue;
         }
-        //int plus  = result->eval[0].frac >= 0 && result->eval[1].frac >= 0; // see mp_add for CPU
+        //int plus  = result.eval[idr].frac >= 0 && result.eval[idr + lenr].frac >= 0; // see mp_add for CPU
         int minus = result.eval[idr].frac < 0 && result.eval[idr + lenr].frac < 0;
         if(minus){
             result.sign[idr] = 1;
             for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-                result.digits[RNS_MODULI_SIZE * idr + i] = (cuda::RNS_MODULI[i] - result->digits[i]) % cuda::RNS_MODULI[i];
+                result.digits[RNS_MODULI_SIZE * idr + i] = (cuda::RNS_MODULI[i] - result.digits[RNS_MODULI_SIZE * idr + i]) % cuda::RNS_MODULI[i];
             }
             er_float_t tmp = result.eval[idr];
             result.eval[idr].frac = -1 * result.eval[idr + lenr].frac;
