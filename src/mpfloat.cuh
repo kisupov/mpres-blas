@@ -685,22 +685,23 @@ namespace cuda {
     }
 
     /*!
-     * Addition of two multiple-precision numbers using the mp_array_t type for the result
-     * @param idr - Index in the result vector to write the computed sum
-     * @param result - pointer to the computed sum, result[idr] = x + y
+     * Addition of two multiple-precision numbers using the mp_array_t type for the first argument and result
+     * @param idx - index of the desired element in the vector x
+     * @param idr - index in the result vector to write the computed sum
+     * @param result - pointer to the computed sum, result[idr] = x[idx] + y
      */
-    DEVICE_CUDA_FORCEINLINE void mp_add(mp_array_t result, int idr, mp_float_ptr x, mp_float_ptr y) {
+    DEVICE_CUDA_FORCEINLINE void mp_add(mp_array_t result, int idr, mp_array_t x, int idx, mp_float_ptr y) {
         int lenr = result.len[0]; //Actual length of the result vector
         er_float_t eval_x[2];
         er_float_t eval_y[2];
-        eval_x[0] = x->eval[0];
-        eval_x[1] = x->eval[1];
+        eval_x[0] = x.eval[idx];
+        eval_x[1] = x.eval[idx + x.len[0]];
         eval_y[0] = y->eval[0];
         eval_y[1] = y->eval[1];
 
-        int exp_x = x->exp;
+        int exp_x = x.exp[idx];
         int exp_y = y->exp;
-        int sign_x = x->sign;
+        int sign_x = x.sign[idx];
         int sign_y = y->sign;
 
         int dexp = exp_x - exp_y;
@@ -740,8 +741,10 @@ namespace cuda {
 
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             int residue = cuda::mod_axby(
-                    x->digits[i], cuda::RNS_POW2[gamma][i] * factor_x,
-                    y->digits[i], cuda::RNS_POW2[theta][i] * factor_y,
+                    x.digits[RNS_MODULI_SIZE * idx + i],
+                    cuda::RNS_POW2[gamma][i] * factor_x,
+                    y->digits[i],
+                    cuda::RNS_POW2[theta][i] * factor_y,
                     cuda::RNS_MODULI[i],
                     cuda::RNS_MODULI_RECIPROCAL[i]);
             result.digits[RNS_MODULI_SIZE * idr + i] = residue < 0 ? residue + cuda::RNS_MODULI[i] : residue;
@@ -896,20 +899,21 @@ namespace cuda {
     }
 
     /*!
-     * Addition of the absolute values of two multiple-precision numbers using the mp_array_t type for the result
-     * @param idr - Index in the result vector to write the computed sum
-     * @param result - pointer to the computed sum, result[idr] = | x | + | y |
+     * Addition of the absolute values of two multiple-precision numbers using the mp_array_t type for the first argument and result
+     * @param idx - index of the desired element in the vector x
+     * @param idr - index in the result vector to write the computed sum
+     * @param result - pointer to the computed sum, result[idr] = | x[idx] | + | y |
      */
-    DEVICE_CUDA_FORCEINLINE void mp_add_abs(mp_array_t result, int idr, mp_float_ptr x, mp_float_ptr y) {
+    DEVICE_CUDA_FORCEINLINE void mp_add_abs(mp_array_t result, int idr, mp_array_t x, int idx, mp_float_ptr y) {
         int lenr = result.len[0]; //Actual length of the result vector
         er_float_t eval_x[2];
         er_float_t eval_y[2];
-        eval_x[0] = x->eval[0];
-        eval_x[1] = x->eval[1];
+        eval_x[0] = x.eval[idx];
+        eval_x[1] = x.eval[idx + x.len[0]];
         eval_y[0] = y->eval[0];
         eval_y[1] = y->eval[1];
 
-        int exp_x = x->exp;
+        int exp_x = x.exp[idx];
         int exp_y = y->exp;
 
         int dexp = exp_x - exp_y;
@@ -943,7 +947,7 @@ namespace cuda {
 
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             result.digits[RNS_MODULI_SIZE * idr + i] = cuda::mod_axby(
-                    x->digits[i] * nzx,
+                    x.digits[RNS_MODULI_SIZE * idx + i],
                     cuda::RNS_POW2[gamma][i],
                     y->digits[i] * nzy,
                     cuda::RNS_POW2[theta][i],
