@@ -46,15 +46,14 @@ namespace cuda {
             return;
         }
 
-        // Setting the number of threads per block for computing residues
-        // If incx is not equal to 1, then numThreads must be equal to RNS_MODULI_SIZE
-        int numThreads = (incx == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
+        //Block size for computing residues. If incx is not equal to 1, then the block size must be equal to RNS_MODULI_SIZE
+        int numThreadsX = (incx == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         //Computing the signs, exponents, and interval evaluations
         mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (x, incx, x, incx, alpha, n);
 
         //Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, numThreads >>> (x, incx, x, incx, alpha, n);
+        mp_array_mul_digits_vs<<< gridDim2, numThreadsX >>> (x, incx, x, incx, alpha, n);
 
         //Rounding the result
         mp_array_round<<< gridDim1, blockDim1 >>> (x, incx, n);

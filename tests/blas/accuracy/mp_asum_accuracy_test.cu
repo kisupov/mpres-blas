@@ -135,10 +135,10 @@ int main() {
     mp_float_ptr mp_x = new mp_float_t[SIZE];
     mp_float_t mp_result = MP_ZERO;
     mp_array_t mp_dev_x;
-    mp_float_ptr mp_dev_result;
+    mp_array_t mp_dev_result;
 
     cuda::mp_array_init(mp_dev_x, SIZE);
-    cudaMalloc(&mp_dev_result, sizeof(mp_float_t));
+    cuda::mp_array_init(mp_dev_result, 1);
 
     mpfr_init2(reference_res, REFERENCE_PRECISION);
     mpfr_init2(mpfr_result, MP_PRECISION);
@@ -164,8 +164,7 @@ int main() {
     }
     //Calculation of the MPRES-BLAS result with MP_PRECISION bits of precision
     cuda::mp_array_asum<MPRES_CUDA_BLOCKS_REDUCE, MPRES_CUDA_THREADS_REDUCE>(SIZE, mp_dev_x, 1, mp_dev_result);
-    cudaDeviceSynchronize();
-    cudaMemcpy(&mp_result, mp_dev_result, sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    cuda::mp_array_device2host(&mp_result, mp_dev_result, 1);
     cudaDeviceSynchronize();
 
     //Error bounds
@@ -182,8 +181,8 @@ int main() {
     mpfr_clear(reference_res);
     mpfr_clear(mpfr_result);
     delete[] mp_x;
-    cudaFree(mp_dev_result);
     cuda::mp_array_clear(mp_dev_x);
+    cuda::mp_array_clear(mp_dev_result);
 
     //End logging
     Logger::endTestDescription();

@@ -358,12 +358,12 @@ void mpres_test(mpfr_t *x, mpfr_t *y, int n){
     mp_array_t dx;
     mp_array_t dy;
     mp_array_t dbuffer;
-    mp_float_ptr dresult;
+    mp_array_t dresult;
 
     cuda::mp_array_init(dx, n);
     cuda::mp_array_init(dy, n);
     cuda::mp_array_init(dbuffer, n);
-    cudaMalloc((void **) &dresult, sizeof(mp_float_t));
+    cuda::mp_array_init(dresult, 1);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -405,7 +405,7 @@ void mpres_test(mpfr_t *x, mpfr_t *y, int n){
     mpfr_set_d(mpfr_result, 0, MPFR_RNDN);
 
     //Copying to the host
-    cudaMemcpy(hresult, dresult, sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    cuda::mp_array_device2host(hresult, dresult, 1);
     mp_get_mpfr(mpfr_result, hresult);
     mpfr_printf("result: %.70Rf \n", mpfr_result);
 
@@ -417,10 +417,10 @@ void mpres_test(mpfr_t *x, mpfr_t *y, int n){
     delete [] hy;
     delete [] hresult;
     mpfr_clear(mpfr_result);
-    cudaFree(dresult);
     cuda::mp_array_clear(dx);
     cuda::mp_array_clear(dy);
     cuda::mp_array_clear(dbuffer);
+    cuda::mp_array_clear(dresult);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 }

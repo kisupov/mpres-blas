@@ -52,7 +52,7 @@ namespace cuda {
         // Allocating temporary buffer
         checkDeviceHasErrors(cudaMalloc(&dev_dest.buf, size * sizeof(int4)));
 
-        // Setting the size of the vector
+        // Setting the actual size of the vector
         int length = size;
         checkDeviceHasErrors(cudaMalloc(&dev_dest.len, sizeof(int)));
         checkDeviceHasErrors(cudaMemcpy(dev_dest.len, &length, sizeof(int), cudaMemcpyHostToDevice));

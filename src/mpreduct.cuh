@@ -47,7 +47,7 @@ namespace cuda {
         // in a larger gridSize and therefore fewer elements per thread
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add(&sdata[tid], &sdata[tid], input, i, n);
+            cuda::mp_add(&sdata[tid], &sdata[tid], input, i);
             i += k;
         }
         __syncthreads();
@@ -70,10 +70,10 @@ namespace cuda {
     }
 
     /*
-     * Multiple-precision summation kernel that is exactly the same as the previous kernel,
-     * but takes mp_float_ptr instead of mp_array_t
+     * Multiple-precision summation kernel.  This kernel is exactly the same as the previous one,
+     * but takes mp_float_ptr instead of mp_array_t for the input vector and mp_array_t instead of mp_float_ptr for the result
      */
-    __global__ static void mp_array_reduce_kernel2(const unsigned int n, mp_float_ptr input, mp_float_ptr result, const unsigned int nextPow2) {
+    __global__ static void mp_array_reduce_kernel2(const unsigned int n, mp_float_ptr input, mp_array_t result, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
         const unsigned int tid = threadIdx.x;
         const unsigned int bid = blockIdx.x;
@@ -95,9 +95,15 @@ namespace cuda {
             __syncthreads();
         }
         if (tid == 0) {
-            result[bid] = sdata[tid];
-        };
-        __syncthreads();
+            result.sign[bid] = sdata[tid].sign;
+            result.exp[bid] = sdata[tid].exp;
+            result.eval[bid] = sdata[tid].eval[0];
+            result.eval[bid + result.len[0]] = sdata[tid].eval[1];
+            for(int j = 0; j < RNS_MODULI_SIZE; j++){
+                result.digits[RNS_MODULI_SIZE * bid + j] = sdata[tid].digits[j];
+            }
+        }
+        //__syncthreads();
     }
 
     /*!
@@ -106,10 +112,10 @@ namespace cuda {
      * @tparam blockDim1 - number of threads per block
      * @param n - size of the vector
      * @param x - multiple-precision vector in the GPU memory
-     * @param result - pointer to the sum in the GPU memory
+     * @param result - pointer to the sum (vector of length one) in the GPU memory
      */
     template <int gridDim1, int blockDim1>
-    void mp_array_reduce(int n, mp_array_t x, mp_float_ptr result) {
+    void mp_array_reduce(int n, mp_array_t x, mp_array_t result) {
         mp_float_ptr d_buf; // device buffer
 
         //Allocate memory buffers for the device results
