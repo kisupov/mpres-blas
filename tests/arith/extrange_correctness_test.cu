@@ -92,20 +92,6 @@ static __global__ void testCudaMulDiv(er_float_ptr dr, er_float_ptr dx, er_float
     printResult("[CUDA-ru] x * y / z", dr);
 }
 
-
-/*
-static __global__ void testCudaCmp(er_ptr d_x, er_ptr d_y){
-    int i = cuda::er_cmp(d_x,d_y);
-    printf("[CUDA] cmp:   %s\n", (i == -1 ? "x < y" : i == 0 ? "x = y" : i == 1 ? "x > y" : "incorrect cmp"));
-}
-
-static __global__ void testCudaUcmp(er_ptr d_x, er_ptr d_y){
-    int i = cuda::er_ucmp(d_x,d_y);
-    printf("[CUDA] ucmp:  %s\n", (i == -1 ? "x < y" : i == 0 ? "x = y" : i == 1 ? "x > y" : "incorrect cmp"));
-}
-*/
-
-
 void testCuda(er_float_ptr x, er_float_ptr y, er_float_ptr z, er_test_type type){
     er_float_ptr dx;
     er_float_ptr dy;
@@ -142,8 +128,6 @@ void testCuda(er_float_ptr x, er_float_ptr y, er_float_ptr z, er_test_type type)
     cudaFree(dy);
     cudaFree(dr);
 }
-
-
 
 
 void base_test() {
@@ -237,58 +221,12 @@ void base_test() {
     printResult("[CPU-ru]  x * y / z", r);
     Logger::printSpace();
     testCuda(x, y,  z, mul_div_test);
-
-
-    /*PRINT_RULE;
-    er_sub(z, x, y, MPRES_RNDF);
-    er_get_d(&t, z);
-    std::cout << "[CPU]  x - y = " << t << std::tab << std::tab;
-    er_print(z);
-    testCuda(x, y, sub_test);
-    std::cout << "exact =        " << arg_x - arg_y << std::endl;
-
-    PRINT_RULE;
-    er_mul(z, x, y, MPRES_RNDF);
-    er_get_d(&t, z);
-    std::cout << "[CPU]  x * y = " << t << std::tab << std::tab;
-    er_print(z);
-    testCuda(x, y, mul_test);
-    std::cout << "exact =        " << arg_x * arg_y << std::endl;
-
-    PRINT_RULE;
-    er_div(z, x, y, MPRES_RNDF);
-    er_get_d(&t, z);
-    std::cout << "[CPU]  x / y = " << t << std::tab << std::tab;
-    er_print(z);
-    testCuda(x, y, div_test);
-    std::cout << "exact =        " << arg_x / arg_y << std::endl;
-
-    PRINT_RULE;
-    int i = er_cmp(x,y);
-    std::cout << "[CPU]  cmp:   " << (i == -1 ? "x < y" : i == 0 ? "x = y" : i == 1 ? "x > y" : "incorrect cmp") << std::endl;
-    testCuda(x, y, cmp_test);
-    std::cout << "exact =       " << (arg_x < arg_y ? "x < y" : arg_x == arg_y ? "x = y" : "x > y") << std::endl;
-
-    PRINT_RULE;
-    i = er_ucmp(x,y);
-    std::cout << "[CPU]  ucmp:  " << (i == -1 ? "x < y" : i == 0 ? "x = y" : i == 1 ? "x > y" : "incorrect cmp") << std::endl;
-    testCuda(x, y, ucmp_test);
-    std::cout << "exact =       " << (arg_x < arg_y ? "x < y" : arg_x == arg_y ? "x = y" : "x > y") << std::endl;
-
-    PRINT_RULE;
-    int n = 1023;
-    x->frac = -1;
-    std::cout << "[CPU] fast_scalbn("<< x->frac << ", " << n << ") = " << fast_scalbn(x->frac, n)  << std::endl;
-    std::cout << "exact = " << x->frac * pow(2, n) << std::endl;
-    PRINT_RULE;*/
 }
 
 int main() {
     Logger::beginTestDescription(Logger::RNS_EVAL_ACCURACY_TEST);
     Logger::printSpace();
     base_test();
-
-    //End logging
     Logger::endTestDescription();
     return 0;
 }
