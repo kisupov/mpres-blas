@@ -106,3 +106,7 @@ target_link_libraries(rns_eval_accuracy_test gmp mpfr)
 add_executable(mp_add_correctness_test arith/mp_add_correctness_test.cu)
 target_compile_options(mp_add_correctness_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(mp_add_correctness_test gmp mpfr)
+
+# Test for checking the correctness of the extended-range floating-point routines
+add_executable(extrange_correctness_test arith/extrange_correctness_test.cu)
+target_compile_options(extrange_correctness_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)

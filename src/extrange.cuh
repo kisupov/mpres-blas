@@ -107,6 +107,14 @@ namespace cuda {
     }
 
     /*!
+     * Convert x to a double. The procedure may yield an overflow or an underflow
+     * if x is not representable in the exponent range of the double precision format
+     */
+    DEVICE_CUDA_FORCEINLINE void er_get_d(double *result, er_float_ptr x) {
+        *result = cuda::fast_scalbn(x->frac, x->exp);
+    }
+
+    /*!
      * Inline print of x
      */
     DEVICE_CUDA_FORCEINLINE void er_print(er_float_ptr x) {
@@ -313,23 +321,20 @@ GCC_FORCEINLINE void er_div_ru(er_float_ptr result, er_float_ptr x, er_float_ptr
 }
 
 /*!
- * Compute x * y / z with a single adjust call in rounding-down mode    TODO: change after test
+ * Compute x * y / z with a single adjust call in rounding-down mode
  */
 GCC_FORCEINLINE void er_md_rd(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
     result->exp = x->exp + y->exp - z->exp;
-    round_down_mode();
-    result->frac = (x->frac * y->frac) / z->frac;
+    result->frac = ddiv_rd(dmul_rd(x->frac, y->frac), z->frac);
     er_adjust(result);
 }
 
 /*!
- * Compute x * y / z with a single adjust call in rounding-up mode    TODO: change after test
+ * Compute x * y / z with a single adjust call in rounding-up mode
  */
 GCC_FORCEINLINE void er_md_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
     result->exp = x->exp + y->exp - z->exp;
-    round_up_mode();
-    result->frac = (x->frac * y->frac) / z->frac;
-    round_nearest_mode();
+    result->frac = ddiv_ru(dmul_ru(x->frac, y->frac), z->frac);
     er_adjust(result);
 }
 
@@ -566,20 +571,20 @@ namespace cuda {
     }
 
     /*!
-     * Compute x * y / z with a single adjust call in rounding-up mode
-     */
-    DEVICE_CUDA_FORCEINLINE void er_md_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
-        result->exp = x->exp + y->exp - z->exp;
-        result->frac = __ddiv_ru(__dmul_ru(x->frac, y->frac), z->frac);
-        cuda::er_adjust(result);
-    }
-
-    /*!
      * Compute x * y / z with a single adjust call in rounding-down mode
      */
     DEVICE_CUDA_FORCEINLINE void er_md_rd(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
         result->exp = x->exp + y->exp - z->exp;
         result->frac = __ddiv_rd(__dmul_rd(x->frac, y->frac), z->frac);
+        cuda::er_adjust(result);
+    }
+
+    /*!
+     * Compute x * y / z with a single adjust call in rounding-up mode
+     */
+    DEVICE_CUDA_FORCEINLINE void er_md_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
+        result->exp = x->exp + y->exp - z->exp;
+        result->frac = __ddiv_ru(__dmul_ru(x->frac, y->frac), z->frac);
         cuda::er_adjust(result);
     }
 
