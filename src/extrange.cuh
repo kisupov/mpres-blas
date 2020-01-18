@@ -28,7 +28,6 @@
 
 #include "types.cuh"
 #include "pairwise.cuh"
-#include "roundings.cuh"
 
 
 /********************* Assignment and formatted output functions *********************/
