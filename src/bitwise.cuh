@@ -41,6 +41,21 @@
 #define DBL_EXP_BIAS (1023)
 
 /*
+ * The distance from 1 to the next smaller floating-point number, 2^{-53}
+ */
+#define DBL_EPS scalbn(1, -53)
+
+/*
+ * The smallest positive subnormal floating-point number, 1 * 2^{-1074}
+ */
+#define DBL_ETA scalbn(1, -1074)
+
+/*
+ * Auxiliary numeric constant for double-precision interval arithmetic
+ */
+#define DBL_PHI1 DBL_EPS*(1+2*DBL_EPS)
+
+/*
  * When the logical AND operator (&) is applied to the double x with this mask (i.e. x & DBL_ZERO_EXP_MASK),
  * all exponent bits of x are set to zero, while the sign bit and the significand bits of x do not change.
  */
@@ -69,7 +84,6 @@ union RealIntUnion {
  * @param n - exponent of the integer power of two in the range (-1023, 1024)
  * @return - if no errors (overflow / underflow) occur, x multiplied by 2 to the power of n (x * 2^n) is returned.
  */
-extern "C"
 GCC_FORCEINLINE double fast_scalbn(const double x, const int n) {
     RealIntUnion diu;
     diu.dvalue = x;

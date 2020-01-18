@@ -412,11 +412,11 @@ namespace cuda {
     }
 
     /*!
-   * Comparison of two non-negative extended-range numbers
-   * Performs faster than er_cmp
-   * Returns 1, if x > y; -1, if x < y; 0, if x = y
-   * The function is correct only when 1 <= x.frac, y.frac < 2
-   */
+     * Comparison of two non-negative extended-range numbers
+     * Performs faster than er_cmp
+     * Returns 1, if x > y; -1, if x < y; 0, if x = y
+     * The function is correct only when 1 <= x.frac, y.frac < 2
+     */
     DEVICE_CUDA_FORCEINLINE int er_ucmp(er_float_ptr x, er_float_ptr y) {
         int diff = x->exp - y->exp;
         if (diff == 0) {

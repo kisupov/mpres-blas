@@ -35,7 +35,7 @@
 /*
  * Creates an array of random multiple-precision floating-point numbers
  */
-mpfr_t * create_random_array(unsigned long size, unsigned long bits){
+mpfr_t * create_random_array(unsigned long size, int bits){
     srand(time(NULL));
 
     gmp_randstate_t state;                           // Random generator state object
@@ -73,7 +73,7 @@ mpfr_t * create_random_array(unsigned long size, unsigned long bits){
 /*
  * Creates a m-by-n random multiple-precision matrix
  */
-mpfr_t * create_random_matrix(unsigned long m, unsigned long n, unsigned long bits){
+mpfr_t * create_random_matrix(unsigned long m, unsigned long n, int bits){
     return create_random_array(m * n, bits);
 }
 

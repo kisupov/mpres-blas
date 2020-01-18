@@ -19,7 +19,7 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <">stdio.h>
+#include <stdio.h>
 #include <iostream>
 #include "../../src/rns.cuh"
 #include "../tsthelper.cuh"
@@ -81,7 +81,7 @@ int main() {
     Logger::endSection(true);
     Logger::printSpace();
 
-    bool asc = false; //start with x = 0
+    bool asc = true; //start with x = 0
     char c;
 
     int * number = new int[RNS_MODULI_SIZE];;
