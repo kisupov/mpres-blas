@@ -53,18 +53,6 @@
 #define RNS_EVAL_RELATIVE_ERROR (0.0000001)
 
 /*
- * The minimum value for the upper bound of an RNS interval evaluation at which a refinement loop is not required.
- * RNS_EVAL_MIN_LIMIT = RNS_MODULI_SIZE * RNS_MODULI_SIZE * pow(2.0, 1 - 53) / RNS_EVAL_RELATIVE_ERROR
- */
-#define RNS_EVAL_MIN_LIMIT (1.4210854715202004e-07)
-
-/*
- * The size of the offset vector for an RNS interval evaluation refinement loop.
- * RNS_EVAL_OFFSET_VEC_SIZE = ceil(-(LOG2(M) + log2_psi) / (2 + log2_psi))
- */
-#define RNS_EVAL_OFFSET_VEC_SIZE (11)
-
-/*
  * The set of RNS moduli
  */
 const int RNS_MODULI[] = {1283742825,1283742827,1283742829,1283742833,1283742839,1283742841,1283742847,1283742851};

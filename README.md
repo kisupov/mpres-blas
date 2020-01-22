@@ -34,12 +34,6 @@ you need to change the following #defines in `src/params.h`:
 
 * `RNS_MODULI_PRODUCT_LOG2`
 * `RNS_PARALLEL_REDUCTION_IDX`
-* `RNS_EVAL_MIN_LIMIT`
-* `RNS_EVAL_OFFSET_VEC_SIZE`
-
-To compute `RNS_EVAL_MIN_LIMIT` and `RNS_EVAL_OFFSET_VEC_SIZE` use `rns_eval_const_calc()` from `src/rns.cuh`.
-These two constants will be removed in the near future, as soon as an improved algorithm for computing
-the interval evaluation of an RNS number is implemented.
 
 If the size of the moduli set increases, make sure that the loop-unrolled methods from `src/modular.cuh` remain correct.
 

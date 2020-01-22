@@ -79,9 +79,9 @@ void mp_const_init() {
  */
 void mp_const_print(){
     std::cout << "Constants of the RNS-based floating-point arithmetic:" << std::endl;
-    printf("- MP_PRECISION %i\n", MP_PRECISION);
-    printf("- MP_H %i\n", MP_H);
-    printf("- MP_J %i\n", MP_J);
+    printf("- MP_PRECISION: %i\n", MP_PRECISION);
+    printf("- MP_H: %i\n", MP_H);
+    printf("- MP_J: %i\n", MP_J);
 }
 
 

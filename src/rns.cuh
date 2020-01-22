@@ -103,11 +103,6 @@ er_float_t RNS_EVAL_ZERO_BOUND = (er_float_t) {0.0, 0}; // To set the zero inter
  */
 int MRC_MULT_INV[RNS_MODULI_SIZE][RNS_MODULI_SIZE]; // Triangle matrix with elements | mult.inv(m_i) |m_j
 
-//TODO:------------------------------------------------
-int RNS_EVAL_OFFSET_VEC[RNS_EVAL_OFFSET_VEC_SIZE]; // Offset vector. This vector contains only the power-of-two exponents
-int RNS_EVAL_OFFSET_MATR[RNS_EVAL_OFFSET_VEC_SIZE][RNS_MODULI_SIZE]; //Offset multiplicative inverses matrix: m(i,j) = mult_inverse[i] * 2^i (i = 1,...,g; j = 1,...,n)
-//TODO:------------------------------------------------
-
 /*
  * Constants for GPU
  */
@@ -125,11 +120,6 @@ namespace cuda {
     __device__ __constant__  interval_t RNS_EVAL_INV_UNIT;
     __device__ __constant__ er_float_t RNS_EVAL_ZERO_BOUND;
     __device__ int MRC_MULT_INV[RNS_MODULI_SIZE][RNS_MODULI_SIZE];
-
-//TODO:------------------------------------------------
-    __device__ __constant__ int RNS_EVAL_OFFSET_VEC[RNS_EVAL_OFFSET_VEC_SIZE];
-    __device__ int RNS_EVAL_OFFSET_MATR[RNS_EVAL_OFFSET_VEC_SIZE][RNS_MODULI_SIZE];
-//TODO:------------------------------------------------
 }
 
 
@@ -439,29 +429,10 @@ void rns_const_init(){
     cudaMemcpyToSymbol(cuda::RNS_EVAL_INV_UNIT, &RNS_EVAL_INV_UNIT, sizeof(interval_t));
     cudaMemcpyToSymbol(cuda::RNS_EVAL_ZERO_BOUND, &RNS_EVAL_ZERO_BOUND, sizeof(er_float_t));
     cudaMemcpyToSymbol(cuda::MRC_MULT_INV, &MRC_MULT_INV, sizeof(int) * RNS_MODULI_SIZE * RNS_MODULI_SIZE);
-
-
-    //TODO:-----------------------------------------------------------------
-    //Computing offset vector for RNS interval evaluation
-    for (int i = 0; i < RNS_EVAL_OFFSET_VEC_SIZE; i++) {
-        RNS_EVAL_OFFSET_VEC[i] = (int) ceil(-2*(i+1) - (i+1)*log(RNS_EVAL_MIN_LIMIT)/log(2.0));
-    }
-    //Computing offset matrix for RNS interval evaluation
-    for (int i = 0; i < RNS_EVAL_OFFSET_VEC_SIZE; i++) {
-        for (int j = 0; j < RNS_MODULI_SIZE; j++) {
-            int pow2_mod = 1;
-            for (int k = 0; k < RNS_EVAL_OFFSET_VEC[i]; k++) //Overflow-safe compute 2^i mod p_i
-                pow2_mod = mod_mul(pow2_mod, 2, RNS_MODULI[j]); //(pow2_mod * 2) % RNS_MODULI[j];
-            RNS_EVAL_OFFSET_MATR[i][j] = mod_mul(RNS_PART_MODULI_PRODUCT_INVERSE[j], pow2_mod,  RNS_MODULI[j]); //(RNS_PART_MODULI_PRODUCT_INVERSE[j] * pow2_mod) % RNS_MODULI[j];
-        }
-    }
-    cudaMemcpyToSymbol(cuda::RNS_EVAL_OFFSET_VEC, &RNS_EVAL_OFFSET_VEC, RNS_EVAL_OFFSET_VEC_SIZE * sizeof(int));
-    cudaMemcpyToSymbol(cuda::RNS_EVAL_OFFSET_MATR, &RNS_EVAL_OFFSET_MATR, RNS_MODULI_SIZE * RNS_EVAL_OFFSET_VEC_SIZE * sizeof(int));
-    //TODO:-----------------------------------------------------------------
 }
 
 /*
- * Print main constants of the RNS
+ * Printing the constants of the RNS
  */
 void rns_const_print(bool briefly) {
     std::cout << "Constants of the RNS system:" << std::endl;
@@ -495,22 +466,13 @@ void rns_const_print(bool briefly) {
 }
 
 /*
- * Calculates and prints the actual values of the interval evaluation constants
- * in accordance with the parameters from params.h
+ * Printing the constants for the RNS interval evaluation
  */
-void rns_eval_const_calc() {
-    double offset_vec_size, eval_min_value;
-    eval_min_value = RNS_MODULI_SIZE * RNS_MODULI_SIZE * pow(2.0, 1 - 53) / RNS_EVAL_RELATIVE_ERROR;
-    mpfr_t log2mpfr;
-    mpfr_init(log2mpfr);
-    mpfr_log2(log2mpfr, RNS_MODULI_PRODUCT_MPFR, MPFR_RNDN);
-    double logM = mpfr_get_d(log2mpfr, MPFR_RNDN);
-    double logPsi = log(eval_min_value) / log(2.0);
-    offset_vec_size = (unsigned int) ceil(-(logM + logPsi) / (2 + logPsi));
+void rns_eval_const_print() {
     printf("Constants of the RNS interval evaluation for %i moduli:\n", RNS_MODULI_SIZE);
-    printf("- RNS_EVAL_MIN_LIMIT = %.17g\n", eval_min_value);
-    printf("- RNS_EVAL_OFFSET_VEC_SIZE = %.17g\n", offset_vec_size);
-    mpfr_clear(log2mpfr);
+    printf("- RNS_EVAL_RELATIVE_ERROR: %.10f\n", RNS_EVAL_RELATIVE_ERROR);
+    printf("- RNS_EVAL_ACCURACY: %.17g\n", RNS_EVAL_ACCURACY);
+    printf("- RNS_EVAL_REF_FACTOR: %i\n", RNS_EVAL_REF_FACTOR);
 }
 
 
@@ -566,159 +528,6 @@ namespace cuda{
 
 
 /********************* Functions for calculating the interval evaluation of an RNS number *********************/
-
-
-/*!
- * Computes the interval evaluation for a given RNS number
- * @param eval - pointer to the result interval evaluation
- * @param x - pointer to the input RNS number
- */
-__attribute__ ((optimize("O2"))) //Do not use -O3 here
-void rns_eval_compute(interval_ptr eval, int * x) {
-    double low = 0.0;
-    double upp = 0.0;
-    int s[RNS_MODULI_SIZE];
-
-    //Calculations for the lower bound
-    round_down_mode();
-    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        s[i] = mod_mul(x[i], RNS_PART_MODULI_PRODUCT_INVERSE[i], RNS_MODULI[i]);
-        low += s[i] / (double) RNS_MODULI[i];
-    }
-    //Calculations for the upper bound
-    round_up_mode();
-    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        upp += s[i] / (double) RNS_MODULI[i];
-    }
-    //Checking for zero
-    round_nearest_mode();
-    if (low == 0 && upp == 0) {
-        er_set(&eval->low, &RNS_EVAL_ZERO_BOUND);
-        er_set(&eval->upp, &RNS_EVAL_ZERO_BOUND);
-        return;
-    }
-    //Splitting into whole and fractional parts
-    unsigned int whl = (unsigned int) low; // Whole part
-    unsigned int whu = (unsigned int) upp; // Whole part
-    low = low - whl;    // Fractional part
-    upp = upp - whu;    // Fractional part
-    //Checking correctness and adjust
-    bool BIG = false;
-    bool TINY = false;
-    if (whl != whu) { //Interval evaluation is wrong
-        perform_mrc(s, x); //Mixed-radix representation of x
-        if (s[RNS_MODULI_SIZE - 1] == 0) {
-            TINY = true; //Number is too small, the lower bound is incorrect
-            er_set(&eval->low, &RNS_EVAL_UNIT.low);
-        } else{
-            BIG = true; //Number is too large, the upper bound is incorrect
-            er_set(&eval->upp, &RNS_EVAL_INV_UNIT.upp);
-        }
-    }
-    /*
-     * Accuracy checking
-     * If the lower bound is incorrectly calculated (the number is too small), then refinement may be required;
-     * If the upper bound is incorrectly calculated (the number is too large), no refinement is required.
-    */
-    if (BIG || upp >= RNS_EVAL_MIN_LIMIT) {
-        if (!TINY)  er_set_d(&eval->low, low);
-        if (!BIG)   er_set_d(&eval->upp, upp);
-        return;
-    }
-    //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
-    round_up_mode();
-    int offset = -1;
-    do {
-        offset++;
-        upp = 0.0;
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            s[i] = mod_mul(x[i], RNS_EVAL_OFFSET_MATR[offset][i], RNS_MODULI[i]);
-            upp += s[i] / (double) RNS_MODULI[i];
-        }
-        upp -= (unsigned int) upp;
-    } while( upp < RNS_EVAL_MIN_LIMIT && offset < (RNS_EVAL_OFFSET_VEC_SIZE-1) );
-    //Setting the upper bound of eval with appropriate correction
-    er_set_d(&eval->upp, upp);
-    eval->upp.exp -= RNS_EVAL_OFFSET_VEC[offset];
-    //Computing the shifted lower bound
-    round_down_mode();
-    low = 0.0;
-    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        low += s[i] / (double) RNS_MODULI[i];
-    }
-    low -= (unsigned int) low;
-    //Setting the lower bound of eval with appropriate correction
-    er_set_d(&eval->low, low);
-    eval->low.exp -= RNS_EVAL_OFFSET_VEC[offset];
-    round_nearest_mode();
-}
-
-/*!
- * For a given RNS number, which is guaranteed not to be too large,
- * this function computes the interval evaluation faster than the previous common function.
- * @param eval - pointer to the result interval evaluation
- * @param x - pointer to the input RNS number
- */
-__attribute__ ((optimize("O2"))) //Do not use -O3 here
-void rns_eval_compute_fast(interval_ptr eval, int * x) {
-    double low = 0.0;
-    double upp = 0.0;
-    int s[RNS_MODULI_SIZE];
-
-    //Calculations for the upper bound
-    round_up_mode();
-    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        s[i] = mod_mul(x[i], RNS_PART_MODULI_PRODUCT_INVERSE[i], RNS_MODULI[i]);
-        upp += s[i] / (double) RNS_MODULI[i];
-    }
-    //Calculations for the lower bound
-    round_down_mode();
-    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        low += s[i] / (double) RNS_MODULI[i];
-    }
-    //Checking for zero
-    round_nearest_mode();
-    if(low == 0 && upp == 0){
-        er_set(&eval->low, &RNS_EVAL_ZERO_BOUND);
-        er_set(&eval->upp, &RNS_EVAL_ZERO_BOUND);
-        return;
-    }
-    //Dropping whole parts
-    upp = upp - (unsigned int) upp;  //Upper bound
-    low = low - (unsigned int) low;  //Lower bound
-    //Accuracy checking
-    if (upp >= RNS_EVAL_MIN_LIMIT) {
-        er_set_d(&eval->low, low);
-        er_set_d(&eval->upp, upp);
-        return;
-    }
-    //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
-    round_up_mode();
-    int offset = -1;
-    do {
-        offset++;
-        upp = 0.0;
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            s[i] = mod_mul(x[i], RNS_EVAL_OFFSET_MATR[offset][i], RNS_MODULI[i]);
-            upp += s[i] / (double) RNS_MODULI[i];
-        }
-        upp -= (unsigned int) upp;
-    } while( upp < RNS_EVAL_MIN_LIMIT && (offset < RNS_EVAL_OFFSET_VEC_SIZE-1) );
-    //Setting the upper bound of eval with appropriate correction
-    er_set_d(&eval->upp, upp);
-    eval->upp.exp -= RNS_EVAL_OFFSET_VEC[offset];
-    //Computing the shifted lower bound
-    round_down_mode();
-    low = 0.0;
-    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        low += s[i] / (double) RNS_MODULI[i];
-    }
-    low -= (unsigned int) low;
-    //Setting the lower bound of eval with appropriate correction
-    er_set_d(&eval->low, low);
-    eval->low.exp -= RNS_EVAL_OFFSET_VEC[offset];
-    round_nearest_mode();
-}
 
 
 /*!
@@ -869,140 +678,6 @@ GCC_FORCEINLINE void ifc_compute_fast(er_float_ptr low, er_float_ptr upp, int * 
  * GPU functions
  */
 namespace cuda{
-
-    /*!
-     * Computes the interval evaluation for a given RNS number
-     * @param eval - pointer to the result interval evaluation
-     * @param x - pointer to the input RNS number
-     */
-    DEVICE_CUDA_FORCEINLINE void rns_eval_compute(interval_ptr eval, int * x) {
-        double low = 0.0;
-        double upp = 0.0;
-        int s[RNS_MODULI_SIZE];
-
-        //Straightforward computations
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            s[i] = cuda::mod_mul(x[i], cuda::RNS_PART_MODULI_PRODUCT_INVERSE[i], cuda::RNS_MODULI[i]);
-            low = __dadd_rd(low, __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]));
-            upp = __dadd_ru(upp, __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]));
-        }
-        //Checking for zero
-        if (low == 0 && upp == 0) {
-            cuda::er_set(&eval->low, &cuda::RNS_EVAL_ZERO_BOUND);
-            cuda::er_set(&eval->upp, &cuda::RNS_EVAL_ZERO_BOUND);
-            return;
-        }
-        //Splitting into whole and fractional parts
-        unsigned int whl = (unsigned int) (low);
-        unsigned int whu = (unsigned int) (upp);
-        low = __dsub_rd(low, whl);    // lower bound
-        upp = __dsub_ru(upp, whu);    // upper bound
-
-        //Checking correcntess and adjust
-        bool BIG = false;
-        bool TINY = false;
-        if (whl != whu) { // Interval evaluation is wrong
-            cuda::perform_mrc(s, x); //Mixed-radix representation of x
-            if (s[RNS_MODULI_SIZE - 1] == 0) {
-                TINY = true; //Number is too small, the lower bound is incorrect
-                cuda::er_set(&eval->low, &cuda::RNS_EVAL_UNIT.low);
-            } else{ //Number is too large, the upper bound is incorrect
-                BIG = true;
-                cuda::er_set(&eval->upp, &cuda::RNS_EVAL_INV_UNIT.upp);
-            }
-        }
-        /*
-         * Accuracy checking
-         * If the lower bound is incorrectly calculated (the number is too small), then refinement may be required;
-         * If the upper bound is incorrectly calculated (the number is too large), no refinement is required.
-        */
-        if (BIG || upp >= RNS_EVAL_MIN_LIMIT) {
-            if (!TINY)  cuda::er_set_d(&eval->low, low);
-            if (!BIG)   cuda::er_set_d(&eval->upp, upp);
-            return;
-        }
-        //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
-        int offset = -1;
-        do {
-            offset++;
-            upp = 0.0;
-            for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-                s[i] = cuda::mod_mul(x[i], cuda::RNS_EVAL_OFFSET_MATR[offset][i], cuda::RNS_MODULI[i]);
-                upp = __dadd_ru(upp, __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]));
-            }
-            upp -= (unsigned int) upp;
-        } while( upp < RNS_EVAL_MIN_LIMIT && offset < (RNS_EVAL_OFFSET_VEC_SIZE-1) );
-        //Setting the upper bound of eval with appropriate correction
-        cuda::er_set_d(&eval->upp, upp);
-        eval->upp.exp -= cuda::RNS_EVAL_OFFSET_VEC[offset];
-        //Computing the shifted lower bound
-        low = 0.0;
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            low = __dadd_rd(low, __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]));
-        }
-        low -= (unsigned int) low;
-        //Setting the lower bound of eval with appropriate correction
-        cuda::er_set_d(&eval->low, low);
-        eval->low.exp -= cuda::RNS_EVAL_OFFSET_VEC[offset];
-    }
-
-   /*!
-    * For a given RNS number, which is guaranteed not to be too large,
-    * this function computes the interval evaluation faster than the previous common function.
-    * @param eval - pointer to the result interval evaluation
-    * @param x - pointer to the input RNS number
-    */
-    DEVICE_CUDA_FORCEINLINE void rns_eval_compute_fast(interval_ptr result, int * r_numb) {
-        double low = 0.0;
-        double upp = 0.0;
-        int s[RNS_MODULI_SIZE];
-
-       //Straightforward computations
-       for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            s[i] = cuda::mod_mul(r_numb[i], cuda::RNS_PART_MODULI_PRODUCT_INVERSE[i], cuda::RNS_MODULI[i]);
-            upp = __dadd_ru(upp, __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]));
-            low = __dadd_rd(low, __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]));
-        }
-        //Checking for zero
-        if (low == 0 && upp == 0) {
-            cuda::er_set(&result->low, &cuda::RNS_EVAL_ZERO_BOUND);
-            cuda::er_set(&result->upp, &cuda::RNS_EVAL_ZERO_BOUND);
-            return;
-        }
-       //Dropping whole parts
-        upp = upp - (unsigned int) upp;  //Upper bound
-        low = low - (unsigned int) low;  //Lower bound
-       //Accuracy checking
-        if (upp >= RNS_EVAL_MIN_LIMIT) {
-            cuda::er_set_d(&result->low, low);
-            cuda::er_set_d(&result->upp, upp);
-            return;
-        }
-       //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
-       int offset = -1;
-       do {
-           offset++;
-           upp = 0.0;
-           for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-               s[i] = cuda::mod_mul(r_numb[i], cuda::RNS_EVAL_OFFSET_MATR[offset][i], cuda::RNS_MODULI[i]);
-               upp = __dadd_ru(upp, __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]));
-           }
-           upp -= (unsigned int) upp;
-       } while( upp < RNS_EVAL_MIN_LIMIT && offset < (RNS_EVAL_OFFSET_VEC_SIZE-1) );
-       //Setting the upper bound of eval with appropriate correction
-        cuda::er_set_d(&result->upp, upp);
-        result->upp.exp -= cuda::RNS_EVAL_OFFSET_VEC[offset];
-       //Computing the shifted lower bound
-        low = 0.0;
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            low = __dadd_rd(low, __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]));
-        }
-        low -= (unsigned int) low;
-       //Setting the lower bound of eval with appropriate correction
-        cuda::er_set_d(&result->low, low);
-        result->low.exp -= cuda::RNS_EVAL_OFFSET_VEC[offset];
-    }
-
 
     /*!
      * Computes the interval evaluation for a given RNS number

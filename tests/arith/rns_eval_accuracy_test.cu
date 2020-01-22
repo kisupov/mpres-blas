@@ -77,7 +77,7 @@ int main() {
     Logger::beginTestDescription(Logger::RNS_EVAL_ACCURACY_TEST);
     rns_const_print(true);
     Logger::printDash();
-    rns_eval_const_calc();
+    rns_eval_const_print();
     Logger::endSection(true);
     Logger::printSpace();
 
