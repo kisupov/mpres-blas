@@ -155,6 +155,39 @@ namespace cuda {
 
 } //end of namespace
 
+/********************* Common RNS functions *********************/
+
+
+/*!
+ * Returns true if the RNS number is zero
+ */
+GCC_FORCEINLINE bool rns_check_zero(int * x) {
+    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+      if(x[i] != 0){
+          return false;
+      }
+    }
+    return true;
+}
+
+/*
+ * GPU functions
+ */
+namespace cuda {
+
+    /*!
+     * Returns true if the RNS number is zero
+     */
+    DEVICE_CUDA_FORCEINLINE bool rns_check_zero(int * x) {
+        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            if(x[i] != 0){
+                return false;
+            }
+        }
+        return true;
+    }
+
+} //end of namespace
 
 /********************* Unrolled modular arithmetic over RNS numbers *********************/
 

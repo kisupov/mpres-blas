@@ -28,41 +28,41 @@
 /*
  * Size of the RNS moduli set
  */
-#define RNS_MODULI_SIZE 8
+#define RNS_MODULI_SIZE (8)
 
 /*
  * Initial index for parallel reduction in loops over the RNS moduli.
  * The largest power of two which strictly less than RNS_MODULI_SIZE
  */
-#define RNS_PARALLEL_REDUCTION_IDX 4
+#define RNS_PARALLEL_REDUCTION_IDX (4)
 
 /*
  * Binary logarithm of the full RNS moduli product
  */
-#define RNS_MODULI_PRODUCT_LOG2 242
+#define RNS_MODULI_PRODUCT_LOG2 (242)
 
 /*
  * Maximal power-of-two for one scaling step in the RNS system.
  * It should be such that operations modulo 2^RNS_P2_SCALING_THRESHOLD are performed efficiently.
  */
-#define RNS_P2_SCALING_THRESHOLD 30
+#define RNS_P2_SCALING_THRESHOLD (30)
 
 /*
  * Upper bound for the relative forward error of an RNS interval evaluation
  */
-#define RNS_EVAL_ACCURACY 0.0000001
+#define RNS_EVAL_RELATIVE_ERROR (0.0000001)
 
 /*
  * The minimum value for the upper bound of an RNS interval evaluation at which a refinement loop is not required.
- * RNS_EVAL_MIN_LIMIT = RNS_MODULI_SIZE * RNS_MODULI_SIZE * pow(2.0, 1 - 53) / RNS_EVAL_ACCURACY
+ * RNS_EVAL_MIN_LIMIT = RNS_MODULI_SIZE * RNS_MODULI_SIZE * pow(2.0, 1 - 53) / RNS_EVAL_RELATIVE_ERROR
  */
-#define RNS_EVAL_MIN_LIMIT 1.4210854715202004e-07
+#define RNS_EVAL_MIN_LIMIT (1.4210854715202004e-07)
 
 /*
  * The size of the offset vector for an RNS interval evaluation refinement loop.
  * RNS_EVAL_OFFSET_VEC_SIZE = ceil(-(LOG2(M) + log2_psi) / (2 + log2_psi))
  */
-#define RNS_EVAL_OFFSET_VEC_SIZE 11
+#define RNS_EVAL_OFFSET_VEC_SIZE (11)
 
 /*
  * The set of RNS moduli

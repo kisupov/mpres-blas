@@ -26,6 +26,11 @@
 #include "common.cuh"
 
 /*
+ * Precision of IEEE 754 double precision arithmetic (binary64)
+ */
+#define DBL_PRECISION (53)
+
+/*
  * Sign offset in IEEE 754 double precision (binary64)
  */
 #define DBL_SIGN_OFFSET (63)

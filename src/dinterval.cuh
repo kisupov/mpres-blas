@@ -7,6 +7,8 @@
  *  Nonlinear Theory and Its Applications, IEICE, 2016, Volume 7, Issue 3, Pages 362-373,
  *  https://doi.org/10.1587/nolta.7.362
  *
+ *  Note that the operations provided are not IEEE 754 compatible.
+ *
  *  Copyright 2020 by Konstantin Isupov.
  *
  *  This file is part of the MPRES-BLAS library.

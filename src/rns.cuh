@@ -33,6 +33,7 @@
 #include "mpfr.h"
 #include "extrange.cuh"
 #include "modular.cuh"
+#include "roundings.cuh"
 
 #define RNS_P2_SCALING_FACTOR 1 << RNS_P2_SCALING_THRESHOLD // RNS power-of-two scaling factor
 
@@ -90,16 +91,22 @@ int RNS_POW2_INVERSE[RNS_P2_SCALING_THRESHOLD][RNS_MODULI_SIZE];
 /*
  * Constants for computing the interval evaluation of an RNS number
  */
-int RNS_EVAL_OFFSET_VEC[RNS_EVAL_OFFSET_VEC_SIZE]; // Offset vector. This vector contains only the power-of-two exponents
-int RNS_EVAL_OFFSET_MATR[RNS_EVAL_OFFSET_VEC_SIZE][RNS_MODULI_SIZE]; //Offset multiplicative inverses matrix: m(i,j) = mult_inverse[i] * 2^i (i = 1,...,g; j = 1,...,n)
-interval_t RNS_EVAL_INV_UNIT; // Interval approximation of (M - 1) / M
+double RNS_EVAL_ACCURACY; // Accuracy constant for computing the RNS interval evaluation. RNS_EVAL_ACCURACY = 4*u*n*log_2(n)*(1+RNS_EVAL_RELATIVE_ERROR/2)/RNS_EVAL_RELATIVE_ERROR, where u is the unit roundoff,
+int RNS_EVAL_REF_FACTOR; // Refinement factor for computing the RNS interval evaluation
+int RNS_EVAL_POW2_REF_FACTOR[RNS_MODULI_SIZE]; //The RNS representation of 2^RNS_EVAL_REFINEMENT_FACTOR, (2^RNS_EVAL_REFINEMENT_FACTOR mod m1,..., 2^RNS_EVAL_REFINEMENT_FACTOR mod mn), which is used in the refinement loop
 interval_t RNS_EVAL_UNIT; // Interval approximation of 1 / M
+interval_t RNS_EVAL_INV_UNIT; // Interval approximation of (M - 1) / M
 er_float_t RNS_EVAL_ZERO_BOUND = (er_float_t) {0.0, 0}; // To set the zero interval evaluation
 
 /*
  * Mixed-radix conversion (MRC) constants
  */
 int MRC_MULT_INV[RNS_MODULI_SIZE][RNS_MODULI_SIZE]; // Triangle matrix with elements | mult.inv(m_i) |m_j
+
+//TODO:------------------------------------------------
+int RNS_EVAL_OFFSET_VEC[RNS_EVAL_OFFSET_VEC_SIZE]; // Offset vector. This vector contains only the power-of-two exponents
+int RNS_EVAL_OFFSET_MATR[RNS_EVAL_OFFSET_VEC_SIZE][RNS_MODULI_SIZE]; //Offset multiplicative inverses matrix: m(i,j) = mult_inverse[i] * 2^i (i = 1,...,g; j = 1,...,n)
+//TODO:------------------------------------------------
 
 /*
  * Constants for GPU
@@ -111,12 +118,18 @@ namespace cuda {
     __device__ int RNS_MODULI_PRODUCT_POW2_RESIDUES[RNS_P2_SCALING_THRESHOLD];
     __device__ int RNS_PART_MODULI_PRODUCT_POW2_RESIDUES[RNS_P2_SCALING_THRESHOLD][RNS_MODULI_SIZE];
     __device__ int RNS_POW2_INVERSE[RNS_P2_SCALING_THRESHOLD][RNS_MODULI_SIZE];
-    __device__ __constant__ int RNS_EVAL_OFFSET_VEC[RNS_EVAL_OFFSET_VEC_SIZE];
-    __device__ int RNS_EVAL_OFFSET_MATR[RNS_EVAL_OFFSET_VEC_SIZE][RNS_MODULI_SIZE];
-    __device__ __constant__  interval_t RNS_EVAL_INV_UNIT;
+    __device__ __constant__ double RNS_EVAL_ACCURACY;
+    __device__ __constant__ int RNS_EVAL_REF_FACTOR;
+    __device__ int RNS_EVAL_POW2_REF_FACTOR[RNS_MODULI_SIZE];
     __device__ __constant__  interval_t RNS_EVAL_UNIT;
+    __device__ __constant__  interval_t RNS_EVAL_INV_UNIT;
     __device__ __constant__ er_float_t RNS_EVAL_ZERO_BOUND;
     __device__ int MRC_MULT_INV[RNS_MODULI_SIZE][RNS_MODULI_SIZE];
+
+//TODO:------------------------------------------------
+    __device__ __constant__ int RNS_EVAL_OFFSET_VEC[RNS_EVAL_OFFSET_VEC_SIZE];
+    __device__ int RNS_EVAL_OFFSET_MATR[RNS_EVAL_OFFSET_VEC_SIZE][RNS_MODULI_SIZE];
+//TODO:------------------------------------------------
 }
 
 
@@ -366,24 +379,22 @@ void rns_const_init(){
         }
     }
     mpz_clear(residue);
-    //Computing offset vector for RNS interval evaluation
-    for (int i = 0; i < RNS_EVAL_OFFSET_VEC_SIZE; i++) {
-        RNS_EVAL_OFFSET_VEC[i] = (int) ceil(-2*(i+1) - (i+1)*log(RNS_EVAL_MIN_LIMIT)/log(2.0));
-    }
-    //Computing offset matrix for RNS interval evaluation
-    for (int i = 0; i < RNS_EVAL_OFFSET_VEC_SIZE; i++) {
-        for (int j = 0; j < RNS_MODULI_SIZE; j++) {
-            int pow2_mod = 1;
-            for (int k = 0; k < RNS_EVAL_OFFSET_VEC[i]; k++) //Overflow-safe compute 2^i mod p_i
-                pow2_mod = mod_mul(pow2_mod, 2, RNS_MODULI[j]); //(pow2_mod * 2) % RNS_MODULI[j];
-            RNS_EVAL_OFFSET_MATR[i][j] = mod_mul(RNS_PART_MODULI_PRODUCT_INVERSE[j], pow2_mod,  RNS_MODULI[j]); //(RNS_PART_MODULI_PRODUCT_INVERSE[j] * pow2_mod) % RNS_MODULI[j];
+    //Computing accuracy constant for RNS interval evaluation
+    RNS_EVAL_ACCURACY  =  4 * pow(2.0, 1 - DBL_PRECISION) * RNS_MODULI_SIZE * log2((double)RNS_MODULI_SIZE) * (1 + RNS_EVAL_RELATIVE_ERROR / 2)  / RNS_EVAL_RELATIVE_ERROR;
+    // Computing refinement coefficient for RNS interval evaluation
+    RNS_EVAL_REF_FACTOR  =  floor(log2(1/(2*RNS_EVAL_ACCURACY)));
+    // Computing two in degree of RNS_EVAL_REF_FACTOR in the RNS representation
+    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+        RNS_EVAL_POW2_REF_FACTOR[i] = 1;
+        for (int k = 0; k < RNS_EVAL_REF_FACTOR; k++){
+            RNS_EVAL_POW2_REF_FACTOR[i] = mod_mul(RNS_EVAL_POW2_REF_FACTOR[i], 2, RNS_MODULI[i]);
         }
     }
     mpfr_t mpfr_tmp, mpfr_one;
     mpfr_init2(mpfr_tmp, 10000);
     mpfr_init2(mpfr_one, 10000);
     mpfr_set_ui(mpfr_one, 1, MPFR_RNDN);
-    round_up_mode();
+    //round_up_mode();
     //Computing upper bound for 1 / M
     mpfr_set_ui(mpfr_tmp, 1, MPFR_RNDN);
     mpfr_div(mpfr_tmp, mpfr_tmp, RNS_MODULI_PRODUCT_MPFR, MPFR_RNDU);
@@ -391,7 +402,7 @@ void rns_const_init(){
     //Computing upper bound for (M - 1) / M = 1 - 1 / M
     mpfr_sub(mpfr_tmp, mpfr_one, mpfr_tmp, MPFR_RNDU);
     RNS_EVAL_INV_UNIT.upp.frac = mpfr_get_d_2exp(&RNS_EVAL_INV_UNIT.upp.exp, mpfr_tmp, MPFR_RNDU);
-    round_down_mode();
+    //round_down_mode();
     //Computing lower bound for 1 / M
     mpfr_set_ui(mpfr_tmp, 1, MPFR_RNDN);
     mpfr_div(mpfr_tmp, mpfr_tmp, RNS_MODULI_PRODUCT_MPFR, MPFR_RNDD);
@@ -399,7 +410,7 @@ void rns_const_init(){
     //Computing lower bound for (M - 1) / M = 1 - 1 / M
     mpfr_sub(mpfr_tmp, mpfr_one, mpfr_tmp, MPFR_RNDD);
     RNS_EVAL_INV_UNIT.low.frac = mpfr_get_d_2exp(&RNS_EVAL_INV_UNIT.low.exp, mpfr_tmp, MPFR_RNDD);
-    round_nearest_mode();
+    //round_nearest_mode();
     mpfr_clear(mpfr_tmp);
     mpfr_clear(mpfr_one);
     //Init the MRC constants
@@ -421,12 +432,32 @@ void rns_const_init(){
     cudaMemcpyToSymbol(cuda::RNS_MODULI_PRODUCT_POW2_RESIDUES, &RNS_MODULI_PRODUCT_POW2_RESIDUES, RNS_P2_SCALING_THRESHOLD * sizeof(int));
     cudaMemcpyToSymbol(cuda::RNS_PART_MODULI_PRODUCT_POW2_RESIDUES, &RNS_PART_MODULI_PRODUCT_POW2_RESIDUES, RNS_P2_SCALING_THRESHOLD * RNS_MODULI_SIZE * sizeof(int));
     cudaMemcpyToSymbol(cuda::RNS_POW2_INVERSE, &RNS_POW2_INVERSE, RNS_P2_SCALING_THRESHOLD * RNS_MODULI_SIZE * sizeof(int));
-    cudaMemcpyToSymbol(cuda::RNS_EVAL_OFFSET_VEC, &RNS_EVAL_OFFSET_VEC, RNS_EVAL_OFFSET_VEC_SIZE * sizeof(int));
-    cudaMemcpyToSymbol(cuda::RNS_EVAL_OFFSET_MATR, &RNS_EVAL_OFFSET_MATR, RNS_MODULI_SIZE * RNS_EVAL_OFFSET_VEC_SIZE * sizeof(int));
-    cudaMemcpyToSymbol(cuda::RNS_EVAL_INV_UNIT, &RNS_EVAL_INV_UNIT, sizeof(interval_t));
+    cudaMemcpyToSymbol(cuda::RNS_EVAL_ACCURACY, &::RNS_EVAL_ACCURACY, sizeof(double));
+    cudaMemcpyToSymbol(cuda::RNS_EVAL_REF_FACTOR, &::RNS_EVAL_REF_FACTOR, sizeof(int));
+    cudaMemcpyToSymbol(cuda::RNS_EVAL_POW2_REF_FACTOR, &::RNS_EVAL_POW2_REF_FACTOR, sizeof(int) * RNS_MODULI_SIZE);
     cudaMemcpyToSymbol(cuda::RNS_EVAL_UNIT, &RNS_EVAL_UNIT, sizeof(interval_t));
+    cudaMemcpyToSymbol(cuda::RNS_EVAL_INV_UNIT, &RNS_EVAL_INV_UNIT, sizeof(interval_t));
     cudaMemcpyToSymbol(cuda::RNS_EVAL_ZERO_BOUND, &RNS_EVAL_ZERO_BOUND, sizeof(er_float_t));
     cudaMemcpyToSymbol(cuda::MRC_MULT_INV, &MRC_MULT_INV, sizeof(int) * RNS_MODULI_SIZE * RNS_MODULI_SIZE);
+
+
+    //TODO:-----------------------------------------------------------------
+    //Computing offset vector for RNS interval evaluation
+    for (int i = 0; i < RNS_EVAL_OFFSET_VEC_SIZE; i++) {
+        RNS_EVAL_OFFSET_VEC[i] = (int) ceil(-2*(i+1) - (i+1)*log(RNS_EVAL_MIN_LIMIT)/log(2.0));
+    }
+    //Computing offset matrix for RNS interval evaluation
+    for (int i = 0; i < RNS_EVAL_OFFSET_VEC_SIZE; i++) {
+        for (int j = 0; j < RNS_MODULI_SIZE; j++) {
+            int pow2_mod = 1;
+            for (int k = 0; k < RNS_EVAL_OFFSET_VEC[i]; k++) //Overflow-safe compute 2^i mod p_i
+                pow2_mod = mod_mul(pow2_mod, 2, RNS_MODULI[j]); //(pow2_mod * 2) % RNS_MODULI[j];
+            RNS_EVAL_OFFSET_MATR[i][j] = mod_mul(RNS_PART_MODULI_PRODUCT_INVERSE[j], pow2_mod,  RNS_MODULI[j]); //(RNS_PART_MODULI_PRODUCT_INVERSE[j] * pow2_mod) % RNS_MODULI[j];
+        }
+    }
+    cudaMemcpyToSymbol(cuda::RNS_EVAL_OFFSET_VEC, &RNS_EVAL_OFFSET_VEC, RNS_EVAL_OFFSET_VEC_SIZE * sizeof(int));
+    cudaMemcpyToSymbol(cuda::RNS_EVAL_OFFSET_MATR, &RNS_EVAL_OFFSET_MATR, RNS_MODULI_SIZE * RNS_EVAL_OFFSET_VEC_SIZE * sizeof(int));
+    //TODO:-----------------------------------------------------------------
 }
 
 /*
@@ -469,7 +500,7 @@ void rns_const_print(bool briefly) {
  */
 void rns_eval_const_calc() {
     double offset_vec_size, eval_min_value;
-    eval_min_value = RNS_MODULI_SIZE * RNS_MODULI_SIZE * pow(2.0, 1 - 53) / RNS_EVAL_ACCURACY;
+    eval_min_value = RNS_MODULI_SIZE * RNS_MODULI_SIZE * pow(2.0, 1 - 53) / RNS_EVAL_RELATIVE_ERROR;
     mpfr_t log2mpfr;
     mpfr_init(log2mpfr);
     mpfr_log2(log2mpfr, RNS_MODULI_PRODUCT_MPFR, MPFR_RNDN);
@@ -690,6 +721,148 @@ void rns_eval_compute_fast(interval_ptr eval, int * x) {
 }
 
 
+/*!
+ * Computes the interval evaluation for a given RNS number
+ * @param eval - pointer to the result interval evaluation
+ * @param x - pointer to the input RNS number
+ */
+GCC_FORCEINLINE void ifc_compute(interval_ptr result, int * x) {
+    int s[RNS_MODULI_SIZE]; //Array of x_i * w_i (mod m_i)
+    double fracl[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding down
+    double fracu[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding up
+    double suml = 0.0; //Rounded downward sum
+    double sumu = 0.0; //Rounded upward sum
+    //Checking for zero
+    if(rns_check_zero(x)){
+        er_set(&result->low, &RNS_EVAL_ZERO_BOUND);
+        er_set(&result->upp, &RNS_EVAL_ZERO_BOUND);
+        return;
+    }
+    //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
+    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+        s[i] = mod_mul(x[i], RNS_PART_MODULI_PRODUCT_INVERSE[i], RNS_MODULI[i]);
+        ddiv_rdu(&fracl[i], &fracu[i], (double)s[i], (double)RNS_MODULI[i]);
+    }
+    //Pairwise summation of the fractions
+    suml = psum_rd<RNS_MODULI_SIZE>(fracl);
+    sumu = psum_ru<RNS_MODULI_SIZE>(fracu);
+    //Splitting into whole and fractional parts
+    unsigned int whl = (unsigned int) suml; // Whole part
+    unsigned int whu = (unsigned int) sumu; // Whole part
+    suml = suml - whl;    // Fractional part
+    sumu = sumu - whu;    // Fractional part
+    //Checking the correctness and adjusting
+    bool huge = false;
+    bool tiny = false;
+    if (whl != whu) { //Interval evaluation is wrong
+        int mr[RNS_MODULI_SIZE];
+        perform_mrc(mr, x); //Computing the mixed-radix representation of x
+        if (mr[RNS_MODULI_SIZE - 1] == 0) {
+            tiny = true; //Number is too small, the lower bound is incorrect
+            er_set(&result->low, &RNS_EVAL_UNIT.low);
+        } else {
+            huge = true; //Number is too large, the upper bound is incorrect
+            er_set(&result->upp, &RNS_EVAL_INV_UNIT.upp);
+        }
+    }
+    /*
+     * Accuracy checking
+     * If the lower bound is incorrectly calculated (the number is too small), then refinement may be required;
+     * If the upper bound is incorrectly calculated (the number is too large), no refinement is required.
+    */
+    if (huge || sumu >= RNS_EVAL_ACCURACY) { //Refinement is not required
+        if (!tiny)  er_set_d(&result->low, suml);
+        if (!huge)  er_set_d(&result->upp, sumu);
+        return;
+    }
+    //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
+    int j = 0;
+    while (sumu < RNS_EVAL_ACCURACY) {
+        for(int i = 0; i < RNS_MODULI_SIZE; i++) {
+            s[i] = mod_mul(s[i], RNS_EVAL_POW2_REF_FACTOR[i], RNS_MODULI[i]);
+            fracu[i] = ddiv_ru((double)s[i], (double)RNS_MODULI[i]);
+        }
+        sumu = psum_ru<RNS_MODULI_SIZE>(fracu);
+        sumu -= (unsigned int) sumu;
+        j = j + 1;
+    }
+    //Computing the shifted lower bound
+    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+        fracl[i] = ddiv_rd((double)s[i], (double)RNS_MODULI[i]);
+    }
+    suml = psum_rd<RNS_MODULI_SIZE>(fracl);
+    suml -= (unsigned int) suml;
+    //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
+    er_set_d(&result->low, suml);
+    er_set_d(&result->upp, sumu);
+    int K = RNS_EVAL_REF_FACTOR * j;
+    result->low.exp -= K;
+    result->upp.exp -= K;
+}
+
+
+/*!
+ * For a given RNS number, which is guaranteed not to be too large,
+ * this function computes the interval evaluation faster than the previous common function.
+ * @param eval - pointer to the result interval evaluation
+ * @param x - pointer to the input RNS number
+ */
+GCC_FORCEINLINE void ifc_compute_fast(interval_ptr result, int * x) {
+    int s[RNS_MODULI_SIZE];
+    double fracl[RNS_MODULI_SIZE];
+    double fracu[RNS_MODULI_SIZE];
+    double suml = 0.0;
+    double sumu = 0.0;
+    //Checking for zero
+    if(rns_check_zero(x)){
+        er_set(&result->low, &RNS_EVAL_ZERO_BOUND);
+        er_set(&result->upp, &RNS_EVAL_ZERO_BOUND);
+        return;
+    }
+    //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
+    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+        s[i] = mod_mul(x[i], RNS_PART_MODULI_PRODUCT_INVERSE[i], RNS_MODULI[i]);
+        ddiv_rdu(&fracl[i], &fracu[i], (double)s[i], (double)RNS_MODULI[i]);
+    }
+    //Pairwise summation of the fractions
+    suml = psum_rd<RNS_MODULI_SIZE>(fracl);
+    sumu = psum_ru<RNS_MODULI_SIZE>(fracu);
+    //Dropping integer parts
+    suml -= (unsigned int) suml;  //Lower bound
+    sumu -= (unsigned int) sumu;  //Upper bound
+    //Accuracy checking
+    if (sumu >= RNS_EVAL_ACCURACY) {
+        er_set_d(&result->low, suml);
+        er_set_d(&result->upp, sumu);
+        return;
+    }
+    //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
+    int j = 0;
+    while (sumu < RNS_EVAL_ACCURACY) {
+        for(int i = 0; i < RNS_MODULI_SIZE; i++){
+            s[i] = mod_mul(s[i], RNS_EVAL_POW2_REF_FACTOR[i], RNS_MODULI[i]);
+            fracu[i] = ddiv_ru((double)s[i], (double)RNS_MODULI[i]);
+        }
+        sumu = psum_ru<RNS_MODULI_SIZE>(fracu);
+        sumu -= (unsigned int) sumu;
+        j = j + 1;
+    }
+    //Computing the shifted lower bound
+    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+        fracl[i] = ddiv_rd((double)s[i], (double)RNS_MODULI[i]);
+    }
+    suml = psum_rd<RNS_MODULI_SIZE>(fracl);
+    suml -= (unsigned int) suml;
+    //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
+    er_set_d(&result->low, suml);
+    er_set_d(&result->upp, sumu);
+    int K = RNS_EVAL_REF_FACTOR * j;
+    result->low.exp -= K;
+    result->upp.exp -= K;
+}
+
+
+
 /*
  * GPU functions
  */
@@ -827,6 +1000,152 @@ namespace cuda{
         cuda::er_set_d(&result->low, low);
         result->low.exp -= cuda::RNS_EVAL_OFFSET_VEC[offset];
     }
+
+
+    /*!
+     * Computes the interval evaluation for a given RNS number
+     * @param eval - pointer to the result interval evaluation
+     * @param x - pointer to the input RNS number
+     */
+    DEVICE_CUDA_FORCEINLINE void ifc_compute(interval_ptr result, int * x) {
+        double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
+        int  s[RNS_MODULI_SIZE];
+        double fracl[RNS_MODULI_SIZE];
+        double fracu[RNS_MODULI_SIZE];
+        double suml = 0.0;
+        double sumu = 0.0;
+        //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
+        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            s[i] = cuda::mod_mul(x[i], cuda::RNS_PART_MODULI_PRODUCT_INVERSE[i], cuda::RNS_MODULI[i]);
+            fracl[i] = __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]);
+            fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
+        }
+        //Pairwise summation of the fractions
+        suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
+        sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
+        //Checking for zero
+        if (suml == 0 && sumu == 0) {
+            cuda::er_set(&result->low, &cuda::RNS_EVAL_ZERO_BOUND);
+            cuda::er_set(&result->upp, &cuda::RNS_EVAL_ZERO_BOUND);
+            return;
+        }
+        //Splitting into whole and fractional parts
+        unsigned int whl = (unsigned int) (suml);
+        unsigned int whu = (unsigned int) (sumu);
+        suml = __dsub_rd(suml, whl);    // lower bound
+        sumu = __dsub_ru(sumu, whu);    // upper bound
+        //Checking the correctness and adjusting
+        bool huge = false;
+        bool tiny = false;
+        if (whl != whu) { //Interval evaluation is wrong
+            int mr[RNS_MODULI_SIZE];
+            cuda::perform_mrc(mr, x); //Computing the mixed-radix representation of x
+            if (mr[RNS_MODULI_SIZE - 1] == 0) {
+                tiny = true; //Number is too small, the lower bound is incorrect
+                cuda::er_set(&result->low, &cuda::RNS_EVAL_UNIT.low);
+            } else {
+                huge = true;  // Number is too large, incorrect upper bound
+                cuda::er_set(&result->upp, &cuda::RNS_EVAL_INV_UNIT.upp);
+            }
+        }
+        /*
+         * Accuracy checking
+         * If the lower bound is incorrectly calculated (the number is too small), then refinement may be required;
+         * If the upper bound is incorrectly calculated (the number is too large), no refinement is required.
+        */
+        if (huge || sumu >= accuracy_constant) { // Refinement is not required
+            if (!tiny)  cuda::er_set_d(&result->low, suml);
+            if (!huge)  cuda::er_set_d(&result->upp, sumu);
+            return;
+        }
+        //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
+        int j = 0;
+        while (sumu < accuracy_constant) {
+            for(int i = 0; i < RNS_MODULI_SIZE; i++) {
+                s[i] = cuda::mod_mul(s[i], cuda::RNS_EVAL_POW2_REF_FACTOR[i], cuda::RNS_MODULI[i]);
+                fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
+            }
+            sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
+            sumu = __dsub_ru(sumu, (unsigned int) sumu);
+            j = j + 1;
+        }
+        // Computing the shifted lower bound
+        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            fracl[i] = __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]);
+        }
+        suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
+        suml = __dsub_rd(suml, (unsigned int) suml);
+        //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
+        cuda::er_set_d(&result->low, suml);
+        cuda::er_set_d(&result->upp, sumu);
+        int K = cuda::RNS_EVAL_REF_FACTOR * j;
+        result->low.exp -= K;
+        result->upp.exp -= K;
+    }
+
+
+    /*!
+     * For a given RNS number, which is guaranteed not to be too large,
+     * this function computes the interval evaluation faster than the previous common function.
+     * @param eval - pointer to the result interval evaluation
+     * @param x - pointer to the input RNS number
+     */
+    DEVICE_CUDA_FORCEINLINE void ifc_compute_fast(interval_ptr result, int * x) {
+        double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
+        int s[RNS_MODULI_SIZE];
+        double fracl[RNS_MODULI_SIZE];
+        double fracu[RNS_MODULI_SIZE];
+        double suml = 0.0;
+        double sumu = 0.0;
+        //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
+        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            s[i] = cuda::mod_mul(x[i], cuda::RNS_PART_MODULI_PRODUCT_INVERSE[i], cuda::RNS_MODULI[i]);
+            fracl[i] = __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]);
+            fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
+        }
+        //Pairwise summation of the fractions
+        suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
+        sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
+        //Checking for zero
+        if (suml == 0 && sumu == 0) {
+            cuda::er_set(&result->low, &cuda::RNS_EVAL_ZERO_BOUND);
+            cuda::er_set(&result->upp, &cuda::RNS_EVAL_ZERO_BOUND);
+            return;
+        }
+        //Dropping integer parts
+        suml = __dsub_rd(suml, (unsigned int) suml); //Lower bound
+        sumu = __dsub_ru(sumu, (unsigned int) sumu); //Upper bound
+        //Accuracy checking
+        if (sumu >= accuracy_constant) {
+            cuda::er_set_d(&result->low, suml);
+            cuda::er_set_d(&result->upp, sumu);
+            return;
+        }
+        //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
+        int j = 0;
+        while (sumu < accuracy_constant) {
+            for(int i = 0; i < RNS_MODULI_SIZE; i++) {
+                s[i] = cuda::mod_mul(s[i], cuda::RNS_EVAL_POW2_REF_FACTOR[i], cuda::RNS_MODULI[i]);
+                fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
+            }
+            sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
+            sumu = __dsub_ru(sumu, (unsigned int) sumu);
+            j = j + 1;
+        }
+        // Computing the shifted lower bound
+        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            fracl[i] = __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]);
+        }
+        suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
+        suml = __dsub_rd(suml, (unsigned int) suml);
+        //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
+        cuda::er_set_d(&result->low, suml);
+        cuda::er_set_d(&result->upp, sumu);
+        int K = cuda::RNS_EVAL_REF_FACTOR * j;
+        result->low.exp -= K;
+        result->upp.exp -= K;
+    }
+
 
 } //end of namespace
 
