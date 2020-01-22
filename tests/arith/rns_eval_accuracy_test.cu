@@ -64,11 +64,11 @@ __global__ void resetResultCuda(interval_ptr eval) {
  * CUDA tests
  */
 __global__ void testCudaEvalCompute(interval_ptr d_eval, int * d_number) {
-    cuda::ifc_compute(d_eval, d_number);
+    cuda::ifc_compute(&d_eval->low, &d_eval->upp, d_number);
 }
 
 __global__ void testCudaEvalFastCompute(interval_ptr d_eval, int * d_number) {
-    cuda::ifc_compute_fast(d_eval, d_number);
+    cuda::ifc_compute_fast(&d_eval->low, &d_eval->upp, d_number);
 }
 
 int main() {
@@ -119,12 +119,12 @@ int main() {
                 //-------------------------------------------
                 printf("\n[CPU] ifc_compute: ");
                 resetResult(eval);
-                rns_eval_compute(eval, number);
+                ifc_compute(&eval->low, &eval->upp, number);
                 printError(eval, exact);
                 //-------------------------------------------
                 printf("\n[CPU] ifc_compute_fast: ");
                 resetResult(eval);
-                rns_eval_compute_fast(eval, number);
+                ifc_compute_fast(&eval->low, &eval->upp, number);
                 printError(eval, exact);
                 //-------------------------------------------
                 printf("\n[CUDA] ifc_compute: ");

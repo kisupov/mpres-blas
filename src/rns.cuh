@@ -723,10 +723,11 @@ void rns_eval_compute_fast(interval_ptr eval, int * x) {
 
 /*!
  * Computes the interval evaluation for a given RNS number
- * @param eval - pointer to the result interval evaluation
+ * @param low - pointer to the lower bound of the result interval evaluation
+ * @param upp - pointer to the upper bound of the result interval evaluation
  * @param x - pointer to the input RNS number
  */
-GCC_FORCEINLINE void ifc_compute(interval_ptr result, int * x) {
+GCC_FORCEINLINE void ifc_compute(er_float_ptr low, er_float_ptr upp, int * x) {
     int s[RNS_MODULI_SIZE]; //Array of x_i * w_i (mod m_i)
     double fracl[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding down
     double fracu[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding up
@@ -734,8 +735,8 @@ GCC_FORCEINLINE void ifc_compute(interval_ptr result, int * x) {
     double sumu = 0.0; //Rounded upward sum
     //Checking for zero
     if(rns_check_zero(x)){
-        er_set(&result->low, &RNS_EVAL_ZERO_BOUND);
-        er_set(&result->upp, &RNS_EVAL_ZERO_BOUND);
+        er_set(low, &RNS_EVAL_ZERO_BOUND);
+        er_set(upp, &RNS_EVAL_ZERO_BOUND);
         return;
     }
     //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
@@ -759,10 +760,10 @@ GCC_FORCEINLINE void ifc_compute(interval_ptr result, int * x) {
         perform_mrc(mr, x); //Computing the mixed-radix representation of x
         if (mr[RNS_MODULI_SIZE - 1] == 0) {
             tiny = true; //Number is too small, the lower bound is incorrect
-            er_set(&result->low, &RNS_EVAL_UNIT.low);
+            er_set(low, &RNS_EVAL_UNIT.low);
         } else {
             huge = true; //Number is too large, the upper bound is incorrect
-            er_set(&result->upp, &RNS_EVAL_INV_UNIT.upp);
+            er_set(upp, &RNS_EVAL_INV_UNIT.upp);
         }
     }
     /*
@@ -771,8 +772,8 @@ GCC_FORCEINLINE void ifc_compute(interval_ptr result, int * x) {
      * If the upper bound is incorrectly calculated (the number is too large), no refinement is required.
     */
     if (huge || sumu >= RNS_EVAL_ACCURACY) { //Refinement is not required
-        if (!tiny)  er_set_d(&result->low, suml);
-        if (!huge)  er_set_d(&result->upp, sumu);
+        if (!tiny)  er_set_d(low, suml);
+        if (!huge)  er_set_d(upp, sumu);
         return;
     }
     //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
@@ -793,21 +794,22 @@ GCC_FORCEINLINE void ifc_compute(interval_ptr result, int * x) {
     suml = psum_rd<RNS_MODULI_SIZE>(fracl);
     suml -= (unsigned int) suml;
     //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
-    er_set_d(&result->low, suml);
-    er_set_d(&result->upp, sumu);
+    er_set_d(low, suml);
+    er_set_d(upp, sumu);
     int K = RNS_EVAL_REF_FACTOR * j;
-    result->low.exp -= K;
-    result->upp.exp -= K;
+    low->exp -= K;
+    upp->exp -= K;
 }
 
 
 /*!
  * For a given RNS number, which is guaranteed not to be too large,
  * this function computes the interval evaluation faster than the previous common function.
- * @param eval - pointer to the result interval evaluation
+ * @param low - pointer to the lower bound of the result interval evaluation
+ * @param upp - pointer to the upper bound of the result interval evaluation
  * @param x - pointer to the input RNS number
  */
-GCC_FORCEINLINE void ifc_compute_fast(interval_ptr result, int * x) {
+GCC_FORCEINLINE void ifc_compute_fast(er_float_ptr low, er_float_ptr upp, int * x) {
     int s[RNS_MODULI_SIZE];
     double fracl[RNS_MODULI_SIZE];
     double fracu[RNS_MODULI_SIZE];
@@ -815,8 +817,8 @@ GCC_FORCEINLINE void ifc_compute_fast(interval_ptr result, int * x) {
     double sumu = 0.0;
     //Checking for zero
     if(rns_check_zero(x)){
-        er_set(&result->low, &RNS_EVAL_ZERO_BOUND);
-        er_set(&result->upp, &RNS_EVAL_ZERO_BOUND);
+        er_set(low, &RNS_EVAL_ZERO_BOUND);
+        er_set(upp, &RNS_EVAL_ZERO_BOUND);
         return;
     }
     //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
@@ -832,8 +834,8 @@ GCC_FORCEINLINE void ifc_compute_fast(interval_ptr result, int * x) {
     sumu -= (unsigned int) sumu;  //Upper bound
     //Accuracy checking
     if (sumu >= RNS_EVAL_ACCURACY) {
-        er_set_d(&result->low, suml);
-        er_set_d(&result->upp, sumu);
+        er_set_d(low, suml);
+        er_set_d(upp, sumu);
         return;
     }
     //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
@@ -854,11 +856,11 @@ GCC_FORCEINLINE void ifc_compute_fast(interval_ptr result, int * x) {
     suml = psum_rd<RNS_MODULI_SIZE>(fracl);
     suml -= (unsigned int) suml;
     //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
-    er_set_d(&result->low, suml);
-    er_set_d(&result->upp, sumu);
+    er_set_d(low, suml);
+    er_set_d(upp, sumu);
     int K = RNS_EVAL_REF_FACTOR * j;
-    result->low.exp -= K;
-    result->upp.exp -= K;
+    low->exp -= K;
+    upp->exp -= K;
 }
 
 
@@ -1004,10 +1006,11 @@ namespace cuda{
 
     /*!
      * Computes the interval evaluation for a given RNS number
-     * @param eval - pointer to the result interval evaluation
+     * @param low - pointer to the lower bound of the result interval evaluation
+     * @param upp - pointer to the upper bound of the result interval evaluation
      * @param x - pointer to the input RNS number
      */
-    DEVICE_CUDA_FORCEINLINE void ifc_compute(interval_ptr result, int * x) {
+    DEVICE_CUDA_FORCEINLINE void ifc_compute(er_float_ptr low, er_float_ptr upp, int * x) {
         double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
         int  s[RNS_MODULI_SIZE];
         double fracl[RNS_MODULI_SIZE];
@@ -1025,8 +1028,8 @@ namespace cuda{
         sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
         //Checking for zero
         if (suml == 0 && sumu == 0) {
-            cuda::er_set(&result->low, &cuda::RNS_EVAL_ZERO_BOUND);
-            cuda::er_set(&result->upp, &cuda::RNS_EVAL_ZERO_BOUND);
+            cuda::er_set(low, &cuda::RNS_EVAL_ZERO_BOUND);
+            cuda::er_set(upp, &cuda::RNS_EVAL_ZERO_BOUND);
             return;
         }
         //Splitting into whole and fractional parts
@@ -1042,10 +1045,10 @@ namespace cuda{
             cuda::perform_mrc(mr, x); //Computing the mixed-radix representation of x
             if (mr[RNS_MODULI_SIZE - 1] == 0) {
                 tiny = true; //Number is too small, the lower bound is incorrect
-                cuda::er_set(&result->low, &cuda::RNS_EVAL_UNIT.low);
+                cuda::er_set(low, &cuda::RNS_EVAL_UNIT.low);
             } else {
                 huge = true;  // Number is too large, incorrect upper bound
-                cuda::er_set(&result->upp, &cuda::RNS_EVAL_INV_UNIT.upp);
+                cuda::er_set(upp, &cuda::RNS_EVAL_INV_UNIT.upp);
             }
         }
         /*
@@ -1054,8 +1057,8 @@ namespace cuda{
          * If the upper bound is incorrectly calculated (the number is too large), no refinement is required.
         */
         if (huge || sumu >= accuracy_constant) { // Refinement is not required
-            if (!tiny)  cuda::er_set_d(&result->low, suml);
-            if (!huge)  cuda::er_set_d(&result->upp, sumu);
+            if (!tiny)  cuda::er_set_d(low, suml);
+            if (!huge)  cuda::er_set_d(upp, sumu);
             return;
         }
         //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
@@ -1076,21 +1079,22 @@ namespace cuda{
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
         suml = __dsub_rd(suml, (unsigned int) suml);
         //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
-        cuda::er_set_d(&result->low, suml);
-        cuda::er_set_d(&result->upp, sumu);
+        cuda::er_set_d(low, suml);
+        cuda::er_set_d(upp, sumu);
         int K = cuda::RNS_EVAL_REF_FACTOR * j;
-        result->low.exp -= K;
-        result->upp.exp -= K;
+        low->exp -= K;
+        upp->exp -= K;
     }
 
 
     /*!
      * For a given RNS number, which is guaranteed not to be too large,
      * this function computes the interval evaluation faster than the previous common function.
-     * @param eval - pointer to the result interval evaluation
+     * @param low - pointer to the lower bound of the result interval evaluation
+     * @param upp - pointer to the upper bound of the result interval evaluation
      * @param x - pointer to the input RNS number
      */
-    DEVICE_CUDA_FORCEINLINE void ifc_compute_fast(interval_ptr result, int * x) {
+    DEVICE_CUDA_FORCEINLINE void ifc_compute_fast(er_float_ptr low, er_float_ptr upp, int * x) {
         double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
         int s[RNS_MODULI_SIZE];
         double fracl[RNS_MODULI_SIZE];
@@ -1108,8 +1112,8 @@ namespace cuda{
         sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
         //Checking for zero
         if (suml == 0 && sumu == 0) {
-            cuda::er_set(&result->low, &cuda::RNS_EVAL_ZERO_BOUND);
-            cuda::er_set(&result->upp, &cuda::RNS_EVAL_ZERO_BOUND);
+            cuda::er_set(low, &cuda::RNS_EVAL_ZERO_BOUND);
+            cuda::er_set(upp, &cuda::RNS_EVAL_ZERO_BOUND);
             return;
         }
         //Dropping integer parts
@@ -1117,8 +1121,8 @@ namespace cuda{
         sumu = __dsub_ru(sumu, (unsigned int) sumu); //Upper bound
         //Accuracy checking
         if (sumu >= accuracy_constant) {
-            cuda::er_set_d(&result->low, suml);
-            cuda::er_set_d(&result->upp, sumu);
+            cuda::er_set_d(low, suml);
+            cuda::er_set_d(upp, sumu);
             return;
         }
         //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
@@ -1139,11 +1143,11 @@ namespace cuda{
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
         suml = __dsub_rd(suml, (unsigned int) suml);
         //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
-        cuda::er_set_d(&result->low, suml);
-        cuda::er_set_d(&result->upp, sumu);
+        cuda::er_set_d(low, suml);
+        cuda::er_set_d(upp, sumu);
         int K = cuda::RNS_EVAL_REF_FACTOR * j;
-        result->low.exp -= K;
-        result->upp.exp -= K;
+        low->exp -= K;
+        upp->exp -= K;
     }
 
 
