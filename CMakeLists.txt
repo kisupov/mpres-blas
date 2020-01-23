@@ -37,7 +37,7 @@ set(CMAKE_CUDA_STANDARD 14) # Default value for CUDA_STANDARD property of target
 #####################################
 # Compile options
 #####################################
-set(GLOBAL_COMPILE_OPTIONS ${GLOBAL_COMPILE_OPTIONS} -Xcompiler=-O3,-fopenmp -use_fast_math)
+set(GLOBAL_COMPILE_OPTIONS ${GLOBAL_COMPILE_OPTIONS} -Xcompiler=-O3,-fopenmp,-mfma -use_fast_math)
 
 #####################################
 # Directories
