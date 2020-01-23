@@ -536,7 +536,7 @@ namespace cuda{
  * @param upp - pointer to the upper bound of the result interval evaluation
  * @param x - pointer to the input RNS number
  */
-GCC_FORCEINLINE void ifc_compute(er_float_ptr low, er_float_ptr upp, int * x) {
+GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * x) {
     int s[RNS_MODULI_SIZE]; //Array of x_i * w_i (mod m_i)
     double fracl[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding down
     double fracu[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding up
@@ -618,7 +618,7 @@ GCC_FORCEINLINE void ifc_compute(er_float_ptr low, er_float_ptr upp, int * x) {
  * @param upp - pointer to the upper bound of the result interval evaluation
  * @param x - pointer to the input RNS number
  */
-GCC_FORCEINLINE void ifc_compute_fast(er_float_ptr low, er_float_ptr upp, int * x) {
+GCC_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, int * x) {
     int s[RNS_MODULI_SIZE];
     double fracl[RNS_MODULI_SIZE];
     double fracu[RNS_MODULI_SIZE];
@@ -685,7 +685,7 @@ namespace cuda{
      * @param upp - pointer to the upper bound of the result interval evaluation
      * @param x - pointer to the input RNS number
      */
-    DEVICE_CUDA_FORCEINLINE void ifc_compute(er_float_ptr low, er_float_ptr upp, int * x) {
+    DEVICE_CUDA_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * x) {
         double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
         int  s[RNS_MODULI_SIZE];
         double fracl[RNS_MODULI_SIZE];
@@ -769,7 +769,7 @@ namespace cuda{
      * @param upp - pointer to the upper bound of the result interval evaluation
      * @param x - pointer to the input RNS number
      */
-    DEVICE_CUDA_FORCEINLINE void ifc_compute_fast(er_float_ptr low, er_float_ptr upp, int * x) {
+    DEVICE_CUDA_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, int * x) {
         double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
         int s[RNS_MODULI_SIZE];
         double fracl[RNS_MODULI_SIZE];

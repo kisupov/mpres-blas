@@ -838,7 +838,7 @@ namespace cuda {
                 while (bits > 0) {
                     result.exp[numberIdx] += bits;
                     cuda::rns_scale2pow(&result.digits[numberIdx * RNS_MODULI_SIZE], &result.digits[numberIdx * RNS_MODULI_SIZE], bits);
-                    cuda::ifc_compute_fast(&result.eval[numberIdx], &result.eval[lenr + numberIdx], &result.digits[numberIdx * RNS_MODULI_SIZE]);
+                    cuda::rns_eval_compute_fast(&result.eval[numberIdx], &result.eval[lenr + numberIdx], &result.digits[numberIdx * RNS_MODULI_SIZE]);
                     bits = -1;
                 }
                 //Go to the next iteration
@@ -858,7 +858,7 @@ namespace cuda {
                 while (bits > 0) {
                     result.exp[ir] += bits;
                     cuda::rns_scale2pow(&result.digits[ir * RNS_MODULI_SIZE], &result.digits[ir * RNS_MODULI_SIZE], bits);
-                    cuda::ifc_compute_fast(&result.eval[ir], &result.eval[lenr + ir], &result.digits[ir * RNS_MODULI_SIZE]);
+                    cuda::rns_eval_compute_fast(&result.eval[ir], &result.eval[lenr + ir], &result.digits[ir * RNS_MODULI_SIZE]);
                     bits = -1;
                 }
                 //Go to the next iteration

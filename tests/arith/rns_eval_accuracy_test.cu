@@ -64,11 +64,11 @@ __global__ void resetResultCuda(interval_ptr eval) {
  * CUDA tests
  */
 __global__ void testCudaEvalCompute(interval_ptr d_eval, int * d_number) {
-    cuda::ifc_compute(&d_eval->low, &d_eval->upp, d_number);
+    cuda::rns_eval_compute(&d_eval->low, &d_eval->upp, d_number);
 }
 
 __global__ void testCudaEvalFastCompute(interval_ptr d_eval, int * d_number) {
-    cuda::ifc_compute_fast(&d_eval->low, &d_eval->upp, d_number);
+    cuda::rns_eval_compute_fast(&d_eval->low, &d_eval->upp, d_number);
 }
 
 int main() {
@@ -117,24 +117,24 @@ int main() {
                 std::cout << "\t relative = ";
                 er_print(exact);
                 //-------------------------------------------
-                printf("\n[CPU] ifc_compute: ");
+                printf("\n[CPU] rns_eval_compute: ");
                 resetResult(eval);
-                ifc_compute(&eval->low, &eval->upp, number);
+                rns_eval_compute(&eval->low, &eval->upp, number);
                 printError(eval, exact);
                 //-------------------------------------------
-                printf("\n[CPU] ifc_compute_fast: ");
+                printf("\n[CPU] rns_eval_compute_fast: ");
                 resetResult(eval);
-                ifc_compute_fast(&eval->low, &eval->upp, number);
+                rns_eval_compute_fast(&eval->low, &eval->upp, number);
                 printError(eval, exact);
                 //-------------------------------------------
-                printf("\n[CUDA] ifc_compute: ");
+                printf("\n[CUDA] rns_eval_compute: ");
                 resetResult(eval);
                 resetResultCuda<<< 1, 1 >>>(d_eval);
                 testCudaEvalCompute<<< 1, 1 >>>(d_eval, d_number);
                 cudaMemcpy(eval, d_eval, sizeof(interval_t), cudaMemcpyDeviceToHost);
                 printError(eval, exact);
                 //-------------------------------------------
-                printf("\n[CUDA] ifc_compute_fast: ");
+                printf("\n[CUDA] rns_eval_compute_fast: ");
                 resetResult(eval);
                 resetResultCuda<<< 1, 1 >>>(d_eval);
                 testCudaEvalFastCompute<<< 1, 1 >>>(d_eval, d_number);
