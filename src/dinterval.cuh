@@ -8,6 +8,8 @@
  *  https://doi.org/10.1587/nolta.7.362
  *
  *  Note that the operations provided are not IEEE 754 compatible.
+ *  Also note that these operations are cross-platform, but are generally slower than the dynamic switching
+ *  of rounding modes using a floating point control word.
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
