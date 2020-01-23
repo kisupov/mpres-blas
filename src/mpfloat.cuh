@@ -178,7 +178,7 @@ GCC_FORCEINLINE void mp_set_mpfr(mp_float_ptr result, mpfr_srcptr x) {
         mpz_mod_ui(rem, mpz_mant, RNS_MODULI[i]);
         result->digits[i] = mpz_get_ui(rem);
     }
-    //rns_eval_compute(&result->eval[0], &result->eval[1], result->digits);
+    rns_eval_compute(&result->eval[0], &result->eval[1], result->digits);
     mpz_clear(mpz_mant);
     mpz_clear(rem);
     std::string().swap(mantissa);
