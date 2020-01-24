@@ -44,23 +44,23 @@ namespace Logger {
     const char *testHeaderAsString(enum TestHeader header) {
         switch (header) {
             case BLAS_ASUM_PERFORMANCE_TEST:
-                return "Performance test for BLAS ASUM routines";
+                return "Performance test for BLAS ASUM routines v2";
             case BLAS_DOT_PERFORMANCE_TEST:
-                return "Performance test for BLAS DOT routines";
+                return "Performance test for BLAS DOT routines  v2";
             case BLAS_SCAL_PERFORMANCE_TEST:
-                return "Performance test for BLAS SCAL routines";
+                return "Performance test for BLAS SCAL routines  v2";
             case BLAS_AXPY_PERFORMANCE_TEST:
-                return "Performance test for BLAS AXPY routines";
+                return "Performance test for BLAS AXPY routines  v2";
             case BLAS_ROT_PERFORMANCE_TEST:
-                return "Performance test for BLAS ROT routines";
+                return "Performance test for BLAS ROT routines  v2";
             case BLAS_ASUM_ACCURACY_TEST:
-                return "Accuracy test for MPRES-BLAS ASUM routine";
+                return "Accuracy test for MPRES-BLAS ASUM routine  v2";
             case BLAS_DOT_ACCURACY_TEST:
-                return "Accuracy test for MPRES-BLAS DOT routine";
+                return "Accuracy test for MPRES-BLAS DOT routine  v2";
             case BLAS_SCAL_ACCURACY_TEST:
-                return "Accuracy test for MPRES-BLAS SCAL routine";
+                return "Accuracy test for MPRES-BLAS SCAL routine  v2";
             case BLAS_AXPY_ACCURACY_TEST:
-                return "Accuracy test for MPRES-BLAS AXPY routine";
+                return "Accuracy test for MPRES-BLAS AXPY routine  v2";
             case RNS_EVAL_ACCURACY_TEST:
                 return "Test for checking the correctness and accuracy of the algorithms that calculate the RNS interval evaluation";
             case EXTRANGE_CORRECTNESS_TEST:

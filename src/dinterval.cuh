@@ -34,33 +34,45 @@
 #define MPRES_DINTERVAL_CUH
 
 #include "bitwise.cuh"
+#include "params.h"
 #include <cmath>
+
+/*
+ * Computes (x * y) + z
+ */
+GCC_FORCEINLINE double fmac(const double x, const double y, const double z){
+    #if EMPLOY_STD_FMA
+        return std::fma(x, y, z);
+    #else
+        return x*y+z;
+    #endif
+}
 
 /*!
  *	Computing the predecessor of a + b (addition with rounding downwards)
  *	Returns pred(a + b) that less than or equal to (a + b)
  */
-GCC_FORCEINLINE double dadd_rd(double a, double b){
+GCC_FORCEINLINE double dadd_rd(const double a, const double b){
     double c = a + b;
-    return c - std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    return c - fmac(DBL_PHI1, std::abs(c), DBL_ETA);
 }
 
 /*!
  *	Computing the successor of a + b (addition with rounding upwards).
  *	Returns succ(a + b) greater than or equal to (a + b)
  */
-GCC_FORCEINLINE double dadd_ru(double a, double b){
+GCC_FORCEINLINE double dadd_ru(const double a, const double b){
     double c = a + b;
-    return c + std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    return c + fmac(DBL_PHI1, std::abs(c), DBL_ETA);
 }
 
 /*!
  *	Enclosing interval of a + b. Returns the interval [low, upp] that includes (a + b),
  *	where low and upp are the pointers to the result lower and upper bounds, respectively.
  */
-GCC_FORCEINLINE void dadd_rdu(double * low, double * upp, double a, double b){
+GCC_FORCEINLINE void dadd_rdu(double * low, double * upp, const double a, const double b){
     double c = a + b;
-    double e = std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    double e = fmac(DBL_PHI1, std::abs(c), DBL_ETA);
     *low = c - e;
     *upp = c + e;
 }
@@ -69,27 +81,27 @@ GCC_FORCEINLINE void dadd_rdu(double * low, double * upp, double a, double b){
  *	Computing the predecessor of a + b (subtraction with rounding downwards)
  *	Returns pred(a - b) that less than or equal to (a - b)
  */
-GCC_FORCEINLINE double dsub_rd(double a, double b){
+GCC_FORCEINLINE double dsub_rd(const double a, const double b){
     double c = a - b;
-    return c - std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    return c - fmac(DBL_PHI1, std::abs(c), DBL_ETA);
 }
 
 /*!
  *	Computing the successor of a - b (subtraction with rounding upwards)
  *	Returns succ(a - b) greater than or equal to (a - b)
  */
-GCC_FORCEINLINE double dsub_ru(double a, double b){
+GCC_FORCEINLINE double dsub_ru(const double a, const double b){
     double c = a - b;
-    return c + std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    return c + fmac(DBL_PHI1, std::abs(c), DBL_ETA);
 }
 
 /*!
  *	Enclosing interval of a - b. Returns the interval [low, upp] that includes (a - b),
  *	where low and upp are the pointers to the result lower and upper bounds, respectively.
  */
-GCC_FORCEINLINE void dsub_rdu(double * low, double * upp, double a, double b){
+GCC_FORCEINLINE void dsub_rdu(double * low, double * upp, const double a, const double b){
     double c = a - b;
-    double e = std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    double e = fmac(DBL_PHI1, std::abs(c), DBL_ETA);
     *low = c - e;
     *upp = c + e;
 }
@@ -98,27 +110,27 @@ GCC_FORCEINLINE void dsub_rdu(double * low, double * upp, double a, double b){
  *	Computing the predecessor of a * b (multiplication with rounding downwards)
  *	Returns pred(a * b) that less than or equal to (a * b)
  */
-GCC_FORCEINLINE double dmul_rd(double a, double b){
+GCC_FORCEINLINE double dmul_rd(const double a, const double b){
     double c = a * b;
-    return c - std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    return c - fmac(DBL_PHI1, std::abs(c), DBL_ETA);
 }
 
 /*!
  *	Computing the successor of a * b (multiplication with rounding upwards)
  *	Returns succ(a * b) greater than or equal to (a * b)
  */
-GCC_FORCEINLINE double dmul_ru(double a, double b){
+GCC_FORCEINLINE double dmul_ru(const double a, const double b){
     double c = a * b;
-    return c + std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    return c + fmac(DBL_PHI1, std::abs(c), DBL_ETA);
 }
 
 /*!
  *	Enclosing interval of a * b. Returns the interval [low, upp] that includes (a * b),
  *	where low and upp are the pointers to the result lower and upper bounds, respectively.
  */
-GCC_FORCEINLINE void dmul_rdu(double * low, double * upp, double a, double b){
+GCC_FORCEINLINE void dmul_rdu(double * low, double * upp, const double a, const double b){
     double c = a * b;
-    double e = std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    double e = fmac(DBL_PHI1, std::abs(c), DBL_ETA);
     *low = c - e;
     *upp = c + e;
 }
@@ -127,27 +139,27 @@ GCC_FORCEINLINE void dmul_rdu(double * low, double * upp, double a, double b){
  *	Computing the predecessor of a / b (division with rounding downwards)
  *	Returns pred(a / b) that less than or equal to (a / b)
  */
-GCC_FORCEINLINE double ddiv_rd(double a, double b){
+GCC_FORCEINLINE double ddiv_rd(const double a, const double b){
     double c = a / b;
-    return c - std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    return c - fmac(DBL_PHI1, std::abs(c), DBL_ETA);
 }
 
 /*!
  *	Computing the successor of a / b (division with rounding upwards)
  *	Returns succ(a / b) greater than or equal to (a / b)
  */
-GCC_FORCEINLINE double ddiv_ru(double a, double b){
+GCC_FORCEINLINE double ddiv_ru(const double a, const double b){
     double c = a / b;
-    return c + std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    return c + fmac(DBL_PHI1, std::abs(c), DBL_ETA);
 }
 
 /*!
  *	Enclosing interval of a / b. Returns the interval [low, upp] that includes (a/b),
  *	where low and upp are the pointers to the result lower and upper bounds, respectively.
  */
-GCC_FORCEINLINE void ddiv_rdu(double * low, double * upp, double a, double b){
+GCC_FORCEINLINE void ddiv_rdu(double * low, double * upp, const double a, const double b){
     double c = a / b;
-    double e = std::fma(DBL_PHI1, std::abs(c), DBL_ETA);
+    double e = fmac(DBL_PHI1, std::abs(c), DBL_ETA);
     *low = c - e;
     *upp = c + e;
 }
