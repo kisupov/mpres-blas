@@ -1,8 +1,8 @@
 /*
  *  Global parameters of MPRES-BLAS.
- *  48 moduli of the RNS system, each of 32 bits
- *  1442-bit dynamic range of the RNS
- *  720 bits of precision
+ *  8 moduli of the RNS system, each of 32 bits
+ *  242-bit dynamic range of the RNS
+ *  120 bits of precision
  *
  *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
  *
@@ -25,25 +25,41 @@
 #ifndef MPRES_PARAMS_H
 #define MPRES_PARAMS_H
 
-#define RNS_MODULI_SIZE (48)
+/*
+ * Size of the RNS moduli set
+ */
+#define RNS_MODULI_SIZE (8)
 
-#define RNS_PARALLEL_REDUCTION_IDX (32)
+/*
+ * Initial index for parallel reduction in loops over the RNS moduli.
+ * The largest power of two which strictly less than RNS_MODULI_SIZE
+ */
+#define RNS_PARALLEL_REDUCTION_IDX (4)
 
-#define RNS_MODULI_PRODUCT_LOG2 (1442)
+/*
+ * Binary logarithm of the full RNS moduli product
+ */
+#define RNS_MODULI_PRODUCT_LOG2 (242)
 
+/*
+ * Maximal power-of-two for one scaling step in the RNS system.
+ * It should be such that operations modulo 2^RNS_P2_SCALING_THRESHOLD are performed efficiently.
+ */
 #define RNS_P2_SCALING_THRESHOLD (30)
 
+/*
+ * Upper bound for the relative forward error of an RNS interval evaluation
+ */
 #define RNS_EVAL_RELATIVE_ERROR (0.0000001)
 
-const int RNS_MODULI[] = {
-        1105651103,1105651105,1105651107,1105651109,1105651111,1105651117,1105651121,1105651123,
-        1105651127,1105651133,1105651139,1105651147,1105651153,1105651159,1105651163,1105651171,
-        1105651177,1105651181,1105651187,1105651189,1105651199,1105651201,1105651207,1105651213,
-        1105651223,1105651229,1105651231,1105651237,1105651241,1105651243,1105651247,1105651249,
-        1105651259,1105651271,1105651273,1105651277,1105651279,1105651289,1105651291,1105651297,
-        1105651307,1105651319,1105651333,1105651343,1105651357,1105651367,1105651369,1105651373
-};
+/*
+ * The set of RNS moduli
+ */
+const int RNS_MODULI[] = {1283742825,1283742827,1283742829,1283742833,1283742839,1283742841,1283742847,1283742851};
 
+/*
+ * Specifies whether to use std::fma to compute (x * y) + z
+ */
 #define EMPLOY_STD_FMA false
 
 #endif  //MPRES_PARAMS_H
