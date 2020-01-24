@@ -79,9 +79,9 @@ void mp_const_init() {
  */
 void mp_const_print(){
     std::cout << "Constants of the RNS-based floating-point arithmetic:" << std::endl;
-    printf("- MP_PRECISION %i\n", MP_PRECISION);
-    printf("- MP_H %i\n", MP_H);
-    printf("- MP_J %i\n", MP_J);
+    printf("- MP_PRECISION: %i\n", MP_PRECISION);
+    printf("- MP_H: %i\n", MP_H);
+    printf("- MP_J: %i\n", MP_J);
 }
 
 
@@ -108,10 +108,7 @@ GCC_FORCEINLINE void mp_set(mp_float_ptr result, long significand, int exp, int 
         long residue = significand % (long)RNS_MODULI[i];
         result->digits[i] = (int) residue;
     }
-    interval_t eval;
-    rns_eval_compute(&eval, result->digits);
-    result->eval[0] = eval.low;
-    result->eval[1] = eval.upp;
+    rns_eval_compute(&result->eval[0], &result->eval[1], result->digits);
 }
 
 /*!
@@ -181,10 +178,7 @@ GCC_FORCEINLINE void mp_set_mpfr(mp_float_ptr result, mpfr_srcptr x) {
         mpz_mod_ui(rem, mpz_mant, RNS_MODULI[i]);
         result->digits[i] = mpz_get_ui(rem);
     }
-    interval_t eval;
-    rns_eval_compute(&eval, result->digits);
-    result->eval[0] = eval.low;
-    result->eval[1] = eval.upp;
+    rns_eval_compute(&result->eval[0], &result->eval[1], result->digits);
     mpz_clear(mpz_mant);
     mpz_clear(rem);
     std::string().swap(mantissa);
@@ -298,10 +292,7 @@ GCC_FORCEINLINE void mp_round(mp_float_ptr x, int n) {
         rns_scale2pow(x->digits, x->digits, (unsigned) n);
         //After rounding, the significand will be small enough,
         //so the interval evaluation can be computed faster.
-        interval_t eval;
-        rns_eval_compute_fast(&eval, x->digits);
-        x->eval[0] = eval.low;
-        x->eval[1] = eval.upp;
+        rns_eval_compute_fast(&x->eval[0], &x->eval[1], x->digits);
     }
 }
 
@@ -499,10 +490,7 @@ namespace cuda {
             cuda::rns_scale2pow(x->digits, x->digits, (unsigned int) n);
             //After rounding, the significand will be small enough,
             //so the interval evaluation can be computed faster.
-            interval_t eval;
-            cuda::rns_eval_compute_fast(&eval, x->digits);
-            x->eval[0] = eval.low;
-            x->eval[1] = eval.upp;
+            cuda::rns_eval_compute_fast(&x->eval[0], &x->eval[1], x->digits);
             n = -1;
         }
     }
@@ -516,10 +504,7 @@ namespace cuda {
             cuda::rns_scale2pow_thread(x->digits, x->digits, (unsigned int) n);
             if (threadIdx.x == 0) {
                 x->exp += n;
-                interval_t eval;
-                cuda::rns_eval_compute_fast(&eval, x->digits);
-                x->eval[0] = eval.low;
-                x->eval[1] = eval.upp;
+                cuda::rns_eval_compute_fast(&x->eval[0], &x->eval[1], x->digits);
             }
             n = -1;
         }
@@ -772,10 +757,7 @@ namespace cuda {
             while (bits > 0) {
                 result.exp[idr] += bits;
                 cuda::rns_scale2pow(&result.digits[idr * RNS_MODULI_SIZE], &result.digits[idr * RNS_MODULI_SIZE], bits);
-                interval_t eval;
-                cuda::rns_eval_compute_fast(&eval, &result.digits[idr * RNS_MODULI_SIZE]);
-                result.eval[idr] = eval.low;
-                result.eval[idr + lenr] = eval.upp;
+                cuda::rns_eval_compute_fast(&result.eval[idr], &result.eval[idr + lenr], &result.digits[idr * RNS_MODULI_SIZE]);
                 bits = -1;
             }
         }
@@ -964,10 +946,7 @@ namespace cuda {
             while (bits > 0) {
                 result.exp[idr] += bits;
                 cuda::rns_scale2pow(&result.digits[idr * RNS_MODULI_SIZE], &result.digits[idr * RNS_MODULI_SIZE], bits);
-                interval_t eval;
-                cuda::rns_eval_compute_fast(&eval, &result.digits[idr * RNS_MODULI_SIZE]);
-                result.eval[idr] = eval.low;
-                result.eval[idr + lenr] = eval.upp;
+                cuda::rns_eval_compute_fast(&result.eval[idr], &result.eval[idr + lenr], &result.digits[idr * RNS_MODULI_SIZE]);
                 bits = -1;
             }
         }

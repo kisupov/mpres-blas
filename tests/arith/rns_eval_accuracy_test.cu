@@ -19,7 +19,7 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <">stdio.h>
+#include <stdio.h>
 #include <iostream>
 #include "../../src/rns.cuh"
 #include "../tsthelper.cuh"
@@ -45,7 +45,7 @@ void printError(interval_ptr eval, er_float_ptr exact) {
         er_div(error, error, exact);
         double derror;
         er_get_d(&derror, error);
-        std::cout << "\t error    = " << (derror * 100) << " %";
+        std::cout << "\t rel.error    = " << (derror);
         delete error;
     }
 }
@@ -64,11 +64,11 @@ __global__ void resetResultCuda(interval_ptr eval) {
  * CUDA tests
  */
 __global__ void testCudaEvalCompute(interval_ptr d_eval, int * d_number) {
-    cuda::rns_eval_compute(d_eval, d_number);
+    cuda::rns_eval_compute(&d_eval->low, &d_eval->upp, d_number);
 }
 
 __global__ void testCudaEvalFastCompute(interval_ptr d_eval, int * d_number) {
-    cuda::rns_eval_compute_fast(d_eval, d_number);
+    cuda::rns_eval_compute_fast(&d_eval->low, &d_eval->upp, d_number);
 }
 
 int main() {
@@ -77,11 +77,11 @@ int main() {
     Logger::beginTestDescription(Logger::RNS_EVAL_ACCURACY_TEST);
     rns_const_print(true);
     Logger::printDash();
-    rns_eval_const_calc();
+    rns_eval_const_print();
     Logger::endSection(true);
     Logger::printSpace();
 
-    bool asc = false; //start with x = 0
+    bool asc = true; //start with x = 0
     char c;
 
     int * number = new int[RNS_MODULI_SIZE];;
@@ -119,12 +119,12 @@ int main() {
                 //-------------------------------------------
                 printf("\n[CPU] rns_eval_compute: ");
                 resetResult(eval);
-                rns_eval_compute(eval, number);
+                rns_eval_compute(&eval->low, &eval->upp, number);
                 printError(eval, exact);
                 //-------------------------------------------
                 printf("\n[CPU] rns_eval_compute_fast: ");
                 resetResult(eval);
-                rns_eval_compute_fast(eval, number);
+                rns_eval_compute_fast(&eval->low, &eval->upp, number);
                 printError(eval, exact);
                 //-------------------------------------------
                 printf("\n[CUDA] rns_eval_compute: ");

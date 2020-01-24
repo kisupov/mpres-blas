@@ -27,9 +27,7 @@
 #define MPRES_EXTRANGE_CUH
 
 #include "types.cuh"
-#include "common.cuh"
-#include "bitwise.cuh"
-#include "roundings.cuh"
+#include "pairwise.cuh"
 
 
 /********************* Assignment and formatted output functions *********************/
@@ -108,6 +106,14 @@ namespace cuda {
     }
 
     /*!
+     * Convert x to a double. The procedure may yield an overflow or an underflow
+     * if x is not representable in the exponent range of the double precision format
+     */
+    DEVICE_CUDA_FORCEINLINE void er_get_d(double *result, er_float_ptr x) {
+        *result = cuda::fast_scalbn(x->frac, x->exp);
+    }
+
+    /*!
      * Inline print of x
      */
     DEVICE_CUDA_FORCEINLINE void er_print(er_float_ptr x) {
@@ -160,6 +166,46 @@ GCC_FORCEINLINE void er_add(er_float_ptr result, er_float_ptr x, er_float_ptr y)
 }
 
 /*!
+ * Addition of two extended-range numbers in rounding-down mode
+ */
+GCC_FORCEINLINE void er_add_rd(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+    x->exp *= (x->frac != 0);
+    y->exp *= (y->frac != 0);
+    int dexp = (x->exp - y->exp) * (x->frac != 0) * (y->frac != 0);
+    if (dexp > 0) {
+        result->exp = x->exp;
+        result->frac = dadd_rd(x->frac, fast_scalbn(y->frac, -dexp));
+    } else if (dexp < 0) {
+        result->exp = y->exp;
+        result->frac = dadd_rd(y->frac, fast_scalbn(x->frac, dexp));
+    } else {
+        result->exp = (x->exp == 0) ? y->exp : x->exp;
+        result->frac = dadd_rd(x->frac, y->frac);
+    }
+    er_adjust(result);
+}
+
+/*!
+ * Addition of two extended-range numbers in rounding-up mode
+ */
+GCC_FORCEINLINE void er_add_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+    x->exp *= (x->frac != 0);
+    y->exp *= (y->frac != 0);
+    int dexp = (x->exp - y->exp) * (x->frac != 0) * (y->frac != 0);
+    if (dexp > 0) {
+        result->exp = x->exp;
+        result->frac = dadd_ru(x->frac, fast_scalbn(y->frac, -dexp));
+    } else if (dexp < 0) {
+        result->exp = y->exp;
+        result->frac = dadd_ru(y->frac, fast_scalbn(x->frac, dexp));
+    } else {
+        result->exp = (x->exp == 0) ? y->exp : x->exp;
+        result->frac = dadd_ru(x->frac, y->frac);
+    }
+    er_adjust(result);
+}
+
+/*!
  * Subtraction of two extended-range numbers
  */
 GCC_FORCEINLINE void er_sub(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
@@ -180,11 +226,69 @@ GCC_FORCEINLINE void er_sub(er_float_ptr result, er_float_ptr x, er_float_ptr y)
 }
 
 /*!
+ * Subtraction of two extended-range numbers in rounding-down mode
+ */
+GCC_FORCEINLINE void er_sub_rd(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+    x->exp *= (x->frac != 0);
+    y->exp *= (y->frac != 0);
+    int dexp = (x->exp - y->exp) * (x->frac != 0) * (y->frac != 0);
+    if (dexp > 0) {
+        result->exp = x->exp;
+        result->frac = dsub_rd(x->frac, fast_scalbn(y->frac, -dexp));
+    } else if (dexp < 0) {
+        result->exp = y->exp;
+        result->frac = dsub_rd(fast_scalbn(x->frac, dexp), y->frac);
+    } else {
+        result->exp = (x->exp == 0) ? y->exp : x->exp;
+        result->frac = dsub_rd(x->frac, y->frac);
+    }
+    er_adjust(result);
+}
+
+/*!
+ * Subtraction of two extended-range numbers in rounding-up mode
+ */
+GCC_FORCEINLINE void er_sub_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+    x->exp *= (x->frac != 0);
+    y->exp *= (y->frac != 0);
+    int dexp = (x->exp - y->exp) * (x->frac != 0) * (y->frac != 0);
+    if (dexp > 0) {
+        result->exp = x->exp;
+        result->frac = dsub_ru(x->frac, fast_scalbn(y->frac, -dexp));
+    } else if (dexp < 0) {
+        result->exp = y->exp;
+        result->frac = dsub_ru(fast_scalbn(x->frac, dexp), y->frac);
+    } else {
+        result->exp = (x->exp == 0) ? y->exp : x->exp;
+        result->frac = dsub_ru(x->frac, y->frac);
+    }
+    er_adjust(result);
+}
+
+/*!
  * Multiplication of two extended-range numbers
  */
 GCC_FORCEINLINE void er_mul(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
     result->exp = x->exp + y->exp;
     result->frac = x->frac * y->frac;
+    er_adjust(result);
+}
+
+/*!
+ * Multiplication of two extended-range numbers in rounding-down mode
+ */
+GCC_FORCEINLINE void er_mul_rd(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+    result->exp = x->exp + y->exp;
+    result->frac = dmul_rd(x->frac, y->frac);
+    er_adjust(result);
+}
+
+/*!
+ * Multiplication of two extended-range numbers in rounding-up mode
+ */
+GCC_FORCEINLINE void er_mul_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+    result->exp = x->exp + y->exp;
+    result->frac = dmul_ru(x->frac, y->frac);
     er_adjust(result);
 }
 
@@ -198,13 +302,20 @@ GCC_FORCEINLINE void er_div(er_float_ptr result, er_float_ptr x, er_float_ptr y)
 }
 
 /*!
- * Compute x * y / z with a single adjust call in rounding-up mode
+ * Division of two extended-range numbers in rounding-down mode
  */
-GCC_FORCEINLINE void er_md_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
-    result->exp = x->exp + y->exp - z->exp;
-    round_up_mode();
-    result->frac = (x->frac * y->frac) / z->frac;
-    round_nearest_mode();
+GCC_FORCEINLINE void er_div_rd(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+    result->exp = x->exp - y->exp;
+    result->frac = ddiv_rd(x->frac, y->frac);
+    er_adjust(result);
+}
+
+/*!
+ * Division of two extended-range numbers in rounding-up mode
+ */
+GCC_FORCEINLINE void er_div_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+    result->exp = x->exp - y->exp;
+    result->frac = ddiv_ru(x->frac, y->frac);
     er_adjust(result);
 }
 
@@ -213,8 +324,16 @@ GCC_FORCEINLINE void er_md_ru(er_float_ptr result, er_float_ptr x, er_float_ptr 
  */
 GCC_FORCEINLINE void er_md_rd(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
     result->exp = x->exp + y->exp - z->exp;
-    round_down_mode();
-    result->frac = (x->frac * y->frac) / z->frac;
+    result->frac = ddiv_rd(dmul_rd(x->frac, y->frac), z->frac);
+    er_adjust(result);
+}
+
+/*!
+ * Compute x * y / z with a single adjust call in rounding-up mode
+ */
+GCC_FORCEINLINE void er_md_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
+    result->exp = x->exp + y->exp - z->exp;
+    result->frac = ddiv_ru(dmul_ru(x->frac, y->frac), z->frac);
     er_adjust(result);
 }
 
@@ -274,9 +393,9 @@ namespace cuda {
     }
 
     /*!
-     * Addition of two extended-range numbers in rounding-up mode
+     * Addition of two extended-range numbers
      */
-     DEVICE_CUDA_FORCEINLINE void er_add_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y){
+    DEVICE_CUDA_FORCEINLINE void er_add(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
         x->exp *= (x->frac != 0); //Reset the exponent of x when the significand is zero
         y->exp *= (y->frac != 0); //Reset the exponent of y when the significand is zero
         // If either x or y is zero, then dexp will also be zero
@@ -285,13 +404,13 @@ namespace cuda {
         int dexp = (x->exp - y->exp) * (x->frac != 0) * (y->frac != 0);
         if (dexp > 0) {
             result->exp = x->exp;
-            result->frac = __dadd_ru(x->frac, scalbn(y->frac, -dexp)); // may be cuda::fast_scalbn ?
+            result->frac = x->frac + scalbn(y->frac, -dexp); // may be cuda::fast_scalbn
         } else if (dexp < 0) {
             result->exp = y->exp;
-            result->frac = __dadd_ru(y->frac, scalbn(x->frac, dexp));
+            result->frac = y->frac + scalbn(x->frac, dexp);
         } else {
             result->exp = (x->exp == 0) ? y->exp : x->exp;
-            result->frac = __dadd_ru(x->frac, y->frac);
+            result->frac = x->frac + y->frac;
         }
         cuda::er_adjust(result);
     }
@@ -317,21 +436,41 @@ namespace cuda {
     }
 
     /*!
-     * Subtraction of two extended-range numbers in rounding-up mode
+     * Addition of two extended-range numbers in rounding-up mode
      */
-    DEVICE_CUDA_FORCEINLINE void er_sub_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+    DEVICE_CUDA_FORCEINLINE void er_add_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y){
         x->exp *= (x->frac != 0);
         y->exp *= (y->frac != 0);
         int dexp = (x->exp - y->exp) * (x->frac != 0) * (y->frac != 0);
         if (dexp > 0) {
             result->exp = x->exp;
-            result->frac = __dsub_ru(x->frac, scalbn(y->frac, -dexp));
+            result->frac = __dadd_ru(x->frac, scalbn(y->frac, -dexp));
         } else if (dexp < 0) {
             result->exp = y->exp;
-            result->frac = __dsub_ru(scalbn(x->frac, dexp), y->frac);
+            result->frac = __dadd_ru(y->frac, scalbn(x->frac, dexp));
         } else {
             result->exp = (x->exp == 0) ? y->exp : x->exp;
-            result->frac = __dsub_ru(x->frac, y->frac);
+            result->frac = __dadd_ru(x->frac, y->frac);
+        }
+        cuda::er_adjust(result);
+    }
+
+    /*!
+     * Subtraction of two extended-range numbers
+     */
+    DEVICE_CUDA_FORCEINLINE void er_sub(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+        x->exp *= (x->frac != 0);
+        y->exp *= (y->frac != 0);
+        int dexp = (x->exp - y->exp) * (x->frac != 0) * (y->frac != 0);
+        if (dexp > 0) {
+            result->exp = x->exp;
+            result->frac = x->frac - scalbn(y->frac, -dexp);
+        } else if (dexp < 0) {
+            result->exp = y->exp;
+            result->frac = scalbn(x->frac, dexp) - y->frac;
+        } else {
+            result->exp = (x->exp == 0) ? y->exp : x->exp;
+            result->frac = x->frac - y->frac;
         }
         cuda::er_adjust(result);
     }
@@ -357,11 +496,49 @@ namespace cuda {
     }
 
     /*!
+     * Subtraction of two extended-range numbers in rounding-up mode
+     */
+    DEVICE_CUDA_FORCEINLINE void er_sub_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+        x->exp *= (x->frac != 0);
+        y->exp *= (y->frac != 0);
+        int dexp = (x->exp - y->exp) * (x->frac != 0) * (y->frac != 0);
+        if (dexp > 0) {
+            result->exp = x->exp;
+            result->frac = __dsub_ru(x->frac, scalbn(y->frac, -dexp));
+        } else if (dexp < 0) {
+            result->exp = y->exp;
+            result->frac = __dsub_ru(scalbn(x->frac, dexp), y->frac);
+        } else {
+            result->exp = (x->exp == 0) ? y->exp : x->exp;
+            result->frac = __dsub_ru(x->frac, y->frac);
+        }
+        cuda::er_adjust(result);
+    }
+
+    /*!
      * Multiplication of two extended-range numbers
      */
     DEVICE_CUDA_FORCEINLINE void er_mul(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
         result->exp = x->exp + y->exp;
         result->frac = x->frac * y->frac;
+        cuda::er_adjust(result);
+    }
+
+    /*!
+     * Multiplication of two extended-range numbers in rounding-down mode
+     */
+    DEVICE_CUDA_FORCEINLINE void er_mul_rd(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+        result->exp = x->exp + y->exp;
+        result->frac = __dmul_rd(x->frac, y->frac);
+        cuda::er_adjust(result);
+    }
+
+    /*!
+     * Multiplication of two extended-range numbers in rounding-up mode
+     */
+    DEVICE_CUDA_FORCEINLINE void er_mul_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+        result->exp = x->exp + y->exp;
+        result->frac = __dmul_ru(x->frac, y->frac);
         cuda::er_adjust(result);
     }
 
@@ -375,11 +552,20 @@ namespace cuda {
     }
 
     /*!
-     * Compute x * y / z with a single adjust call in rounding-up mode
+     * Division of two extended-range numbers in rounding-down mode
      */
-    DEVICE_CUDA_FORCEINLINE void er_md_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
-        result->exp = x->exp + y->exp - z->exp;
-        result->frac = __ddiv_ru(__dmul_ru(x->frac, y->frac), z->frac);
+    DEVICE_CUDA_FORCEINLINE void er_div_rd(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+        result->exp = x->exp - y->exp;
+        result->frac = __ddiv_rd(x->frac, y->frac);
+        cuda::er_adjust(result);
+    }
+
+    /*!
+     * Division of two extended-range numbers in rounding-down mode
+     */
+    DEVICE_CUDA_FORCEINLINE void er_div_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y) {
+        result->exp = x->exp - y->exp;
+        result->frac = __ddiv_ru(x->frac, y->frac);
         cuda::er_adjust(result);
     }
 
@@ -389,6 +575,15 @@ namespace cuda {
     DEVICE_CUDA_FORCEINLINE void er_md_rd(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
         result->exp = x->exp + y->exp - z->exp;
         result->frac = __ddiv_rd(__dmul_rd(x->frac, y->frac), z->frac);
+        cuda::er_adjust(result);
+    }
+
+    /*!
+     * Compute x * y / z with a single adjust call in rounding-up mode
+     */
+    DEVICE_CUDA_FORCEINLINE void er_md_ru(er_float_ptr result, er_float_ptr x, er_float_ptr y, er_float_ptr z) {
+        result->exp = x->exp + y->exp - z->exp;
+        result->frac = __ddiv_ru(__dmul_ru(x->frac, y->frac), z->frac);
         cuda::er_adjust(result);
     }
 
@@ -412,11 +607,11 @@ namespace cuda {
     }
 
     /*!
-   * Comparison of two non-negative extended-range numbers
-   * Performs faster than er_cmp
-   * Returns 1, if x > y; -1, if x < y; 0, if x = y
-   * The function is correct only when 1 <= x.frac, y.frac < 2
-   */
+     * Comparison of two non-negative extended-range numbers
+     * Performs faster than er_cmp
+     * Returns 1, if x > y; -1, if x < y; 0, if x = y
+     * The function is correct only when 1 <= x.frac, y.frac < 2
+     */
     DEVICE_CUDA_FORCEINLINE int er_ucmp(er_float_ptr x, er_float_ptr y) {
         int diff = x->exp - y->exp;
         if (diff == 0) {

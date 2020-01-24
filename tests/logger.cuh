@@ -37,7 +37,8 @@ namespace Logger {
         BLAS_DOT_ACCURACY_TEST,
         BLAS_SCAL_ACCURACY_TEST,
         BLAS_AXPY_ACCURACY_TEST,
-        RNS_EVAL_ACCURACY_TEST
+        RNS_EVAL_ACCURACY_TEST,
+        EXTRANGE_CORRECTNESS_TEST
     };
 
     const char *testHeaderAsString(enum TestHeader header) {
@@ -62,6 +63,8 @@ namespace Logger {
                 return "Accuracy test for MPRES-BLAS AXPY routine";
             case RNS_EVAL_ACCURACY_TEST:
                 return "Test for checking the correctness and accuracy of the algorithms that calculate the RNS interval evaluation";
+            case EXTRANGE_CORRECTNESS_TEST:
+                return "Test for checking the correctness of the extended-range floating-point routines";
         }
         return "";
     }

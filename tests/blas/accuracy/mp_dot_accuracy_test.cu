@@ -153,7 +153,7 @@ int main(){
     Logger::printDash();
     rns_const_print(true);
     Logger::printDash();
-    rns_eval_const_calc();
+    rns_eval_const_print();
     Logger::printDash();
     mp_const_print();
     Logger::endSection(true);

@@ -26,7 +26,7 @@ int main() {
     rns_const_init();
     mp_const_init();
     rns_const_print(true);
-    rns_eval_const_calc();
+    rns_eval_const_print();
 
     mp_float_t x, y, res;
     int x_r[] = {22652,6605,5584,10364,36578,11297,9551,15551};
