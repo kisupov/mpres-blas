@@ -71,7 +71,7 @@ GCC_FORCEINLINE void er_get_d(double *result, er_float_ptr x) {
  * Inline print of x
  */
 GCC_FORCEINLINE void er_print(er_float_ptr x) {
-    printf("number->frac %.18e | number->exp %li", x->frac, x->exp);
+    printf("number->frac %.18e | number->exp %ld", x->frac, x->exp);
 }
 
 /*
@@ -117,7 +117,7 @@ namespace cuda {
      * Inline print of x
      */
     DEVICE_CUDA_FORCEINLINE void er_print(er_float_ptr x) {
-        printf("number->frac %.18e | number->exp %i\n", x->frac, x->exp);
+        printf("number->frac %.18e | number->exp %ld\n", x->frac, x->exp);
     }
 
 } //end of namespace

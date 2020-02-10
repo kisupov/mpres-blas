@@ -29,6 +29,7 @@
 #include "../../timers.cuh"
 #include "cump/cump.cuh"
 
+#define CUMP_MAX_THREADS_PER_BLOCK 1024
 using cump::mpf_array_t;
 
 /********************* Computational kernels *********************/
@@ -74,7 +75,9 @@ __global__ void cump_sum_kernel1(int n, mpf_array_t result, mpf_array_t x, mpf_a
 /*
  * Computes the sum of the elements of vector x (optimized kernel)
  */
-__global__ void cump_sum_kernel2(mpf_array_t x, mpf_array_t result){
+__global__ void
+__launch_bounds__(CUMP_MAX_THREADS_PER_BLOCK)
+cump_sum_kernel2(mpf_array_t x, mpf_array_t result){
     using namespace cump;
     unsigned int tid = threadIdx.x;
     for(unsigned int s = blockDim.x / 2; s > 0; s >>= 1){
