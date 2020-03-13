@@ -45,7 +45,7 @@ namespace cuda {
      * @param buffer - array of size n in the global GPU memory
      */
     template <int gridDim1, int blockDim1, int gridDim2, int gridDim3, int blockDim3>
-    void mp_array_dot(int n, mp_array_t &x, int incx, mp_array_t &y, int incy, mp_array_t &r, mp_array_t &buffer) {
+    void mpdot(int n, mp_array_t &x, int incx, mp_array_t &y, int incy, mp_array_t &r, mp_array_t &buffer) {
 
         // Only positive operation size is permitted for DOT
         if(n <= 0){

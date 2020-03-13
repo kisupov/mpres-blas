@@ -42,7 +42,7 @@ namespace cuda {
      * @param buffer - array of size n in the global GPU memory
      */
     template <int gridDim1, int blockDim1, int gridDim2>
-    void mp_array_axpy(int n, mp_array_t &alpha, mp_array_t &x, int incx, mp_array_t &y, int incy, mp_array_t &buffer) {
+    void mpaxpy(int n, mp_array_t &alpha, mp_array_t &x, int incx, mp_array_t &y, int incy, mp_array_t &buffer) {
 
         // Only positive operation size is permitted for AXPY
         if(n <= 0){

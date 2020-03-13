@@ -29,7 +29,7 @@
 #define N 1000000 //Operation size
 #define REPEAT_TEST 10 //Number of repeats
 
-//Execution configuration for mp_array_rot
+//Execution configuration for mprot
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND   512
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
@@ -175,7 +175,7 @@ void mpres_test(int n, mpfr_t * x, mpfr_t * y, mpfr_t c, mpfr_t s) {
         cuda::mp_array_host2device(dx, hx, n);
         cuda::mp_array_host2device(dy, hy, n);
         StartCudaTimer();
-        cuda::mp_array_rot<
+        cuda::mprot<
                 MPRES_CUDA_BLOCKS_FIELDS_ROUND,
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
                 MPRES_CUDA_BLOCKS_RESIDUES>

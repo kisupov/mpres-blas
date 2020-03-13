@@ -29,31 +29,10 @@ int main() {
     rns_eval_const_print();
 
     mp_float_t x, y, res;
-    int x_r[] = {22652,6605,5584,10364,36578,11297,9551,15551};
-    int y_r[] = {5370,1156,35997,27573,23361,2301,37162,28742};
-    interval_t i_x, i_y;
-
-    x.sign = 0;
-    *x.digits = *x_r;
-    x.exp = -55;
-    y.eval[0].frac = 1.999278880646115919;
-    y.eval[0].exp = -63;
-    y.eval[1].frac =1.999278881030258415 ;
-    y.eval[1].exp = -64;
-
-
-    y.sign = 0;
-    *y.digits = *y_r;
-    y.exp = -31;
-    y.eval[0].frac = 1.999278880646115919;
-    y.eval[0].exp = -96;
-    y.eval[1].frac =1.202608979215716190 ;
-    y.eval[1].exp = -96;
-    y.eval[0] = i_x.low;
-    y.eval[1] = i_y.upp;
-
+    mp_set_d(&x, 0.001);
+    mp_set_d(&y, -0.0333);
     mp_add(&res, &x, &y);
-
+    printf("\nResult = %lf", mp_get_d(&res));
     mp_print(&res);
 
     return 0;

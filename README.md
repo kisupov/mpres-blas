@@ -11,13 +11,13 @@ in extended range using CUDA and provides several useful RNS computation algorit
 
 Currently the following level-1 multiple-precision functions are only supported:
 
-* ASUM --- Sum of absolute values (`mp_array_asum`)
-* DOT --- Dot product of two vectors (`mp_array_dot`)
-* SCAL --- Vector-scalar product (`mp_array_scal`)
-* AXPY --- Constant times a vector plus a vector (`mp_array_axpy`)
-* WAXPBY --- Scaled vector addition (`mp_array_waxpby`)
-* ROT --- Apply a plane rotation to vectors (`mp_array_rot`)
-* AXPY_DOT --- Combined AXPY and DOT (`mp_array_axpy_dot`)
+* ASUM --- Sum of absolute values (`mpasum`)
+* DOT --- Dot product of two vectors (`mpdot`)
+* SCAL --- Vector-scalar product (`mpscal`)
+* AXPY --- Constant times a vector plus a vector (`mpaxpy`)
+* WAXPBY --- Scaled vector addition (`mpwaxpby`)
+* ROT --- Apply a plane rotation to vectors (`mprot`)
+* AXPY_DOT --- Combined AXPY and DOT (`mpaxpydot`)
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
 Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for details.
@@ -34,8 +34,6 @@ you need to change the following #defines in `src/params.h`:
 
 * `RNS_MODULI_PRODUCT_LOG2`
 * `RNS_PARALLEL_REDUCTION_IDX`
-
-If the size of the moduli set increases, make sure that the loop-unrolled methods from `src/modular.cuh` remain correct.
 
 When using large moduli (like `1283742825`) to increase the precision of computations, make sure your environment has support for 8-byte `long` type.
 

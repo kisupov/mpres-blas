@@ -39,7 +39,7 @@ namespace cuda {
      * @param incx - storage spacing between elements of x (must be positive)
      */
     template <int gridDim1, int blockDim1, int gridDim2>
-    void mp_array_scal(int n, mp_array_t &alpha, mp_array_t &x, int incx) {
+    void mpscal(int n, mp_array_t &alpha, mp_array_t &x, int incx) {
 
         //Only positive operation size and vector stride are permitted for SCAL
         if(n <= 0 || incx <= 0){

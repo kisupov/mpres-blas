@@ -31,7 +31,7 @@
 #define N 1000000 //Operation size
 #define REPEAT_TEST 10 //Number of repeats
 
-//Execution configuration for mp_array_asum
+//Execution configuration for mpasum
 #define MPRES_CUDA_BLOCKS_REDUCE   256
 #define MPRES_CUDA_THREADS_REDUCE  64
 
@@ -364,7 +364,7 @@ void mpres_test(mpfr_t *x, int n){
     //Launch
     StartCudaTimer();
     for (int i = 0; i < REPEAT_TEST; i++) {
-        cuda::mp_array_asum<MPRES_CUDA_BLOCKS_REDUCE, MPRES_CUDA_THREADS_REDUCE>(n, dx, 1, dresult);
+        cuda::mpasum<MPRES_CUDA_BLOCKS_REDUCE, MPRES_CUDA_THREADS_REDUCE>(n, dx, 1, dresult);
     }
     EndCudaTimer();
     PrintCudaTimer("took");
