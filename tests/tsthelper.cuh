@@ -25,10 +25,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <random>
-#include <chrono>
 #include "mpfr.h"
+#include <timers.cuh>
 #include "../src/mpfloat.cuh"
 
 
@@ -36,6 +35,7 @@
  * Creates an array of random multiple-precision floating-point numbers
  */
 mpfr_t * create_random_array(unsigned long size, int bits){
+    waitFor(5);
     srand(time(NULL));
 
     gmp_randstate_t state;                           // Random generator state object
@@ -67,14 +67,6 @@ mpfr_t * create_random_array(unsigned long size, int bits){
         mpfr_mul(array[i], array[i], pow_bits, MPFR_RNDN);
     }
     return array;
-}
-
-
-/*
- * Creates a m-by-n random multiple-precision matrix
- */
-mpfr_t * create_random_matrix(unsigned long m, unsigned long n, int bits){
-    return create_random_array(m * n, bits);
 }
 
 

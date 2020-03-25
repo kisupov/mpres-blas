@@ -9,7 +9,7 @@ floating-point numbers. Non-positional nature and parallel arithmetic properties
 a good tool for high-performance computing. The library also supports floating-point arithmetic
 in extended range using CUDA and provides several useful RNS computation algorithms.
 
-Currently the following level-1 multiple-precision functions are only supported:
+Currently the following multiple-precision functions are only supported:
 
 * ASUM --- Sum of absolute values (`mpasum`)
 * DOT --- Dot product of two vectors (`mpdot`)
@@ -18,6 +18,7 @@ Currently the following level-1 multiple-precision functions are only supported:
 * WAXPBY --- Scaled vector addition (`mpwaxpby`)
 * ROT --- Apply a plane rotation to vectors (`mprot`)
 * AXPY_DOT --- Combined AXPY and DOT (`mpaxpydot`)
+* GEMV --- Matrix-vector multiplication (`mpgemv`)
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
 Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for details.
@@ -41,4 +42,4 @@ When using large moduli (like `1283742825`) to increase the precision of computa
 
 *Link: http://github.com/kisupov/mpres-blas*
 
-*Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.*
+*Copyright 2018, 2019, 2020 by Konstantin Isupov.*

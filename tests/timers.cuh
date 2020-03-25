@@ -24,6 +24,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <time.h>
 
 /*
  * Return CPU time in milliseconds between start and end
@@ -70,5 +71,12 @@ float calcTimeCUDA(cudaEvent_t start, cudaEvent_t stop) {
     std::cout << msg << "(ms): " << _cuda_time << std::endl; \
     _cuda_time = 0;
 
+/*
+* Delay in seconds
+*/
+void waitFor (unsigned int secs) {
+    unsigned int retTime = time(0) + secs;
+    while (time(0) < retTime);
+}
 
 #endif //MPRES_TEST_TIMERS_CUH

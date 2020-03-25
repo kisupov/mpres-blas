@@ -75,6 +75,17 @@ namespace std {
 }
 
 /*
+ * Minimum and maximum
+ */
+#ifndef MIN
+#define MIN(a,b) (a < b ? a : b)
+#endif
+
+#ifndef MAX
+#define MAX(a,b) (a > b ? a : b)
+#endif
+
+/*
  * Round up v to the next highest power of 2
  * https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
  */

@@ -150,6 +150,25 @@ __global__  void cump_rot_kernel(int n, mpf_array_t x, mpf_array_t y, mpf_array_
     }
 }
 
+/*
+ * Performs the matrix-vector operation  y := A*x + beta*y,
+ * where beta is a scalar, x and y are vectors and A is an m by n matrix
+ */
+__global__ void cump_gemv_kernel(int m, int n, mpf_array_t alpha, mpf_array_t A, int lda, mpf_array_t x, mpf_array_t beta, mpf_array_t y, mpf_array_t tmp1) {
+    using namespace cump;
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    // Multiply the y vector by beta
+    if(i < m){
+        mpf_mul(y[i], beta[0], y[i]);
+    }
+    __syncthreads();
+    for (int j = 0; j < n; j++) {
+        if( i < m ){
+            mpf_mul(tmp1[i], x[j], A[i + j * lda]);
+            mpf_add(y[i], y[i], tmp1[i]);
+        }
+    }
+}
 
 /*
  * Set the elements of an array to zero
@@ -660,6 +679,109 @@ void cump_axpy_dot_test(int n, mpfr_t alpha, mpfr_t *w, mpfr_t *v, mpfr_t *u, in
     cumpf_array_clear(dblock_result);
 }
 
+/*
+ * GEMV test
+ */
+void cump_gemv_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y, int prec, int convert_digits, int repeats){
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CUMP gemv");
+
+    //Set precision
+    mpf_set_default_prec(prec);
+    cumpf_set_default_prec(prec);
+
+    //Execution configuration
+    int threads = 64;
+    int blocks_scal = n / (threads) + (n % (threads) ? 1 : 0);
+    int blocks_gemv = m / (threads) + (m % (threads) ? 1 : 0);
+
+    //Host data
+    mpf_t halpha;
+    mpf_t hbeta;
+    mpf_t *hA = new mpf_t[lda * n];
+    mpf_t *hx = new mpf_t[n];
+    mpf_t *hy = new mpf_t[m];
+
+    //GPU data
+    cumpf_array_t dalpha;
+    cumpf_array_t dbeta;
+    cumpf_array_t dA;
+    cumpf_array_t dx;
+    cumpf_array_t dy;
+    cumpf_array_t dtemp;
+
+    cumpf_array_init2(dalpha, 1, prec);
+    cumpf_array_init2(dbeta, 1, prec);
+    cumpf_array_init2(dA, lda * n, prec);
+    cumpf_array_init2(dx, n, prec);
+    cumpf_array_init2(dy, m, prec);
+    cumpf_array_init2(dtemp, m, prec);
+
+    //Convert from MPFR
+    for(int i = 0; i < lda * n; i++){
+        mpf_init2(hA[i], prec);
+        mpf_set_str(hA[i], convert_to_string_sci(A[i], convert_digits).c_str(), 10);
+    }
+    for(int i = 0; i < n; i++){
+        mpf_init2(hx[i], prec);
+        mpf_set_str(hx[i], convert_to_string_sci(x[i], convert_digits).c_str(), 10);
+    }
+    for(int i = 0; i < m; i++){
+        mpf_init2(hy[i], prec);
+        mpf_set_str(hy[i], convert_to_string_sci(y[i], convert_digits).c_str(), 10);
+    }
+    mpf_init2(halpha, prec);
+    mpf_init2(hbeta, prec);
+    mpf_set_str(halpha, convert_to_string_sci(alpha, convert_digits).c_str(), 10);
+    mpf_set_str(hbeta, convert_to_string_sci(beta, convert_digits).c_str(), 10);
+
+    //Copying to the GPU
+    cumpf_array_set_mpf(dalpha, &halpha, 1);
+    cumpf_array_set_mpf(dbeta, &hbeta, 1);
+    cumpf_array_set_mpf(dA, hA, lda * n);
+
+    //Launch
+    for(int i = 0; i < repeats; i++){
+        cumpf_array_set_mpf(dy, hy, m);
+        cumpf_array_set_mpf(dx, hx, n);
+        cudaDeviceSynchronize();
+        StartCudaTimer();
+        cump_scal_kernel<<<blocks_scal, threads>>>(n, dalpha, dx);
+        cump_gemv_kernel<<<blocks_gemv, threads>>>(m, n, dalpha, dA, lda, dx, dbeta, dy, dtemp);
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+
+    //Copying to the host
+    mpf_array_set_cumpf(hy, dy, m);
+    for(int i = 1; i < m; i++){
+        mpf_add(hy[0], hy[i], hy[0]);
+    }
+    gmp_printf ("result: %.70Ff \n", hy[0]);
+
+    //Cleanup
+    mpf_clear(halpha);
+    mpf_clear(hbeta);
+    for(int i = 0; i < lda * n; i++){
+        mpf_clear(hA[i]);
+    }
+    for(int i = 0; i < n; i++){
+        mpf_clear(hx[i]);
+    }
+    for(int i = 0; i < m; i++){
+        mpf_clear(hy[i]);
+    }
+    delete [] hA;
+    delete [] hx;
+    delete [] hy;
+    cumpf_array_clear(dalpha);
+    cumpf_array_clear(dbeta);
+    cumpf_array_clear(dA);
+    cumpf_array_clear(dx);
+    cumpf_array_clear(dy);
+    cumpf_array_clear(dtemp);
+}
 
 
 #endif //MPRES_TEST_CUMP_BLAS_CUH

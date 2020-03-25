@@ -165,6 +165,26 @@ __global__ void garprec_reset_array(int n, double *temp, int int_temp, int prec_
     }
 }
 
+/*
+ * Performs the matrix-vector operation  y := A*x + beta*y,
+ * where beta is a scalar, x and y are vectors and A is an m by n matrix
+ */
+__global__ void garprec_gemv_kernel(int m, int n, double *A, int interval_A,
+                                    int lda, double *x, int interval_x, double *beta, int interval_beta, double *y, int interval_y, double *tmp1, int interval_tmp1, int prec_words) {
+    const unsigned int index = threadIdx.x + blockIdx.x * blockDim.x;
+    double d[MAX_D_SIZE];
+    //Scaling y by beta
+    if (index < m){
+        gmpmul(y + index, interval_y, beta + 0, interval_beta, y + index, interval_y, prec_words, d);
+    }
+    //Matrix-vector multiplication
+    for (int j = 0; j < n; j++) {
+        if( index < m ){
+            gmpmul(x + j, interval_x, A + (index + j * lda), interval_A, tmp1 + index, interval_tmp1, prec_words, d);
+            gmpadd(tmp1 + index, interval_tmp1, y + index, interval_y, y + index, interval_y, prec_words, d);
+        }
+    }
+}
 
 /********************* Benchmarks *********************/
 
@@ -623,6 +643,101 @@ void garprec_axpy_dot_test(int n, mpfr_t alpha, mpfr_t *w, mpfr_t *v, mpfr_t *u,
     gu->release();
     gw->release();
     gtmp->release();
+    garprecFinalize();
+}
+
+/*
+ * GEMV test
+ */
+void garprec_gemv_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y, int prec, int convert_digits, int repeat){
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] GARPREC gemv");
+
+    //Init and set precision
+    int maxPrecWords = initializeGarprec(prec);
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Execution configuration
+    int threads = 64;
+    int blocks_scal = n / (threads) + (n % (threads) ? 1 : 0);
+    int blocks_gemv = m / (threads) + (m % (threads) ? 1 : 0);
+
+    //Host data
+    mp_real *hx = new mp_real[n];
+    mp_real *hy = new mp_real[m];
+    mp_real *hA = new mp_real[lda * n];
+    mp_real *halpha = new mp_real[1];
+    mp_real *hbeta = new mp_real[1];
+
+    //GPU data
+    gmp_array *dx = new gmp_array(maxPrecWords, n, true);
+    gmp_array *dy = new gmp_array(maxPrecWords, m, true);
+    gmp_array *dA = new gmp_array(maxPrecWords, lda * n, true);
+    gmp_array *dalpha = new gmp_array(maxPrecWords, 1, true);
+    gmp_array *dbeta = new gmp_array(maxPrecWords, 1, true);
+    gmp_array *dtemp = new gmp_array(maxPrecWords, m, true);
+
+    //Convert from MPFR
+    #pragma omp parallel for
+    for(int i = 0; i < lda * n; i++){
+        hA[i].read(convert_to_string_sci(A[i], convert_digits));
+        if(i < n){
+            hx[i].read(convert_to_string_sci(x[i], convert_digits));
+        }
+        if (i < m){
+            hy[i].read(convert_to_string_sci(y[i], convert_digits));
+        }
+    }
+    halpha[0].read(convert_to_string_sci(alpha, convert_digits));
+    hbeta[0].read(convert_to_string_sci(beta, convert_digits));
+
+    //Copying to the GPU
+    dA->toGPU(hA, lda * n);
+    dalpha->toGPU(halpha, 1);
+    dbeta->toGPU(hbeta, 1);
+
+    //Launch
+    for(int i = 0; i < repeat; i ++){
+        dx->toGPU(hx, n);
+        dy->toGPU(hy, m);
+        garprec_reset_array<<<blocks_gemv, threads>>>(m, dtemp->d_mpr, dtemp->interval, maxPrecWords);
+        StartCudaTimer();
+        garprec_scal_kernel<<<blocks_scal, threads>>>(n, dalpha->d_mpr, dalpha->interval, dx->d_mpr, dx->interval, maxPrecWords);
+        garprec_gemv_kernel<<<blocks_gemv, threads>>>(m, n,
+                dA->d_mpr, dA->interval,
+                lda,
+                dx->d_mpr, dx->interval,
+                dbeta->d_mpr, dbeta->interval,
+                dy->d_mpr, dy->interval,
+                dtemp->d_mpr, dtemp->interval,
+                maxPrecWords);
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    dy->fromGPU(hy, m);
+    for(int i = 1; i < m; i++){
+        hy[0] += hy[i];
+    }
+    printf("result: %.83s \n", hy[0].to_string().c_str());
+
+    //Cleanup
+    delete [] hx;
+    delete [] hy;
+    delete [] hA;
+    delete [] halpha;
+    delete [] hbeta;
+    dx->release();
+    dy->release();
+    dA->release();
+    dalpha->release();
+    dbeta->release();
+    dtemp->release();
     garprecFinalize();
 }
 
