@@ -24,8 +24,9 @@
 #ifndef MPDOT_CUH
 #define MPDOT_CUH
 
-#include "../mparray.cuh"
 #include "../mpreduct.cuh"
+#include "../mpvector.cuh"
+#include "../kernel_config.cuh"
 
 namespace cuda {
 

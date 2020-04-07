@@ -25,7 +25,8 @@
 #ifndef MPWAXPBY_CUH
 #define MPWAXPBY_CUH
 
-#include "../mparray.cuh"
+#include "../mpvector.cuh"
+#include "../kernel_config.cuh"
 
 namespace cuda {
 

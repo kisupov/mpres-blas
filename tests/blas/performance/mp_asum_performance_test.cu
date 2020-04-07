@@ -23,7 +23,6 @@
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
-#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpasum.cuh"
 #include "3rdparty.cuh"
 

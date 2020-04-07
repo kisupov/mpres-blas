@@ -24,7 +24,6 @@
 #ifndef MPROT_CUH
 #define MPROT_CUH
 
-#include "../mparray.cuh"
 #include "mpscal.cuh"
 
 namespace cuda {

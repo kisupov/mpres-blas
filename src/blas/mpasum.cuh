@@ -24,7 +24,7 @@
 #ifndef MPASUM_CUH
 #define MPASUM_CUH
 
-#include "../mpfloat.cuh"
+#include "../mparray.cuh"
 
 namespace cuda {
 

@@ -24,7 +24,8 @@
 #define MPGEMV_CUH
 
 
-#include "../mparray.cuh"
+#include "../mpvector.cuh"
+#include "../kernel_config.cuh"
 
 namespace cuda
 {
@@ -248,7 +249,7 @@ namespace cuda
             mp_array_t &x, int incx, mp_array_t &beta, mp_array_t &y, int incy, mp_array_t &buffer1, mp_array_t &buffer2){
 
         //Test the input parameters
-        if( !((trans == "N") || (trans == "n") || (trans == "T") || (trans == "t") || (trans == "C") || (trans !="c"))  ){
+        if( !((trans == "N") || (trans == "n") || (trans == "T") || (trans == "t") || (trans == "C") || (trans =="c"))  ){
             return;
         }
         if( (m < 0) || (n < 0) || (lda < MAX(1, m)) ){
@@ -263,9 +264,7 @@ namespace cuda
         }
 
         // Setting the number of threads per block for computing residues
-        //If incx is not equal to 1, then numThreadsX must be equal to RNS_MODULI_SIZE
         int numThreadsX = (incx == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
-        //If incy is not equal to 1, then numThreadsY must be equal to RNS_MODULI_SIZE
         int numThreadsY = (incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         if(trans == "N" || trans == "n"){

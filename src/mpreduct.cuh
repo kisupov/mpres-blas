@@ -23,7 +23,7 @@
 #ifndef MPRES_MPREDUCT_CUH
 #define MPRES_MPREDUCT_CUH
 
-#include "mpfloat.cuh"
+#include "mparray.cuh"
 
 namespace cuda {
 
