@@ -1,5 +1,5 @@
 /*
- *  Parallel componentwise operations with vectors of multiple-precision numbers on the GPU
+ *  Parallel element-wise operations with vectors of multiple-precision numbers on the GPU
  *
  *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
  *
@@ -178,7 +178,7 @@ namespace cuda {
 
 
     /*!
-     * Parallel componentwise vector multiplication (result = x * y)
+     * Parallel element-wise vector multiplication (result = x * y)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note For example of usage, see mpdot.cuh
      * @param result - pointer to the result vector in the GPU memory
@@ -227,7 +227,7 @@ namespace cuda {
     }
 
     /*!
-     * Parallel componentwise vector multiplication (result = x * y)
+     * Parallel element-wise vector multiplication (result = x * y)
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note For example of usage, see mpdot.cuh
      * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
@@ -273,7 +273,7 @@ namespace cuda {
 
 
     /*!
-     * Parallel componentwise multiplication of a vector by a scalar (result = alpha * x)
+     * Parallel element-wise multiplication of a vector by a scalar (result = alpha * x)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note For example of usage, see mpscal.cuh
      * @param result - pointer to the result vector in the GPU memory
@@ -327,7 +327,7 @@ namespace cuda {
     }
 
     /*!
-     * Parallel componentwise multiplication of a vector by a scalar (result = alpha * x)
+     * Parallel element-wise multiplication of a vector by a scalar (result = alpha * x)
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note For example of usage, see mpscal.cuh
      * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
@@ -370,7 +370,7 @@ namespace cuda {
 
 
     /*!
-     * Parallel componentwise vector addition (result = x + y)
+     * Parallel element-wise vector addition (result = x + y)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note For example of usage, see mpaxpy.cuh
      * @param result - pointer to the result vector in the GPU memory
@@ -555,7 +555,7 @@ namespace cuda {
     }
 
     /*!
-     * Parallel componentwise vector addition (result = x + y)
+     * Parallel element-wise vector addition (result = x + y)
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note For example of usage, see mpaxpy.cuh
      * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
@@ -625,7 +625,7 @@ namespace cuda {
     }
 
     /*!
-     * Parallel componentwise vector subtraction (result = x - y)
+     * Parallel element-wise vector subtraction (result = x - y)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note Kernel 2 is the same as for vector addition algorithm, i.e, mp_array_add_digits_vv
      * @note For example of usage, see mprot.cuh

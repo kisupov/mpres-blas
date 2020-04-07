@@ -97,7 +97,7 @@ __global__ void garprec_sum_kernel2(int n, double *result, int interval_result, 
 }
 
 /*
- * Computes the componentwise vector-vector product
+ * Computes the element-wise vector-vector product
  */
 __global__ void garprec_vec_mul_kernel(int n, double *x, int interval_x, double *y, int interval_y, double *r, int interval_r, int prec_words){
     const unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;

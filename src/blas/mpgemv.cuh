@@ -222,9 +222,9 @@ namespace cuda
      * where alpha and beta are scalars, x and y are vectors and A is an m-by-n matrix.
      * The matrix should be stored in column-major order.
 
-     * @tparam gridDim1 - number of thread blocks used to compute the signs, exponents, interval evaluations, and also to round the result in componentwise scalar-vector and matrix-vector operations
-     * @tparam blockDim1 - number of threads per block used to compute the signs, exponents, interval evaluations, and also to round the result in componentwise scalar-vector and matrix-vector operations
-     * @tparam gridDim2 - number of thread blocks used to compute the digits of multiple-precision significands in componentwise scalar-vector and matrix-vector operations
+     * @tparam gridDim1 - number of thread blocks used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise scalar-vector and matrix-vector operations
+     * @tparam blockDim1 - number of threads per block used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise scalar-vector and matrix-vector operations
+     * @tparam gridDim2 - number of thread blocks used to compute the digits of multiple-precision significands in element-wise scalar-vector and matrix-vector operations
      * @tparam blockDim3 - number of threads per block for parallel summation (the number of blocks is equal to the size of y)
      *
      * @param trans - specifies the operation:
@@ -233,15 +233,15 @@ namespace cuda
      * @param m - specifies the number of rows of the matrix A. The value of m must be at least zero.
      * @param n - specifies the number of columns of the matrix A. The value of n must be at least zero.
      * @param alpha - pointer to the scalar in the global GPU memory
-     * @param A - pointer to the matrix of size lda * n in the global GPU memory
-     * @param lda - specifies the leading dimension of A as declared in the calling (sub)program.
+     * @param A - pointer to the array, size lda * n, in the global GPU memory. Before entry, the leading m-by-n part of the array must contain the matrix A.
+     * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
      * @param x - pointer to the vector in the global GPU memory, size at least (1+(n-1)*abs(incx)) for non-transposed matrix and at least (1+(m-1)*abs(incx)) otherwise.
-     * @param incx - storage spacing between elements of x (must be non-zero)
+     * @param incx - storage spacing between elements of x. The value of incx must not be zero.
      * @param beta - pointer to the scalar in the global GPU memory
      * @param y - pointer to the vector in the global GPU memory, size at least (1+(m-1)*abs(incy)) for non-transposed matrix and at least (1+(n-1)*abs(incy)) otherwise.
-     * @param incy - storage spacing between elements of y (must be non-zero)
+     * @param incy - storage spacing between elements of y. The value of incy must not be zero.
      * @param buffer1 - auxiliary array in the global GPU memory, size at least n for non-transposed matrix and at least m otherwise.
-     * @param buffer2 - auxiliary array of size m-by-n in the global GPU memory for storing the intermediate matrix
+     * @param buffer2 - auxiliary array, size m * n, in the global GPU memory for storing the intermediate matrix
      */
     template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
     void mpgemv(const char *trans, int m, int n, mp_array_t &alpha, mp_array_t &A, int lda,
@@ -252,6 +252,9 @@ namespace cuda
             return;
         }
         if( (m < 0) || (n < 0) || (lda < MAX(1, m)) ){
+            return;
+        }
+        if( (incx == 0) || (incy == 0) ){
             return;
         }
         //Quick return if possible

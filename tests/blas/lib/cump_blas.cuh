@@ -93,7 +93,7 @@ cump_sum_kernel2(mpf_array_t x, mpf_array_t result){
 }
 
 /*
- * Computes the componentwise vector-vector product
+ * Computes the element-wise vector-vector product
  */
 __global__ void cump_vec_mul_kernel(int n, mpf_array_t result, mpf_array_t x, mpf_array_t y) {
     using namespace cump;
