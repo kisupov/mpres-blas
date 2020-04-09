@@ -36,11 +36,9 @@
 #define REPEAT_TEST 10 //Number of repeats
 
 //Execution configuration for mpgemv
-#define MPRES_CUDA_BLOCKS_X_FIELDS_ROUND 256
-#define MPRES_CUDA_BLOCKS_Y_FIELDS 256
+#define MPRES_CUDA_BLOCKS_FIELDS_ROUND 256
 #define MPRES_CUDA_THREADS_FIELDS_ROUND 128
-#define MPRES_CUDA_BLOCKS_X_RESIDUES 256
-#define MPRES_CUDA_BLOCKS_Y_RESIDUES 256
+#define MPRES_CUDA_BLOCKS_RESIDUES 256
 #define MPRES_CUDA_THREADS_REDUCE 32
 
 #define OPENBLAS_THREADS 4
@@ -403,18 +401,15 @@ void mpres_test(const char *trans, int m, int n, int lenx, int leny, mpfr_t alph
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
-
     //Launch
     for (int i = 0; i < REPEAT_TEST; i++) {
         cuda::mp_array_host2device(dy, hy, leny);
         StartCudaTimer();
 
         cuda::mpgemv<
-                MPRES_CUDA_BLOCKS_X_FIELDS_ROUND,
-                MPRES_CUDA_BLOCKS_Y_FIELDS,
+                MPRES_CUDA_BLOCKS_FIELDS_ROUND,
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
-                MPRES_CUDA_BLOCKS_X_RESIDUES,
-                MPRES_CUDA_BLOCKS_Y_RESIDUES,
+                MPRES_CUDA_BLOCKS_RESIDUES,
                 MPRES_CUDA_THREADS_REDUCE>
                 (trans, m, n, dalpha, dA, lda, dx, incx, dbeta, dy, incy, dbuf1, dbuf2);
         EndCudaTimer();
@@ -659,11 +654,9 @@ int main(){
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-    Logger::printParam("MPRES_CUDA_BLOCKS_X_FIELDS_ROUND", MPRES_CUDA_BLOCKS_X_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_BLOCKS_Y_FIELDS", MPRES_CUDA_BLOCKS_Y_FIELDS);
+    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_BLOCKS_X_RESIDUES", MPRES_CUDA_BLOCKS_X_RESIDUES);
-    Logger::printParam("MPRES_CUDA_BLOCKS_Y_RESIDUES", MPRES_CUDA_BLOCKS_Y_RESIDUES);
+    Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
     Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);

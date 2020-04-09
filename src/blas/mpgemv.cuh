@@ -244,11 +244,9 @@ namespace cuda
      * where alpha and beta are scalars, x and y are vectors and A is an m-by-n matrix.
      * The matrix should be stored in column-major order.
 
-     * @tparam gridDim1x - number of blocks (x dimension) used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise scalar-vector and matrix-vector operations
-     * @tparam gridDim1y - number of blocks (y dimension) used to compute the signs, exponents, and interval evaluations in element-wise matrix-vector operations
+     * @tparam gridDim1 - number of blocks (x dimension) used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise scalar-vector and matrix-vector operations
      * @tparam blockDim1 - number of threads per block used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise scalar-vector and matrix-vector operations
-     * @tparam gridDim2x - number of blocks (x dimension) used to compute the digits of multiple-precision significands in element-wise scalar-vector and matrix-vector operations
-     * @tparam gridDim2y - number of blocks (y dimension) used to compute the digits of multiple-precision significands in element-wise matrix-vector operations
+     * @tparam gridDim2 - number of blocks (x dimension) used to compute the digits of multiple-precision significands in element-wise scalar-vector and matrix-vector operations
      * @tparam blockDim3 - number of threads per block for parallel summation (the number of blocks is equal to the size of y)
      *
      * @param trans - specifies the operation:
@@ -267,7 +265,7 @@ namespace cuda
      * @param buffer1 - auxiliary array in the global GPU memory, size at least n for non-transposed matrix and at least m otherwise.
      * @param buffer2 - auxiliary array, size m * n, in the global GPU memory for storing the intermediate matrix
      */
-    template<int gridDim1x, int gridDim1y, int blockDim1, int gridDim2x, int gridDim2y, int blockDim3>
+    template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
     void mpgemv(const char *trans, int m, int n, mp_array_t &alpha, mp_array_t &A, int lda,
             mp_array_t &x, int incx, mp_array_t &beta, mp_array_t &y, int incy, mp_array_t &buffer1, mp_array_t &buffer2){
 
@@ -293,22 +291,22 @@ namespace cuda
         if(trans == "N" || trans == "n"){
 
             //Multiplication buffer1 = alpha * x - Computing the signs, exponents, and interval evaluations
-            mp_array_mul_esi_vs<<< gridDim1x, blockDim1 >>> (buffer1, 1, x, incx, alpha, n);
+            mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer1, 1, x, incx, alpha, n);
 
             //Multiplication buffer1 = alpha * x - Multiplying the digits in the RNS
-            mp_array_mul_digits_vs<<< gridDim2x, numThreadsX >>> (buffer1, 1, x, incx, alpha, n);
+            mp_array_mul_digits_vs<<< gridDim2, numThreadsX >>> (buffer1, 1, x, incx, alpha, n);
 
             //Rounding the intermediate result (buffer1)
-            mp_array_round<<< gridDim1x, blockDim1 >>> (buffer1, 1, n);
+            mp_array_round<<< gridDim1, blockDim1 >>> (buffer1, 1, n);
 
             //Multiplication y = beta * y - Computing the signs, exponents, and interval evaluations
-            mp_array_mul_esi_vs<<< gridDim1x, blockDim1 >>> (y, incy, y, incy, beta, m);
+            mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (y, incy, y, incy, beta, m);
 
             //Multiplication y = beta * y - Multiplying the digits in the RNS
-            mp_array_mul_digits_vs<<< gridDim2x, numThreadsY >>> (y, incy, y, incy, beta, m);
+            mp_array_mul_digits_vs<<< gridDim2, numThreadsY >>> (y, incy, y, incy, beta, m);
 
             //Rounding y
-            mp_array_round<<< gridDim1x, blockDim1 >>> (y, incy, m);
+            mp_array_round<<< gridDim1, blockDim1 >>> (y, incy, m);
 
             //The following is tne element-wise multiplication of an m-by-n matrix A by a vector buffer1 (contains alpha * x) of size n.
             //Each column of the matrix is multiplied by one element of the vector (without reduction).
@@ -317,16 +315,16 @@ namespace cuda
             //The result is written to the intermediate m-by-n buffer2.
 
             //Multiplication buffer2 = A * buffer1 - Computing the signs, exponents, and interval evaluations
-            dim3 blocks1(gridDim1x, gridDim1y, 1);
+            dim3 blocks1(gridDim1, n, 1);
             cuda::matvec_product_esi_kernel<<<blocks1, blockDim1>>> (buffer2, m, A, lda, buffer1, m, n);
 
             //Multiplication buffer2 = A * buffer1 - Multiplying the digits in the RNS
             //cuda::matvec_product_digits_kernel<<<gridDim2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, A, lda, buffer1, m, n);
-            dim3 blocks2(gridDim2x, gridDim2y, 1);
+            dim3 blocks2(gridDim2, n, 1);
             cuda::matvec_product_digits_kernel<<<blocks2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, m, n);
 
             //Rounding the intermediate result (buffer2)
-            cuda::mp_array_round<<<gridDim1x, blockDim1>>>(buffer2, 1, m * n);
+            cuda::mp_array_round<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
 
             //The following is tne reduction of the intermediate matrix (buffer 2).
             //Here, the sum of the elements in each row is calculated, and then y is added to the calculated sum
@@ -344,22 +342,22 @@ namespace cuda
         } else {
 
             //Multiplication buffer1 = alpha * x - Computing the signs, exponents, and interval evaluations
-            mp_array_mul_esi_vs<<< gridDim1x, blockDim1 >>> (buffer1, 1, x, incx, alpha, m);
+            mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer1, 1, x, incx, alpha, m);
 
             //Multiplication buffer1 = alpha * x - Multiplying the digits in the RNS
-            mp_array_mul_digits_vs<<< gridDim2x, numThreadsX >>> (buffer1, 1, x, incx, alpha, m);
+            mp_array_mul_digits_vs<<< gridDim2, numThreadsX >>> (buffer1, 1, x, incx, alpha, m);
 
             //Rounding the intermediate result (buffer1)
-            mp_array_round<<< gridDim1x, blockDim1 >>> (buffer1, 1, m);
+            mp_array_round<<< gridDim1, blockDim1 >>> (buffer1, 1, m);
 
             //Multiplication y = beta * y - Computing the signs, exponents, and interval evaluations
-            mp_array_mul_esi_vs<<< gridDim1x, blockDim1 >>> (y, incy, y, incy, beta, n);
+            mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (y, incy, y, incy, beta, n);
 
             //Multiplication y = beta * y - Multiplying the digits in the RNS
-            mp_array_mul_digits_vs<<< gridDim2x, numThreadsY >>> (y, incy, y, incy, beta, n);
+            mp_array_mul_digits_vs<<< gridDim2, numThreadsY >>> (y, incy, y, incy, beta, n);
 
             //Rounding y
-            mp_array_round<<< gridDim1x, blockDim1 >>> (y, incy, n);
+            mp_array_round<<< gridDim1, blockDim1 >>> (y, incy, n);
 
             //The following is tne element-wise multiplication of an m-by-n transposed matrix A by a vector buffer1 (contains alpha * x) of size m.
             //Each column of the matrix is multiplied by the vector (without reduction).
@@ -368,15 +366,15 @@ namespace cuda
             //The result is written to the intermediate m-by-n buffer2.
 
             //Multiplication buffer2 = A^T * buffer1 - Computing the signs, exponents, and interval evaluations
-            dim3 blocks1(gridDim1x, gridDim1y, 1);
+            dim3 blocks1(gridDim1, n, 1);
             cuda::trans_matvec_product_esi_kernel<<<blocks1, blockDim1>>> (buffer2, m, A, lda, buffer1, m, n);
 
             //Multiplication buffer2 = A^T * buffer1 - Multiplying the digits in the RNS
-            dim3 blocks2(gridDim2x, gridDim2y, 1);
+            dim3 blocks2(gridDim2, n, 1);
             cuda::trans_matvec_product_digits_kernel<<<blocks2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, m, n);
 
             //Rounding the intermediate result (buffer2)
-            cuda::mp_array_round<<<gridDim1x, blockDim1>>>(buffer2, 1, m * n);
+            cuda::mp_array_round<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
 
             //The following is tne reduction of the intermediate matrix (buffer 2).
             //Here, the sum of the elements in each column is calculated, and then y is added to the calculated sum
