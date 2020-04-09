@@ -69,9 +69,9 @@ target_compile_options(mp_axpy_dot_performance_test PRIVATE $<${cuda_lang}:$<BUI
 target_link_libraries(mp_axpy_dot_performance_test gmp mpfr arprec OpenMP::OpenMP_CXX cump)
 
 # Performance test for GEMV
-add_executable(mp_gemv_performance_test blas/performance/mp_gemv_performance_test.cu)
-target_compile_options(mp_gemv_performance_test PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_gemv_performance_test gmp mpfr arprec openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas cump)
+add_executable(test_mpgemv_performance blas/performance/test_mpgemv_performance.cu)
+target_compile_options(test_mpgemv_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpgemv_performance gmp mpfr arprec openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas cump)
 
 
 #########################
