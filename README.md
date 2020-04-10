@@ -19,6 +19,7 @@ Currently the following multiple-precision functions are only supported:
 * ROT --- Apply a plane rotation to vectors (`mprot`)
 * AXPY_DOT --- Combined AXPY and DOT (`mpaxpydot`)
 * GEMV --- Matrix-vector multiplication (`mpgemv`)
+* GER --- Rank-1 update of a general matrix (`mpger`)
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
 Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for details.

@@ -24,7 +24,6 @@
 #ifndef MPROT_CUH
 #define MPROT_CUH
 
-#include "../mparray.cuh"
 #include "mpscal.cuh"
 
 namespace cuda {
@@ -59,45 +58,45 @@ namespace cuda {
         int numThreadsY = (incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         //Multiplication buffer1 = s * x - Computing the signs, exponents, and interval evaluations
-        cuda::mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer1, 1, x, incx, s, n);
+        mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (buffer1, 1, x, incx, s, n);
 
         //Multiplication buffer1 = s * x - Multiplying the digits in the RNS
-        cuda::mp_array_mul_digits_vs<<< gridDim2, numThreadsX >>> (buffer1, 1, x, incx, s, n);
+        mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsX >>> (buffer1, 1, x, incx, s, n);
 
         // Multiplication buffer1 = s * x - Rounding the intermediate result
-        mp_array_round<<< gridDim1, blockDim1 >>> (buffer1, 1, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (buffer1, 1, n);
 
         //Multiplication buffer2 = s * y - Computing the signs, exponents, and interval evaluations
-        cuda::mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer2, 1, y, incy, s, n);
+        mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (buffer2, 1, y, incy, s, n);
 
         //Multiplication buffer2 = s * y - Multiplying the digits in the RNS
-        cuda::mp_array_mul_digits_vs<<< gridDim2, numThreadsY >>> (buffer2, 1, y, incy, s, n);
+        mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsY >>> (buffer2, 1, y, incy, s, n);
 
         // Multiplication buffer2 = s * y - Rounding the intermediate result
-        mp_array_round<<< gridDim1, blockDim1 >>> (buffer2, 1, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (buffer2, 1, n);
 
         // Computing x = c * x
-        cuda::mpscal< gridDim1, blockDim1,gridDim2 >(n, c, x, 1);
+        mpscal< gridDim1, blockDim1,gridDim2 >(n, c, x, 1);
 
         // Computing y = c * y
-        cuda::mpscal< gridDim1, blockDim1,gridDim2 >(n, c, y, 1);
+        mpscal< gridDim1, blockDim1,gridDim2 >(n, c, y, 1);
 
         //Addition x = x + buffer2 (in fact, we have x = c*x + s*y) - Computing the signs, exponents, and interval evaluations
-        mp_array_add_esi_vv<<< gridDim1, blockDim1 >>> (x, incx, x, incx, buffer2, 1, n);
+        mp_vector_add_esi_kernel<<< gridDim1, blockDim1 >>> (x, incx, x, incx, buffer2, 1, n);
 
         //Addition x = x + buffer2 (in fact, we have x = c*x + s*y) - Adding the digits in the RNS
-        mp_array_add_digits_vv<<< gridDim2, numThreadsX >>> (x, incx, x, incx, buffer2, 1, n);
+        mp_vector_add_digits_kernel<<< gridDim2, numThreadsX >>> (x, incx, x, incx, buffer2, 1, n);
 
         //Subtraction y = y - buffer1 (in fact, we have y = c*y - s*x) - Computing the signs, exponents, and interval evaluations
-        mp_array_sub_esi_vv<<< gridDim1, blockDim1 >>> (y, incy, y, incy, buffer1, 1, n);
+        mp_vector_sub_esi_kernel<<< gridDim1, blockDim1 >>> (y, incy, y, incy, buffer1, 1, n);
 
         //Subtraction y = y - buffer1 (in fact, we have y = c*y - s*x) - Adding the digits in the RNS
-        //We call mp_array_add_digits_vv since the sign has been changed in mp_array_sub_esi_vv
-        mp_array_add_digits_vv<<< gridDim2, numThreadsY >>> (y, incy, y, incy, buffer1, 1, n);
+        //We call mp_vector_add_digits_kernel since the sign has been changed in mp_vector_sub_esi_kernel
+        mp_vector_add_digits_kernel<<< gridDim2, numThreadsY >>> (y, incy, y, incy, buffer1, 1, n);
 
         //Final rounding
-        mp_array_round<<< gridDim1, blockDim1 >>> (x, incx, n);
-        mp_array_round<<< gridDim1, blockDim1 >>> (y, incy, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (x, incx, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (y, incy, n);
     }
 
 } //end of namespace

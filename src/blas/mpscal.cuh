@@ -24,7 +24,8 @@
 #ifndef MPSCAL_CUH
 #define MPSCAL_CUH
 
-#include "../mparray.cuh"
+#include "../mpvector.cuh"
+#include "../kernel_config.cuh"
 
 namespace cuda {
 
@@ -50,13 +51,13 @@ namespace cuda {
         int numThreadsX = (incx == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         //Computing the signs, exponents, and interval evaluations
-        mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (x, incx, x, incx, alpha, n);
+        mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (x, incx, x, incx, alpha, n);
 
         //Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, numThreadsX >>> (x, incx, x, incx, alpha, n);
+        mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsX >>> (x, incx, x, incx, alpha, n);
 
         //Rounding the result
-        mp_array_round<<< gridDim1, blockDim1 >>> (x, incx, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (x, incx, n);
     }
 
 } //end of namespace

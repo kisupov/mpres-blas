@@ -21,7 +21,6 @@
 
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
-#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpasum.cuh"
 
 #define SIZE 1000000 //Operation size

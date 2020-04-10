@@ -43,7 +43,7 @@
 #define MIN_BLOCK_SIZE (MAX_THREADS_PER_SM / MAX_BLOCKS_PER_SM)
 
 /*
- * The block size for multiplying and adding digits of multiple-precision numbers in componentwise vector operations.
+ * The block size for multiplying and adding digits of multiple-precision numbers in element-wise vector operations.
  * This parameter allows for achieving full occupancy of a streaming multiprocessor under the following restriction:
  * in each thread block, only an INTEGER number of multiple-precision values is computed,
  * i.e. processing the digits of the same multiple-precision value is not split between different thread blocks.

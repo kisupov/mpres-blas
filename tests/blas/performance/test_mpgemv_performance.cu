@@ -28,7 +28,7 @@
 
 
 #define M 100  // Number of matrix rows and the vector Y dimension
-#define N 100  // Number of matrix columns and the vector X dimension
+#define N 100 // Number of matrix columns and the vector X dimension
 #define LDA (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
 #define TRANS "N" // Specifies the operation: if trans = 'N' or 'n', then y := alpha*A*x + beta*y; if trans = 'T' or 't' or 'C' or 'c' then y = alpha*A**T*x + beta*y (transposed matrix).
 #define INCX 1 // Specifies the increment for the elements of x.
@@ -36,10 +36,10 @@
 #define REPEAT_TEST 10 //Number of repeats
 
 //Execution configuration for mpgemv
-#define MPRES_CUDA_BLOCKS_FIELDS_ROUND   512
-#define MPRES_CUDA_THREADS_FIELDS_ROUND  128
-#define MPRES_CUDA_BLOCKS_RESIDUES       8192
-#define MPRES_CUDA_THREADS_REDUCE        32
+#define MPRES_CUDA_BLOCKS_FIELDS_ROUND 256
+#define MPRES_CUDA_THREADS_FIELDS_ROUND 128
+#define MPRES_CUDA_BLOCKS_RESIDUES 256
+#define MPRES_CUDA_THREADS_REDUCE 32
 
 #define OPENBLAS_THREADS 4
 
@@ -401,11 +401,11 @@ void mpres_test(const char *trans, int m, int n, int lenx, int leny, mpfr_t alph
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
-
     //Launch
     for (int i = 0; i < REPEAT_TEST; i++) {
         cuda::mp_array_host2device(dy, hy, leny);
         StartCudaTimer();
+
         cuda::mpgemv<
                 MPRES_CUDA_BLOCKS_FIELDS_ROUND,
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
@@ -446,7 +446,7 @@ __global__ static void mp_scal_straightforward(int n, mp_float_ptr alpha, mp_flo
     }
 }
 
-__global__ static void mp_gemv_straightforward(int m, int n, mp_float_ptr alpha, mp_float_ptr A, int lda, mp_float_ptr x, mp_float_ptr beta, mp_float_ptr y){
+__global__ static void mp_gemv_straightforward(int m, int n, mp_float_ptr A, int lda, mp_float_ptr x, mp_float_ptr beta, mp_float_ptr y){
     mp_float_t sum;
     int i = (threadIdx.x + blockIdx.x * blockDim.x);
     if(i < m){
@@ -513,7 +513,7 @@ void mpres_test_straightforward(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, 
         cudaMemcpy(dy, hy, m * sizeof(mp_float_t), cudaMemcpyHostToDevice);
         StartCudaTimer();
         mp_scal_straightforward<<<blocks_scal, threads>>>(n, dalpha, dx);
-        mp_gemv_straightforward<<<blocks_gemv, threads>>>(m, n, dalpha, dA, lda, dx, dbeta, dy);
+        mp_gemv_straightforward<<<blocks_gemv, threads>>>(m, n, dA, lda, dx, dbeta, dy);
         EndCudaTimer();
     }
     PrintCudaTimer("took");

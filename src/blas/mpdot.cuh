@@ -24,8 +24,9 @@
 #ifndef MPDOT_CUH
 #define MPDOT_CUH
 
-#include "../mparray.cuh"
 #include "../mpreduct.cuh"
+#include "../mpvector.cuh"
+#include "../kernel_config.cuh"
 
 namespace cuda {
 
@@ -56,16 +57,16 @@ namespace cuda {
         int numThreadsXY = (incx == 1 && incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         //Vector-vector multiplication - Computing the signs, exponents, and interval evaluations
-        cuda::mp_array_mul_esi_vv <<< gridDim1, blockDim1 >>> (buffer, 1, x, incx, y, incy, n);
+        mp_vector_mul_esi_kernel <<< gridDim1, blockDim1 >>> (buffer, 1, x, incx, y, incy, n);
 
         //Multiplication - Multiplying the digits in the RNS
-        cuda::mp_array_mul_digits_vv <<< gridDim2, numThreadsXY >>> (buffer, 1, x, incx, y, incy, n);
+        mp_vector_mul_digits_kernel <<< gridDim2, numThreadsXY >>> (buffer, 1, x, incx, y, incy, n);
 
         //Multiplication - Rounding the intermediate result
-        cuda::mp_array_round <<< gridDim1, blockDim1>>> (buffer, 1, n);
+        mp_vector_round <<< gridDim1, blockDim1>>> (buffer, 1, n);
 
         //Two-pass summation
-        cuda::mp_array_reduce< gridDim3, blockDim3 >(n, buffer, r);
+        mp_array_reduce< gridDim3, blockDim3 >(n, buffer, r);
 
     }
 
