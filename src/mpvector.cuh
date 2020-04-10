@@ -1,5 +1,5 @@
 /*
- *  Parallel element-wise operations with vectors of multiple-precision numbers on the GPU
+ *  Operations with vectors of multiple-precision numbers on the GPU
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -122,7 +122,7 @@ namespace cuda {
     }
 
 
-    /********************* Vector-scalar (vs) multiplication kernels *********************/
+    /********************* Vector-scalar multiplication kernels *********************/
 
 
     /*!
@@ -219,7 +219,7 @@ namespace cuda {
     }
 
 
-    /********************* Vector-vector (vv) addition and subtraction kernels *********************/
+    /********************* Vector-vector addition and subtraction kernels *********************/
 
 
     /*!
@@ -668,7 +668,7 @@ namespace cuda {
 
 
     /*!
-     * Rounding the result vector
+     * Rounding a multiple-precision vector
      * For each multiple-precision entry, the rounding is performed as a single thread
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
