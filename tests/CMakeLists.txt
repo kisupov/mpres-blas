@@ -39,64 +39,68 @@ include_directories(${MPACK_INC_PATH})
 #########################
 
 # Performance test for ASUM
-add_executable(mp_asum_performance_test blas/performance/mp_asum_performance_test.cu)
-target_compile_options(mp_asum_performance_test PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_asum_performance_test gmp mpfr arprec openblas xblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas mpdec cump)
+add_executable(test_mpasum_performance blas/performance/test_mpasum_performance.cu)
+target_compile_options(test_mpasum_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpasum_performance gmp mpfr arprec openblas xblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas mpdec cump)
 
 # Performance test for DOT
-add_executable(mp_dot_performance_test blas/performance/mp_dot_performance_test.cu)
-target_compile_options(mp_dot_performance_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_dot_performance_test gmp mpfr arprec openblas xblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas mpdec cump)
+add_executable(test_mpdot_performance blas/performance/test_mpdot_performance.cu)
+target_compile_options(test_mpdot_performance PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdot_performance gmp mpfr arprec openblas xblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas mpdec cump)
 
 # Performance test for SCAL
-add_executable(mp_scal_performance_test blas/performance/mp_scal_performance_test.cu)
-target_compile_options(mp_scal_performance_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_scal_performance_test gmp mpfr arprec openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas mpdec cump)
+add_executable(test_mpscal_performance blas/performance/test_mpscal_performance.cu)
+target_compile_options(test_mpscal_performance PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpscal_performance gmp mpfr arprec openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas mpdec cump)
 
 # Performance test for AXPY
-add_executable(mp_axpy_performance_test blas/performance/mp_axpy_performance_test.cu)
-target_compile_options(mp_axpy_performance_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_axpy_performance_test gmp mpfr arprec openblas xblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas mpdec cump)
+add_executable(test_mpaxpy_performance blas/performance/test_mpaxpy_performance.cu)
+target_compile_options(test_mpaxpy_performance PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpaxpy_performance gmp mpfr arprec openblas xblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas mpdec cump)
 
 # Performance test for ROT
-add_executable(mp_rot_performance_test blas/performance/mp_rot_performance_test.cu)
-target_compile_options(mp_rot_performance_test PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_rot_performance_test gmp mpfr arprec gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cump)
+add_executable(test_mprot_performance blas/performance/test_mprot_performance.cu)
+target_compile_options(test_mprot_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mprot_performance gmp mpfr arprec gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cump)
 
 # Performance test for AXPY_DOT
-add_executable(mp_axpy_dot_performance_test blas/performance/mp_axpy_dot_performance_test.cu)
-target_compile_options(mp_axpy_dot_performance_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_axpy_dot_performance_test gmp mpfr arprec OpenMP::OpenMP_CXX cump)
+add_executable(test_mpaxpydot_performance blas/performance/test_mpaxpydot_performance.cu)
+target_compile_options(test_mpaxpydot_performance PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpaxpydot_performance gmp mpfr arprec OpenMP::OpenMP_CXX cump)
 
 # Performance test for GEMV
 add_executable(test_mpgemv_performance blas/performance/test_mpgemv_performance.cu)
 target_compile_options(test_mpgemv_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpgemv_performance gmp mpfr arprec openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas cump)
 
+# Performance test for GER
+add_executable(test_mpger_performance blas/performance/test_mpger_performance.cu)
+target_compile_options(test_mpger_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpger_performance gmp mpfr openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas cump)
 
 #########################
 ## Accuracy tests for BLAS routines
 #########################
 
 # Accuracy test for ASUM
-add_executable(mp_asum_accuracy_test blas/accuracy/mp_asum_accuracy_test.cu)
-target_compile_options(mp_asum_accuracy_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_asum_accuracy_test gmp mpfr OpenMP::OpenMP_CXX)
+add_executable(test_mpasum_accuracy blas/accuracy/test_mpasum_accuracy.cu)
+target_compile_options(test_mpasum_accuracy PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpasum_accuracy gmp mpfr OpenMP::OpenMP_CXX)
 
 # Accuracy test for DOT
-add_executable(mp_dot_accuracy_test blas/accuracy/mp_dot_accuracy_test.cu)
-target_compile_options(mp_dot_accuracy_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_dot_accuracy_test gmp mpfr OpenMP::OpenMP_CXX)
+add_executable(test_mpdot_accuracy blas/accuracy/test_mpdot_accuracy.cu)
+target_compile_options(test_mpdot_accuracy PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdot_accuracy gmp mpfr OpenMP::OpenMP_CXX)
 
 # Accuracy test for SCAL
-add_executable(mp_scal_accuracy_test blas/accuracy/mp_scal_accuracy_test.cu)
-target_compile_options(mp_scal_accuracy_test PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_scal_accuracy_test gmp mpfr OpenMP::OpenMP_CXX)
+add_executable(test_mpscal_accuracy blas/accuracy/test_mpscal_accuracy.cu)
+target_compile_options(test_mpscal_accuracy PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpscal_accuracy gmp mpfr OpenMP::OpenMP_CXX)
 
 # Accuracy test for AXPY
-add_executable(mp_axpy_accuracy_test blas/accuracy/mp_axpy_accuracy_test.cu)
-target_compile_options(mp_axpy_accuracy_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_axpy_accuracy_test gmp mpfr OpenMP::OpenMP_CXX)
+add_executable(test_mpaxpy_accuracy blas/accuracy/test_mpaxpy_accuracy.cu)
+target_compile_options(test_mpaxpy_accuracy PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpaxpy_accuracy gmp mpfr OpenMP::OpenMP_CXX)
 
 
 #########################
@@ -104,15 +108,15 @@ target_link_libraries(mp_axpy_accuracy_test gmp mpfr OpenMP::OpenMP_CXX)
 #########################
 
 # Test for checking the algorithms that calculate the interval evaluation of an RNS number
-add_executable(rns_eval_accuracy_test arith/rns_eval_accuracy_test.cu)
-target_compile_options(rns_eval_accuracy_test PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(rns_eval_accuracy_test gmp mpfr)
+add_executable(test_rns_eval_verify arith/test_rns_eval_verify.cu)
+target_compile_options(test_rns_eval_verify PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_rns_eval_verify gmp mpfr)
 
 # Test for validating the mp_add routine
-add_executable(mp_add_correctness_test arith/mp_add_correctness_test.cu)
-target_compile_options(mp_add_correctness_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(mp_add_correctness_test gmp mpfr)
+add_executable(test_mp_add_verify arith/test_mp_add_verify.cu)
+target_compile_options(test_mp_add_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mp_add_verify gmp mpfr)
 
 # Test for checking the correctness of the extended-range floating-point routines
-add_executable(extrange_correctness_test arith/extrange_correctness_test.cu)
-target_compile_options(extrange_correctness_test PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+add_executable(test_extrange_verify arith/test_extrange_verify.cu)
+target_compile_options(test_extrange_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)

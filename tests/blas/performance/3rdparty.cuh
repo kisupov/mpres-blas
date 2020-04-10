@@ -23,25 +23,54 @@
 #define MPRES_TEST_3RDPARTY_CUH
 
 //MPFR - https://mpfr.org
+#ifndef EXCLUDE_MPFR
 #include "mpfr.h"
+#endif
+
 //OpenBLAS - https://www.openblas.net/
+#ifndef EXCLUDE_OPENBLAS
 #include "cblas.h"
+#endif
+
 //XBLAS - https://www.netlib.org/xblas/
+#ifndef EXCLUDE_XBLAS
 #include "../../3rdparty/xblas/inc/blas_extended.h"
+#endif
+
 //ARPREC - https://www.davidhbailey.com/dhbsoftware/
+#ifndef EXCLUDE_ARPREC
 #include "arprec/mp_real.h"
+#endif
+
 //MPACK - http://mplapack.sourceforge.net/
+#ifndef EXCLUDE_MPACK
 #include "mpack/mpreal.h"
 #include "mpack/mblas_mpfr.h"
+#endif
+
 //libmpdec - https://www.bytereef.org/mpdecimal/
+#ifndef EXCLUDE_MPDECIMAL
 #include "mpdecimal.h"
+#endif
+
 //CUMP - https://github.com/skystar0227/CUMP
+#ifndef EXCLUDE_CUMP
 #include "../lib/cump_blas.cuh"
+#endif
+
 //GARPREC - https://code.google.com/archive/p/gpuprec/downloads
+#ifndef EXCLUDE_GARPREC
 #include "../lib/garprec_blas.cuh"
+#endif
+
 //CAMPARY - http://homepages.laas.fr/mmjoldes/campary/
+#ifndef EXCLUDE_CAMPARY
 #include "../lib/campary_blas.cuh"
+#endif
+
+#ifndef EXCLUDE_CUBLAS
 //cuBLAS - https://developer.nvidia.com/cublas
 #include "cublas_v2.h"
+#endif
 
 #endif //MPRES_TEST_3RDPARTY_CUH
