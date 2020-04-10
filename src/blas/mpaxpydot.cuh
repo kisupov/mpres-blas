@@ -63,23 +63,23 @@ namespace cuda {
         int numThreadsW = (incw == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         //Multiplication buffer = alpha * v - Computing the signs, exponents, and interval evaluations
-        mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer, 1, v, incv, alpha, n);
+        mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (buffer, 1, v, incv, alpha, n);
 
         //Multiplication buffer = alpha * v - Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, numThreadsV >>> (buffer, 1, v, incv, alpha, n);
+        mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsV >>> (buffer, 1, v, incv, alpha, n);
 
         //Rounding the intermediate result (buffer)
-        mp_array_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
 
         //Subtraction  w = w - buffer - Computing the signs, exponents, and interval evaluations
-        mp_array_sub_esi_vv<<< gridDim1, blockDim1 >>> (w, incw, w, incw, buffer, 1, n);
+        mp_vector_sub_esi_kernel<<< gridDim1, blockDim1 >>> (w, incw, w, incw, buffer, 1, n);
 
         //Subtraction  w = w - buffer - Adding the digits in the RNS
-        //We call mp_array_add_digits_vv since the sign has been changed in mp_array_sub_esi_vv
-        mp_array_add_digits_vv<<< gridDim2, numThreadsW >>> (w, incw, w, incw, buffer, 1, n);
+        //We call mp_vector_add_digits_kernel since the sign has been changed in mp_vector_sub_esi_kernel
+        mp_vector_add_digits_kernel<<< gridDim2, numThreadsW >>> (w, incw, w, incw, buffer, 1, n);
 
         //Rounding the vector w
-        mp_array_round<<< gridDim1, blockDim1 >>> (w, incw, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (w, incw, n);
 
         //Call dot to compute r
         cuda::mpdot< gridDim1, blockDim1, gridDim2, gridDim3, blockDim3 >(n, u, incu, w, incw, r, buffer);

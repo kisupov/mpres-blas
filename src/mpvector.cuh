@@ -27,7 +27,7 @@
 namespace cuda {
 
 
-    /********************* Vector-vector (vv) multiplication kernels *********************/
+    /********************* Vector-vector multiplication kernels *********************/
 
 
     /*!
@@ -42,7 +42,7 @@ namespace cuda {
      * @param incy -  storage spacing between elements of y (must be non-zero)
      * @param n - operation size
      */
-    __global__ void mp_array_mul_esi_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n) {
+    __global__ void mp_vector_mul_esi_kernel(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n) {
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector lengths (may differ from the operation size, n)
         int lenx = x.len[0];
@@ -93,7 +93,7 @@ namespace cuda {
      * @param incy -  storage spacing between elements of y (must be non-zero)
      * @param n - operation size
      */
-    __global__ void mp_array_mul_digits_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
+    __global__ void mp_vector_mul_digits_kernel(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
         int lmodul = cuda::RNS_MODULI[threadIdx.x  % RNS_MODULI_SIZE];
         int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -136,7 +136,7 @@ namespace cuda {
      * @param alpha - pointer to the scalar (vector of length one) in the GPU memory
      * @param n - operation size
      */
-    __global__ void mp_array_mul_esi_vs(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t alpha, const int n) {
+    __global__ void mp_vec2scal_mul_esi_kernel(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t alpha, const int n) {
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector lengths (may differ from the operation size, n)
         int lenx = x.len[0];
@@ -192,7 +192,7 @@ namespace cuda {
      * @param alpha - pointer to the scalar (vector of length one) in the GPU memory
      * @param n - operation size
      */
-    __global__ void mp_array_mul_digits_vs(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t alpha, const int n){
+    __global__ void mp_vec2scal_mul_digits_kernel(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t alpha, const int n){
         int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
         int lalpha = alpha.digits[threadIdx.x % RNS_MODULI_SIZE];
         int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -234,7 +234,7 @@ namespace cuda {
      * @param incy -  storage spacing between elements of y (must be non-zero)
      * @param n - operation size
      */
-    __global__ void mp_array_add_esi_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
+    __global__ void mp_vector_add_esi_kernel(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector lengths (may differ from the operation size, n)
         int lenx = x.len[0];
@@ -421,7 +421,7 @@ namespace cuda {
      * @param incy -  storage spacing between elements of y (must be non-zero)
      * @param n - operation size
      */
-    __global__ void mp_array_add_digits_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
+    __global__ void mp_vector_add_digits_kernel(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
         int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
         int index = blockIdx.x * blockDim.x + threadIdx.x; // Индекс остатка в векторе
 
@@ -480,7 +480,7 @@ namespace cuda {
     /*!
      * Parallel element-wise vector subtraction (result = x - y)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
-     * @note Kernel 2 is the same as for vector addition algorithm, i.e, mp_array_add_digits_vv
+     * @note Kernel 2 is the same as for vector addition algorithm --- mp_vector_add_digits_kernel
      * @note For example of usage, see mprot.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
@@ -490,7 +490,7 @@ namespace cuda {
      * @param incy -  storage spacing between elements of y (must be non-zero)
      * @param n - operation size
      */
-    __global__ void mp_array_sub_esi_vv(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
+    __global__ void mp_vector_sub_esi_kernel(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector lengths (may differ from the operation size, n)
         int lenx = x.len[0];
@@ -674,7 +674,7 @@ namespace cuda {
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param n - operation size
      */
-    __global__ void mp_array_round(mp_array_t result, const int incr, int n) {
+    __global__ void mp_vector_round(mp_array_t result, const int incr, int n) {
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector length (may differ from the operation size, n)
         int lenr = result.len[0];

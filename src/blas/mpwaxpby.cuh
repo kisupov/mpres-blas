@@ -61,31 +61,31 @@ namespace cuda {
         int numThreadsYW = (incy == 1 && incw == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         // Multiplication buffer = alpha *x - Computing the signs, exponents, and interval evaluations
-        mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer, 1, x, incx, alpha, n);
+        mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (buffer, 1, x, incx, alpha, n);
 
        // Multiplication buffer = alpha *x - Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, numThreadsX >>> (buffer, 1, x, incx, alpha, n);
+        mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsX >>> (buffer, 1, x, incx, alpha, n);
 
         // Multiplication buffer = alpha *x - Rounding the intermediate result
-        mp_array_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
 
         // Multiplication w = beta * y - Computing the signs, exponents, and interval evaluations
-        mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (w, incw, y, incy, beta, n);
+        mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (w, incw, y, incy, beta, n);
 
         // Multiplication w = beta * y - Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, numThreadsYW >>> (w, incw, y, incy, beta, n);
+        mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsYW >>> (w, incw, y, incy, beta, n);
 
         // Multiplication w = beta * y - Rounding the intermediate result
-        mp_array_round<<< gridDim1, blockDim1 >>> (w, incw, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (w, incw, n);
 
         // Addition w = w + buffer - Computing the signs, exponents, and interval evaluations
-        mp_array_add_esi_vv<<< gridDim1, blockDim1 >>> (w, incw, w, incw, buffer, 1, n);
+        mp_vector_add_esi_kernel<<< gridDim1, blockDim1 >>> (w, incw, w, incw, buffer, 1, n);
 
         // Addition w = w + buffer - Adding the digits in the RNS
-        mp_array_add_digits_vv<<< gridDim2, numThreadsW >>> (w, incw, w, incw, buffer, 1, n);
+        mp_vector_add_digits_kernel<<< gridDim2, numThreadsW >>> (w, incw, w, incw, buffer, 1, n);
 
         // Final rounding
-        mp_array_round<<< gridDim1, blockDim1 >>> (w, incw, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (w, incw, n);
     }
 
 } //end of namespace

@@ -344,24 +344,24 @@ namespace cuda
         int numThreadsY = (incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         //Multiplication buffer1 = alpha * y - Computing the signs, exponents, and interval evaluations
-        mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer1, 1, y, incy, alpha, n);
+        mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (buffer1, 1, y, incy, alpha, n);
 
         //Multiplication buffer1 = alpha * y - Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, numThreadsY >>> (buffer1, 1, y, incy, alpha, n);
+        mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsY >>> (buffer1, 1, y, incy, alpha, n);
 
         //Rounding the intermediate result (buffer1)
-        mp_array_round<<< gridDim1, blockDim1 >>> (buffer1, 1, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (buffer1, 1, n);
 
         //Calculation of the Cartesian product: buffer2 = x * buffer1^T - Computing the signs, exponents, and interval evaluations
         //The result is written to the intermediate buffer2, size m * n
-        cuda::cartesian_product_esi_kernel<<<blocks1, blockDim1>>> (buffer2, x, incx, buffer1, m, n);
+        cartesian_product_esi_kernel<<<blocks1, blockDim1>>> (buffer2, x, incx, buffer1, m, n);
 
         //Calculation of the Cartesian product: buffer2 = x * buffer1^T - Multiplying the digits in the RNS
         //The result is written to the intermediate buffer2, size m * n
-        cuda::cartesian_product_digits_kernel<<<blocks2, numThreadsX>>> (buffer2, x, incx, buffer1, m, n);
+        cartesian_product_digits_kernel<<<blocks2, numThreadsX>>> (buffer2, x, incx, buffer1, m, n);
 
         //Rounding the intermediate result (buffer2)
-        cuda::mp_array_round<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
+        mp_vector_round<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
 
         /*
          * Addition of two matrices
@@ -371,13 +371,13 @@ namespace cuda
         if(lda == m){
 
             //Addition of two vectors: A = A + buffer2 - Computing the signs, exponents, and interval evaluations
-            mp_array_add_esi_vv<<< gridDim1, blockDim1 >>> (A, 1, A, 1, buffer2, 1, m*n);
+            mp_vector_add_esi_kernel<<< gridDim1, blockDim1 >>> (A, 1, A, 1, buffer2, 1, m*n);
 
             //Addition of two vectors: A = A + buffer2 - Adding the digits in the RNS
-            mp_array_add_digits_vv<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (A, 1, A, 1, buffer2, 1, m*n);
+            mp_vector_add_digits_kernel<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (A, 1, A, 1, buffer2, 1, m*n);
 
             //Final rounding
-            cuda::mp_array_round<<< gridDim1, blockDim1 >>> (A, 1, m * n);
+            mp_vector_round<<< gridDim1, blockDim1 >>> (A, 1, m * n);
         }
         //Common case
         else{

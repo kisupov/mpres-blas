@@ -55,22 +55,22 @@ namespace cuda {
         int numThreadsY = (incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
         //Multiplication - Computing the signs, exponents, and interval evaluations
-        mp_array_mul_esi_vs<<< gridDim1, blockDim1 >>> (buffer, 1, x, incx, alpha, n);
+        mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (buffer, 1, x, incx, alpha, n);
 
         //Multiplication - Multiplying the digits in the RNS
-        mp_array_mul_digits_vs<<< gridDim2, numThreadsX >>> (buffer, 1, x, incx, alpha, n);
+        mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsX >>> (buffer, 1, x, incx, alpha, n);
 
         //Multiplication - Rounding the intermediate result
-        mp_array_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
 
         //Addition - Computing the signs, exponents, and interval evaluations
-        mp_array_add_esi_vv<<< gridDim1, blockDim1 >>> (y, incy, buffer, 1, y, incy, n);
+        mp_vector_add_esi_kernel<<< gridDim1, blockDim1 >>> (y, incy, buffer, 1, y, incy, n);
 
         //Addition - Adding the digits in the RNS
-        mp_array_add_digits_vv<<< gridDim2, numThreadsY >>> (y, incy, buffer, 1, y, incy, n);
+        mp_vector_add_digits_kernel<<< gridDim2, numThreadsY >>> (y, incy, buffer, 1, y, incy, n);
 
         //Final rounding
-        mp_array_round<<< gridDim1, blockDim1 >>> (y, incy, n);
+        mp_vector_round<<< gridDim1, blockDim1 >>> (y, incy, n);
     }
 
 } //end of namespace
