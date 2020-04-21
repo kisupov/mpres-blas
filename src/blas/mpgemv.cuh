@@ -77,7 +77,7 @@ namespace cuda
     //Multiplying the digits in the RNS
     //m is the size of a matrix column
     //n is the size of x and the number of matrix columns
-    __global__ static void matvec_product_digits_kernel(mp_array_t R, int lrd, mp_array_t A, int lda, mp_array_t x, const int m, const int n) {
+    __global__ static void matvec_product_digits_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t x, const int m, const int n) {
         int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
         int colId = blockIdx.y; // The column index
         while (colId < n){
@@ -86,7 +86,7 @@ namespace cuda
             int index = blockIdx.x * blockDim.x + threadIdx.x; //Index of the element of A in the i-th column. Must be less than m * RNS_MODULI_SIZE
             //We process in the stride loop all the elements of the i-th column of A
             while (index < m * RNS_MODULI_SIZE) {
-                R.digits[colId * lrd * RNS_MODULI_SIZE + index] = cuda::mod_mul(A.digits[colId * lda * RNS_MODULI_SIZE + index], lx, lmodul);
+                R.digits[colId * ldr * RNS_MODULI_SIZE + index] = cuda::mod_mul(A.digits[colId * lda * RNS_MODULI_SIZE + index], lx, lmodul);
                 //Go to the next iteration
                 index += gridDim.x * blockDim.x;
             }
