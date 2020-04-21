@@ -60,44 +60,6 @@ void finalize(){
     cudaDeviceReset();
 }
 
-void print_double_sum(double *result, int v_length) {
-    double print_result = 0;
-    for (int i = 0; i < v_length; i++) {
-        print_result += result[i];
-    }
-    printf("result: %.70f\n", print_result);
-}
-
-void print_mp_sum(mp_float_ptr result, int v_length) {
-    mp_float_t print_result;
-    print_result = MP_ZERO;
-
-    mpfr_t mpfr_result;
-    mpfr_init2(mpfr_result, MP_PRECISION * 10);
-    mpfr_set_d(mpfr_result, 0, MPFR_RNDN);
-
-    for (int i = 0; i < v_length; i++) {
-        mp_add(&print_result, &print_result, &result[i]);
-    }
-
-    mp_get_mpfr(mpfr_result, &print_result);
-    mpfr_printf("result: %.70Rf \n", mpfr_result);
-    mpfr_clear(mpfr_result);
-}
-
-void print_mpfr_sum(mpfr_t *result, int v_length) {
-    mpfr_t tmp_sum;
-    mpfr_init2(tmp_sum, MP_PRECISION * 10);
-    mpfr_set_d(tmp_sum, 0.0, MPFR_RNDN);
-
-    for (int i = 0; i < v_length; i++) {
-        mpfr_add(tmp_sum, tmp_sum, result[i], MPFR_RNDN);
-    }
-    mpfr_printf("result: %.70Rf\n", tmp_sum);
-    mpfr_clear(tmp_sum);
-}
-
-
 /********************* Multiple-precision scal implementations and benchmarks *********************/
 
 

@@ -1,8 +1,8 @@
 /*
- *  Multiple-precision GER function for GPU (BLAS Level-2)
- *  Performs a rank-1 update of a general matrix.
+ *  Multiple-precision GE_ADD function for GPU (BLAS Level-3)
+ *  Scales two matrices A and B and stores their sum in a matrix C.
  *
- *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
+ *  Copyright 2020 by Konstantin Isupov.
  *
  *  This file is part of the MPRES-BLAS library.
  *
