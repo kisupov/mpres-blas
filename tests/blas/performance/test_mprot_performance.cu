@@ -57,7 +57,7 @@ void finalize(){
     cudaDeviceReset();
 }
 
-void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
+static void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
     mp_float_t print_result;
     print_result = MP_ZERO;
 

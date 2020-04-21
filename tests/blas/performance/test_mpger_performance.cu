@@ -33,17 +33,20 @@
 #include "../../../src/blas/mpger.cuh"
 #include "3rdparty.cuh"
 
-#define M 300  // Number of matrix rows and the vector X dimension
-#define N 300  // Number of matrix columns and the vector Y dimension
+#define M 100  // Number of matrix rows and the vector X dimension
+#define N 100  // Number of matrix columns and the vector Y dimension
 #define LDA (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
 #define INCX 1 // Specifies the increment for the elements of x.
 #define INCY 1 // Specifies the increment for the elements of y.
 #define REPEAT_TEST 10 //Number of repeats
 
 //Execution configuration for mpger
-#define MPRES_CUDA_BLOCKS_FIELDS_ROUND   100
-#define MPRES_CUDA_THREADS_FIELDS_ROUND  128
-#define MPRES_CUDA_BLOCKS_RESIDUES       100
+#define MPRES_BLOCK_SIZE_X_ESI 32
+#define MPRES_BLOCK_SIZE_Y_ESI 1
+#define MPRES_BLOCK_SIZE_X_ROUND 32
+#define MPRES_BLOCK_SIZE_Y_ROUND 1
+#define MPRES_GRID_SIZE_X_DIGITS 128
+#define MPRES_GRID_SIZE_Y_DIGITS 64
 
 #define OPENBLAS_THREADS 4
 
@@ -67,43 +70,6 @@ void initialize(){
 }
 
 void finalize(){
-}
-
-void print_double_sum(double *result, int v_length) {
-    double print_result = 0;
-    for (int i = 0; i < v_length; i++) {
-        print_result += result[i];
-    }
-    printf("result: %.70f\n", print_result);
-}
-
-void print_mp_sum(mp_float_ptr result, int v_length) {
-    mp_float_t print_result;
-    print_result = MP_ZERO;
-
-    mpfr_t mpfr_result;
-    mpfr_init2(mpfr_result, MP_PRECISION * 10);
-    mpfr_set_d(mpfr_result, 0.0, MPFR_RNDN);
-
-    for (int i = 0; i < v_length; i+= 1) {
-        mp_add(&print_result, &print_result, &result[i]);
-    }
-
-    mp_get_mpfr(mpfr_result, &print_result);
-    mpfr_printf("result: %.70Rf \n", mpfr_result);
-    mpfr_clear(mpfr_result);
-}
-
-void print_mpfr_sum(mpfr_t *result, int v_length) {
-    mpfr_t tmp_sum;
-    mpfr_init2(tmp_sum, MP_PRECISION * 10);
-    mpfr_set_d(tmp_sum, 0.0, MPFR_RNDN);
-
-    for (int i = 0; i < v_length; i++) {
-        mpfr_add(tmp_sum, tmp_sum, result[i], MPFR_RNDN);
-    }
-    mpfr_printf("result: %.70Rf\n", tmp_sum);
-    mpfr_clear(tmp_sum);
 }
 
 static void convert_vector(mp_float_ptr dest, mpfr_t *source, int width){
@@ -270,9 +236,12 @@ void mpres_test(int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int l
         cuda::mp_array_host2device(dA, hA, lda * n);
         StartCudaTimer();
         cuda::mpger<
-                MPRES_CUDA_BLOCKS_FIELDS_ROUND,
-                MPRES_CUDA_THREADS_FIELDS_ROUND,
-                MPRES_CUDA_BLOCKS_RESIDUES>
+                MPRES_BLOCK_SIZE_X_ESI,
+                MPRES_BLOCK_SIZE_Y_ESI,
+                MPRES_GRID_SIZE_X_DIGITS,
+                MPRES_GRID_SIZE_Y_DIGITS,
+                MPRES_BLOCK_SIZE_X_ROUND,
+                MPRES_BLOCK_SIZE_Y_ROUND>
                 (m, n, dalpha, dx, incx,dy, incy, dA, lda, dbuf1, dbuf2);
         EndCudaTimer();
     }
@@ -315,8 +284,7 @@ void test(){
     mpfr_t *matrixA = create_random_array(LDA * N, INP_BITS);
     mpfr_t *alpha = create_random_array(1, INP_BITS);
 
-
-    //Multiple-precision tests
+    //Tests
     openblas_test(M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, vectorY, INCY);
     mpack_test(M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, vectorY, INCY);
     mpres_test(M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, vectorY, INCY);
@@ -360,9 +328,12 @@ int main(){
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    Logger::printParam("MPRES_BLOCK_SIZE_X_ESI", MPRES_BLOCK_SIZE_X_ESI);
+    Logger::printParam("MPRES_BLOCK_SIZE_Y_ESI", MPRES_BLOCK_SIZE_Y_ESI);
+    Logger::printParam("MPRES_GRID_SIZE_X_DIGITS", MPRES_GRID_SIZE_X_DIGITS);
+    Logger::printParam("MPRES_GRID_SIZE_Y_DIGITS", MPRES_GRID_SIZE_Y_DIGITS);
+    Logger::printParam("MPRES_BLOCK_SIZE_X_ROUND", MPRES_BLOCK_SIZE_X_ROUND);
+    Logger::printParam("MPRES_BLOCK_SIZE_Y_ROUND", MPRES_BLOCK_SIZE_Y_ROUND);
     Logger::endSection(true);
 
     //Run the test

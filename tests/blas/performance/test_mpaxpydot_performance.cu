@@ -60,7 +60,7 @@ void finalize(){
     cudaDeviceReset();
 }
 
-void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
+static void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
     mp_float_t print_result;
     print_result = MP_ZERO;
 
@@ -187,7 +187,7 @@ int main() {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::BLAS_AXPY_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::BLAS_AXPY_DOT_PERFORMANCE_TEST);
     Logger::printTestParameters(N, REPEAT_TEST, MP_PRECISION, MP_PRECISION_DEC);
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);

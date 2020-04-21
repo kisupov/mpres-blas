@@ -124,5 +124,47 @@ std::string convert_to_string_fix(mpfr_t number, int ndigits){
     return number_string;
 }
 
+/*
+ * Prints the sum of array elements
+ */
+void print_double_sum(double *arr, int n) {
+    double sum = 0;
+    for (int i = 0; i < n; i++) {
+        sum += arr[i];
+    }
+    printf("result: %.70f\n", sum);
+}
+
+/*
+ * Prints the sum of array elements
+ */
+void print_mp_sum(mp_float_ptr arr, int n) {
+    mp_float_t print_result;
+    print_result = MP_ZERO;
+    mpfr_t sum;
+    mpfr_init2(sum, MP_PRECISION * 10);
+    mpfr_set_d(sum, 0.0, MPFR_RNDN);
+    for (int i = 0; i < n; i+= 1) {
+        mp_add(&print_result, &print_result, &arr[i]);
+    }
+    mp_get_mpfr(sum, &print_result);
+    mpfr_printf("result: %.70Rf \n", sum);
+    mpfr_clear(sum);
+}
+
+/*
+ * Prints the sum of array elements
+ */
+void print_mpfr_sum(mpfr_t *arr, int n) {
+    mpfr_t sum;
+    mpfr_init2(sum, MP_PRECISION * 10);
+    mpfr_set_d(sum, 0.0, MPFR_RNDN);
+    for (int i = 0; i < n; i++) {
+        mpfr_add(sum, sum, arr[i], MPFR_RNDN);
+    }
+    mpfr_printf("result: %.70Rf\n", sum);
+    mpfr_clear(sum);
+}
+
 
 #endif //MPRES_TEST_TSTHELPER_CUH

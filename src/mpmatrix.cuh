@@ -26,27 +26,29 @@
 
 namespace cuda {
 
+    /********************* Matrix addition kernels *********************/
+
     /*!
-     * Addition of two matrices: R = A + B
-     * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
-     * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
-     * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the matrix.
-     * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
-     * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
-     * @param A  - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
-     * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
-     * @param B - pointer to the array, size ldb * n. Before entry, the leading m-by-n part of the array must contain the matrix B.
-     * @param ldb - specifies the leading dimension of B as declared in the calling (sub)program. The value of lda must be at least max(1, m).
-     * @param m - specifies the number of rows of the matrix A
-     * @param n - specifies the number of columns of the matrix A
-     */
+    * Addition of two matrices: R = A + B
+    * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
+    * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
+    * @note For this kernel, the execution configuration should be as follows:
+       * dim3 block(blockSizeX, blockSizeY);
+       * dim3 grid((m + block.x - 1) / block.x, (n + block.y - 1) / block.y);
+    * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
+    * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
+    * @param A  - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
+    * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
+    * @param B - pointer to the array, size ldb * n. Before entry, the leading m-by-n part of the array must contain the matrix B.
+    * @param ldb - specifies the leading dimension of B as declared in the calling (sub)program. The value of lda must be at least max(1, m).
+    * @param m - specifies the number of rows of the matrices
+    * @param n - specifies the number of columns of the matrices
+    */
     __global__ void mp_matrix_add_esi_kernel(mp_array_t R, const int ldr, mp_array_t A, const int lda, mp_array_t B, const int ldb, const int m, const int n) {
         // Actual matrix lengths (may differ from the operation size, n)
-        int lenA = A.len[0];
-        int lenB = B.len[0];
-        int lenR = R.len[0];
-        int colId = blockIdx.y; // The column index
-
+        unsigned int lenA = A.len[0];
+        unsigned int lenB = B.len[0];
+        unsigned int lenR = R.len[0];
         er_float_t evalA[2];
         er_float_t evalB[2];
         int expA;
@@ -54,23 +56,22 @@ namespace cuda {
         int signA;
         int signB;
 
-        //Iterate over the matrix columns
-        while (colId < n){
-            int numberIdx = blockDim.x * blockIdx.x + threadIdx.x;
-            int ida = colId * lda;
-            int idb = colId * ldb;
-            int idr = colId * ldr;
-            //We process in the stride loop all the elements of colId-th column
-            while (numberIdx < m) {
-                evalA[0] = A.eval[ida + numberIdx];
-                evalA[1] = A.eval[ida + numberIdx + lenA];
-                evalB[0] = B.eval[idb + numberIdx];
-                evalB[1] = B.eval[idb + numberIdx + lenB];
+        unsigned int ix = blockIdx.x * blockDim.x + threadIdx.x;
+        unsigned int iy = blockIdx.y * blockDim.y + threadIdx.y;
+        unsigned int ida = iy * lda + ix;
+        unsigned int idb = iy * ldb + ix;
+        unsigned int idr = iy * ldr + ix;
 
-                expA = A.exp[ida + numberIdx];
-                expB = B.exp[idb + numberIdx];
-                signA = A.sign[ida + numberIdx];
-                signB = B.sign[idb + numberIdx];
+        if (ix < m && iy < n){
+                evalA[0] = A.eval[ida];
+                evalA[1] = A.eval[ida + lenA];
+                evalB[0] = B.eval[idb];
+                evalB[1] = B.eval[idb + lenB];
+
+                expA = A.exp[ida];
+                expB = B.exp[idb];
+                signA = A.sign[ida];
+                signB = B.sign[idb];
 
                 //Exponent alignment
                 int dexp = expA - expB;
@@ -101,20 +102,20 @@ namespace cuda {
                 evalB[0].frac *=  factorB;
                 evalB[1].frac *=  factorB;
                 //Interval addition
-                cuda::er_add_rd(&R.eval[idr + numberIdx], &evalA[signA], &evalB[signB]);
-                cuda::er_add_ru(&R.eval[idr + numberIdx + lenR], &evalA[1 - signA], &evalB[1 - signB]);
+                cuda::er_add_rd(&R.eval[idr], &evalA[signA], &evalB[signB]);
+                cuda::er_add_ru(&R.eval[idr + lenR], &evalA[1 - signA], &evalB[1 - signB]);
                 //Calculation of the exponent and preliminary calculation of the sign (the sign will be changed if restoring is required)
-                R.sign[idr + numberIdx] = 0;
-                R.exp[idr + numberIdx] = (expA == 0) ? expB : expA;
+                R.sign[idr] = 0;
+                R.exp[idr] = (expA == 0) ? expB : expA;
                 //Restoring the negative result
-                int minus = R.eval[idr + numberIdx].frac < 0 && R.eval[idr + numberIdx + lenR].frac < 0;
+                int minus = R.eval[idr].frac < 0 && R.eval[idr + lenR].frac < 0;
                 if(minus){
-                    R.sign[idr + numberIdx] = 1;
-                    er_float_t tmp = R.eval[idr + numberIdx];
-                    R.eval[idr + numberIdx].frac = -R.eval[idr + numberIdx + lenR].frac;
-                    R.eval[idr + numberIdx].exp  = R.eval[idr + numberIdx + lenR].exp;
-                    R.eval[idr + numberIdx + lenR].frac = -tmp.frac;
-                    R.eval[idr + numberIdx + lenR].exp  = tmp.exp;
+                    R.sign[idr] = 1;
+                    er_float_t tmp = R.eval[idr];
+                    R.eval[idr].frac = -R.eval[idr + lenR].frac;
+                    R.eval[idr].exp  = R.eval[idr + lenR].exp;
+                    R.eval[idr + lenR].frac = -tmp.frac;
+                    R.eval[idr + lenR].exp  = tmp.exp;
                 }
                 //Storing data for Kernel #2 in the buffer
                 int4 intBuf;
@@ -122,11 +123,7 @@ namespace cuda {
                 intBuf.y = theta;
                 intBuf.z = factorA;
                 intBuf.w = factorB;
-                R.buf[idr + numberIdx] = intBuf;
-                //Go to the next iteration
-                numberIdx +=  gridDim.x * blockDim.x;
-            }
-            colId += gridDim.y;
+                R.buf[idr] = intBuf;
         }
     }
 
@@ -134,20 +131,20 @@ namespace cuda {
      * Addition of two matrices: R = A + B
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
-     * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the matrix.
+     * @note This kernel can be run on a 2D grid of 1D blocks.
      * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
      * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
      * @param A  - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
      * @param B - pointer to the array, size ldb * n. Before entry, the leading m-by-n part of the array must contain the matrix B.
      * @param ldb - specifies the leading dimension of B as declared in the calling (sub)program. The value of lda must be at least max(1, m).
-     * @param m - specifies the number of rows of the matrix A
-     * @param n - specifies the number of columns of the matrix A
+     * @param m - specifies the number of rows of the matrices
+     * @param n - specifies the number of columns of the matrices
      */
     __global__ static void mp_matrix_add_digits_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t B, const int ldb, const int m, const int n) {
         int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
-        int colId = blockIdx.y; // The column index
         //Iterate over the matrix columns
+        int colId = blockIdx.y; // The column index
         while (colId < n){
             int index = blockIdx.x * blockDim.x + threadIdx.x;
             int numberIdx = (blockIdx.x * blockDim.x + threadIdx.x) / RNS_MODULI_SIZE;
@@ -170,42 +167,108 @@ namespace cuda {
                 index += gridDim.x * blockDim.x;
                 numberIdx += gridDim.x * blockDim.x / RNS_MODULI_SIZE;
             }
+            //Go to the next column
             colId += gridDim.y;
         }
     }
 
+    /********************* Matrix-scalar multiplication kernels *********************/
+
+    /*!
+     * Parallel element-wise multiplication of a matrix by a scalar (R = alpha * A)
+     * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
+     * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
+     * @note For this kernel, the execution configuration should be as follows:
+        * dim3 block(blockSizeX, blockSizeY);
+        * dim3 grid((m + block.x - 1) / block.x, (n + block.y - 1) / block.y);
+     * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
+     * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
+     * @param A  - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
+     * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
+     * @param alpha - pointer to the scalar (vector of length one) in the GPU memory
+     * @param m - specifies the number of rows of the matrices
+     * @param n - specifies the number of columns of the matrices
+     */
+    __global__ void mp_mat2scal_mul_esi_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t alpha, const int m, const int n) {
+        unsigned int lena = A.len[0]; //actual length of A
+        unsigned int lenr = R.len[0]; //actual length of R
+        int alpha_sign = alpha.sign[0];
+        int alpha_exp = alpha.exp[0];
+        er_float_t alpha_ev0 = alpha.eval[0];
+        er_float_t alpha_ev1 = alpha.eval[1];
+
+        unsigned int ix = blockIdx.x * blockDim.x + threadIdx.x;
+        unsigned int iy = blockIdx.y * blockDim.y + threadIdx.y;
+        unsigned int ida = iy * lda + ix;
+        unsigned int idr = iy * ldr + ix;
+
+        if (ix < m && iy < n){
+            R.sign[idr] = A.sign[ida] ^ alpha_sign;
+            R.exp[idr] = A.exp[ida] + alpha_exp;
+            cuda::er_md_rd(&R.eval[idr], &A.eval[ida], &alpha_ev0, &cuda::RNS_EVAL_UNIT.upp);
+            cuda::er_md_ru(&R.eval[lenr + idr], &A.eval[lena + ida], &alpha_ev1, &cuda::RNS_EVAL_UNIT.low);
+        }
+    }
+
+    /*!
+     * Parallel element-wise multiplication of a matrix by a scalar (R = alpha * A)
+     * Kernel #2 --- Computing the significands in the RNS (digits)
+     * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
+     * @note This kernel can be run on a 2D grid of 1D blocks.
+     * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
+     * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
+     * @param A  - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
+     * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
+     * @param alpha - pointer to the scalar (vector of length one) in the GPU memory
+     * @param m - specifies the number of rows of the matrices
+     * @param n - specifies the number of columns of the matrices
+     */
+    __global__ void mp_mat2scal_mul_digits_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t alpha, const int m, const int n) {
+        int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
+        int lalpha = alpha.digits[threadIdx.x % RNS_MODULI_SIZE];
+        //Iterate over matrix columns / vector elements
+        int colId = blockIdx.y; // The column index
+        while (colId < n){
+            int index = blockIdx.x * blockDim.x + threadIdx.x; //Index of the element of A in the i-th column. Must be less than m * RNS_MODULI_SIZE
+            //We process in the stride loop all the elements of the i-th column of A
+            while (index < m * RNS_MODULI_SIZE) {
+                R.digits[colId * ldr * RNS_MODULI_SIZE + index] = cuda::mod_mul(A.digits[colId * lda * RNS_MODULI_SIZE + index], lalpha, lmodul);
+                index += gridDim.x * blockDim.x;
+            }
+            //Go to the next column
+            colId += gridDim.y;
+        }
+    }
 
     /*!
      * Rounding a multiple-precision matrix
      * @note The matrix A is assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
-     * This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the matrix
+     * @note For this kernel, the execution configuration should be as follows:
+        * dim3 block(blockSizeX, blockSizeY);
+        * dim3 grid((m + block.x - 1) / block.x, (n + block.y - 1) / block.y);
      * @param A - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A to be rounded
      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m)
      * @param m - specifies the number of rows of the matrix A
      * @param n - specifies the number of columns of the matrix A
      */
     __global__ void mp_matrix_round(mp_array_t A, const int lda, const int m, const int n) {
-        int lena = A.len[0]; // Actual matrix length (may differ from the operation size, m * n)
-        int colId = blockIdx.y; // The column index
-        while (colId < n){
-            int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
-            while (numberIdx < m) {
-                #if defined(DEBUG) || defined(_DEBUG)
-                if( A.eval[lda * colId + lena + numberIdx].exp != A.eval[lda * colId + numberIdx].exp ){
+        unsigned int lena = A.len[0]; // Actual matrix length
+        unsigned int ix = blockIdx.x * blockDim.x + threadIdx.x;
+        unsigned int iy = blockIdx.y * blockDim.y + threadIdx.y;
+        unsigned int ida = iy * lda + ix;
+        if (ix < m && iy < n){
+            #if defined(DEBUG) || defined(_DEBUG)
+            if( A.eval[ida + lena].exp != A.eval[ida].exp ){
                     printf("\n [CUDA WARNING] Possible loss of accuracy");
                 }
-                #endif
-                int bits = (A.eval[lda * colId + lena + numberIdx].exp - cuda::MP_H + 1) * (A.eval[lda * colId + lena + numberIdx].frac != 0);
-                while (bits > 0) {
-                    A.exp[lda * colId + numberIdx] += bits;
-                    cuda::rns_scale2pow(&A.digits[(lda * colId + numberIdx) * RNS_MODULI_SIZE], &A.digits[(lda * colId + numberIdx) * RNS_MODULI_SIZE], bits);
-                    cuda::rns_eval_compute_fast(&A.eval[lda * colId + numberIdx], &A.eval[lda * colId + lena + numberIdx], &A.digits[(lda * colId + numberIdx) * RNS_MODULI_SIZE]);
-                    bits = -1;
-                }
-                //Go to the next iteration
-                numberIdx += gridDim.x * blockDim.x;
+            #endif
+            int bits = (A.eval[ida + lena].exp - cuda::MP_H + 1) * (A.eval[ida + lena].frac != 0);
+            while (bits > 0) {
+                A.exp[ida] += bits;
+                cuda::rns_scale2pow(&A.digits[ida * RNS_MODULI_SIZE], &A.digits[ida * RNS_MODULI_SIZE], bits);
+                cuda::rns_eval_compute_fast(&A.eval[ida], &A.eval[ida + lena], &A.digits[ida * RNS_MODULI_SIZE]);
+                bits = -1;
             }
-            colId += gridDim.y;
         }
     }
 

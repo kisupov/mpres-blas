@@ -78,6 +78,12 @@ add_executable(test_mpger_performance blas/performance/test_mpger_performance.cu
 target_compile_options(test_mpger_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpger_performance gmp mpfr openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas cump)
 
+# Performance test for GE_ADD
+add_executable(test_mpgeadd_performance blas/performance/test_mpgeadd_performance.cu)
+target_compile_options(test_mpgeadd_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpgeadd_performance gmp mpfr OpenMP::OpenMP_CXX cump)
+
+
 #########################
 ## Accuracy tests for BLAS routines
 #########################
