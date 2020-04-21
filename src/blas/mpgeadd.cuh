@@ -33,13 +33,16 @@ namespace cuda
 
     /*!
      * Scales two matrices A and B and stores their sum in a matrix C
-     * C = alpha*A + beta * B
+     * C = alpha * A + beta * B
      * where alpha and beta are scalars, and A, B, C are m by n matrix.
      * The matrix should be stored in column-major order.
 
-     * @tparam gridDim1 - grid dimension (gridDim1 x gridDim1 blocks) used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise operations
-     * @tparam blockDim1 - number of threads per block used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise operations
-     * @tparam gridDim2 - grid dimension (gridDim2 x gridDim2 blocks) used to compute the digits of multiple-precision significands in element-wise operations
+     * @tparam blockDim1x - number of threads per block (x dimension) used to compute the signs, exponents, interval evaluations
+     * @tparam blockDim1y - number of threads per block (y dimension) used to compute the signs, exponents, interval evaluations
+     * @tparam gridDim2x - number of blocks (x dimension) used to compute the digits of multiple-precision significands in element-wise operations
+     * @tparam gridDim2y - number of blocks (y dimension) used to compute the digits of multiple-precision significands in element-wise operations
+     * @tparam blockDim3x - number of blocks (x dimension) used to rounding the result
+     * @tparam blockDim3y - number of blocks (y dimension) used to rounding the result
      *
      * @param m - specifies the number of rows of the matrix A. The value of m must be at least zero.
      * @param n - specifies the number of columns of the matrix A. The value of n must be at least zero.
@@ -53,7 +56,7 @@ namespace cuda
      * @param ldc - specifies the leading dimension of C as declared in the calling (sub)program. The value of ldc must be at least max(1, m).
      * @param buffer - auxiliary array in the global GPU memory, size at least m * n.
      */
-    template<int gridDim1, int blockDim1, int gridDim2>
+    template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y, int blockDim3x, int blockDim3y>
     void mpgeadd(int m, int n, mp_array_t &alpha, mp_array_t &A, int lda,  mp_array_t &beta, mp_array_t &B, int ldb, mp_array_t &C, int ldc, mp_array_t &buffer){
 
         //Test the input parameters
@@ -61,45 +64,50 @@ namespace cuda
             return;
         }
 
-        //We run 2D grids of 1D blocks.
-        //Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own element of the vector y or column of the matrix.
-        dim3 dim2dGrid1(gridDim1, gridDim1); //Number of blocks for computing the signs, exponents, interval evaluations, and also for rounding the result
-        dim3 dim2dGrid2(gridDim2, gridDim2); //Number of blocks for computing residues
+        //Execution configuration. We run 2D grids of 2D blocks.
+        //  To compute the signs, exponents, and interval evaluations
+        dim3 block1(blockDim1x, blockDim1y);
+        dim3 grid1((m + block1.x - 1) / block1.x, (n + block1.y - 1) / block1.y);
+        //  To compute the digits in RNS
+        dim3 grid2(gridDim2x, gridDim2y);
+        //  To rounding the result
+        dim3 block3(blockDim3x, blockDim3y);
+        dim3 grid3((m + block3.x - 1) / block3.x, (n + block3.y - 1) / block3.y);
 
         /*
          * Multiplication by scalars
          */
 
         //Multiplication buffer = alpha * A - Computing the signs, exponents, and interval evaluations
-        mp_mat2scal_mul_esi_kernel<<< dim2dGrid1, blockDim1 >>> (buffer, m, A, lda, alpha, m, n);
+        mp_mat2scal_mul_esi_kernel<<< grid1, block1 >>> (buffer, m, A, lda, alpha, m, n);
 
         //Multiplication buffer = alpha * A - Multiplying the digits in the RNS
-        mp_mat2scal_mul_digits_kernel<<< dim2dGrid2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, m, A, lda, alpha, m, n);
+        mp_mat2scal_mul_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, m, A, lda, alpha, m, n);
 
         //Multiplication buffer = alpha * A  - Rounding the result
-        mp_vector_round<<< gridDim1, blockDim1 >>> (buffer, 1, m * n);
+        mp_matrix_round<<< grid3, block3 >>> (buffer, m, m, n);
 
         //Multiplication С =  beta * B - Computing the signs, exponents, and interval evaluations
-        mp_mat2scal_mul_esi_kernel<<< dim2dGrid1, blockDim1 >>> (C, ldc, B, ldb, beta, m, n);
+        mp_mat2scal_mul_esi_kernel<<< grid1, block1 >>> (C, ldc, B, ldb, beta, m, n);
 
         //Multiplication С =  beta * B - Multiplying the digits in the RNS
-        mp_mat2scal_mul_digits_kernel<<< dim2dGrid2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, B, ldb, beta, m, n);
+        mp_mat2scal_mul_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, B, ldb, beta, m, n);
 
         //Multiplication С =  beta * B - Rounding the result
-        mp_matrix_round<<< dim2dGrid1, blockDim1 >>> (C, ldc, m, n);
+        mp_matrix_round<<< grid3, block3 >>> (C, ldc, m, n);
 
         /*
          * Addition of two matrices
          */
 
         //Addition of two matrices: C = C + buffer - Computing the signs, exponents, and interval evaluations
-        mp_matrix_add_esi_kernel<<< dim2dGrid1, blockDim1 >>> (C, ldc, C, ldc, buffer, m, m, n);
+        mp_matrix_add_esi_kernel<<< grid1, block1 >>> (C, ldc, C, ldc, buffer, m, m, n);
 
         //Addition of two matrices: C = C + buffer - Adding the digits in the RNS
-        mp_matrix_add_digits_kernel<<< dim2dGrid2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, C, ldc, buffer, m, m, n);
+        mp_matrix_add_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, C, ldc, buffer, m, m, n);
 
         //Final rounding
-        mp_matrix_round<<< dim2dGrid1, blockDim1 >>> (C, ldc, m, n);
+        mp_matrix_round<<< grid3, block3 >>> (C, ldc, m, n);
 
     }
 

@@ -41,10 +41,12 @@
 #define REPEAT_TEST 10 //Number of repeats
 
 //Execution configuration for mpger
-#define MPRES_CUDA_BLOCKS_FIELDS_ROUND   128
-#define MPRES_CUDA_THREADS_FIELDS_ROUND  32
-#define MPRES_CUDA_BLOCKS_RESIDUES       128
-
+#define MPRES_BLOCK_SIZE_X_ESI 32
+#define MPRES_BLOCK_SIZE_Y_ESI 1
+#define MPRES_BLOCK_SIZE_X_ROUND 256
+#define MPRES_BLOCK_SIZE_Y_ROUND 1
+#define MPRES_GRID_SIZE_X_DIGITS 128
+#define MPRES_GRID_SIZE_Y_DIGITS 64
 
 int MP_PRECISION_DEC; //in decimal digits
 int INP_BITS; //in bits
@@ -185,10 +187,13 @@ void mpres_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t beta, mpf
     //Launch
     for (int i = 0; i < REPEAT_TEST; i++) {
         StartCudaTimer();
-        cuda::mpgeadd<
-                MPRES_CUDA_BLOCKS_FIELDS_ROUND,
-                MPRES_CUDA_THREADS_FIELDS_ROUND,
-                MPRES_CUDA_BLOCKS_RESIDUES>
+                cuda::mpgeadd<
+                MPRES_BLOCK_SIZE_X_ESI,
+                MPRES_BLOCK_SIZE_Y_ESI,
+                MPRES_GRID_SIZE_X_DIGITS,
+                MPRES_GRID_SIZE_Y_DIGITS,
+                MPRES_BLOCK_SIZE_X_ROUND,
+                MPRES_BLOCK_SIZE_Y_ROUND>
                 (m, n, dalpha, dA, lda, dbeta, dB, ldb, dC, ldc, dbuf);
         EndCudaTimer();
     }
@@ -226,6 +231,7 @@ void runTest(){
     mpfr_test(M, N, alpha[0], matrixA, LDA, beta[0], matrixB, LDB, matrixC, LDC);
     mpres_test(M, N, alpha[0], matrixA, LDA, beta[0], matrixB, LDB, matrixC, LDC);
     campary_ge_add_test<CAMPARY_PRECISION>(M, N, alpha[0], matrixA, LDA, beta[0], matrixB, LDB, matrixC, LDC, INP_DIGITS, REPEAT_TEST);
+    cump_ge_add_test(M, N, alpha[0], matrixA, LDA, beta[0], matrixB, LDB, matrixC, LDC, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
 
@@ -265,9 +271,12 @@ int main(){
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    Logger::printParam("MPRES_BLOCK_SIZE_X_ESI", MPRES_BLOCK_SIZE_X_ESI);
+    Logger::printParam("MPRES_BLOCK_SIZE_Y_ESI", MPRES_BLOCK_SIZE_Y_ESI);
+    Logger::printParam("MPRES_GRID_SIZE_X_DIGITS", MPRES_GRID_SIZE_X_DIGITS);
+    Logger::printParam("MPRES_GRID_SIZE_Y_DIGITS", MPRES_GRID_SIZE_Y_DIGITS);
+    Logger::printParam("MPRES_BLOCK_SIZE_X_ROUND", MPRES_BLOCK_SIZE_X_ROUND);
+    Logger::printParam("MPRES_BLOCK_SIZE_Y_ROUND", MPRES_BLOCK_SIZE_Y_ROUND);
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
 

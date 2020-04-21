@@ -33,17 +33,20 @@
 #include "../../../src/blas/mpger.cuh"
 #include "3rdparty.cuh"
 
-#define M 300  // Number of matrix rows and the vector X dimension
-#define N 300  // Number of matrix columns and the vector Y dimension
+#define M 100  // Number of matrix rows and the vector X dimension
+#define N 100  // Number of matrix columns and the vector Y dimension
 #define LDA (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
 #define INCX 1 // Specifies the increment for the elements of x.
 #define INCY 1 // Specifies the increment for the elements of y.
 #define REPEAT_TEST 10 //Number of repeats
 
 //Execution configuration for mpger
-#define MPRES_CUDA_BLOCKS_FIELDS_ROUND   100
-#define MPRES_CUDA_THREADS_FIELDS_ROUND  128
-#define MPRES_CUDA_BLOCKS_RESIDUES       100
+#define MPRES_BLOCK_SIZE_X_ESI 32
+#define MPRES_BLOCK_SIZE_Y_ESI 1
+#define MPRES_BLOCK_SIZE_X_ROUND 32
+#define MPRES_BLOCK_SIZE_Y_ROUND 1
+#define MPRES_GRID_SIZE_X_DIGITS 128
+#define MPRES_GRID_SIZE_Y_DIGITS 64
 
 #define OPENBLAS_THREADS 4
 
@@ -233,9 +236,12 @@ void mpres_test(int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int l
         cuda::mp_array_host2device(dA, hA, lda * n);
         StartCudaTimer();
         cuda::mpger<
-                MPRES_CUDA_BLOCKS_FIELDS_ROUND,
-                MPRES_CUDA_THREADS_FIELDS_ROUND,
-                MPRES_CUDA_BLOCKS_RESIDUES>
+                MPRES_BLOCK_SIZE_X_ESI,
+                MPRES_BLOCK_SIZE_Y_ESI,
+                MPRES_GRID_SIZE_X_DIGITS,
+                MPRES_GRID_SIZE_Y_DIGITS,
+                MPRES_BLOCK_SIZE_X_ROUND,
+                MPRES_BLOCK_SIZE_Y_ROUND>
                 (m, n, dalpha, dx, incx,dy, incy, dA, lda, dbuf1, dbuf2);
         EndCudaTimer();
     }
@@ -322,9 +328,12 @@ int main(){
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    Logger::printParam("MPRES_BLOCK_SIZE_X_ESI", MPRES_BLOCK_SIZE_X_ESI);
+    Logger::printParam("MPRES_BLOCK_SIZE_Y_ESI", MPRES_BLOCK_SIZE_Y_ESI);
+    Logger::printParam("MPRES_GRID_SIZE_X_DIGITS", MPRES_GRID_SIZE_X_DIGITS);
+    Logger::printParam("MPRES_GRID_SIZE_Y_DIGITS", MPRES_GRID_SIZE_Y_DIGITS);
+    Logger::printParam("MPRES_BLOCK_SIZE_X_ROUND", MPRES_BLOCK_SIZE_X_ROUND);
+    Logger::printParam("MPRES_BLOCK_SIZE_Y_ROUND", MPRES_BLOCK_SIZE_Y_ROUND);
     Logger::endSection(true);
 
     //Run the test

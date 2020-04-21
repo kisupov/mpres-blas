@@ -41,6 +41,8 @@
 #define CAMPARY_REDUCTION_BLOCKS 1024
 #define CAMPARY_REDUCTION_THREADS 32
 #define CAMPARY_VECTOR_MULTIPLY_THREADS 32
+#define CAMPARY_MATRIX_THREADS_X 32
+#define CAMPARY_MATRIX_THREADS_Y 4
 
 
 
@@ -262,20 +264,17 @@ __global__ void campary_gemv_kernel(int m, int n, multi_prec<prec> *A, int lda, 
 
 /*
 * Scales two matrices A and B and stores their sum in a matrix C
-* C = alpha*A + beta * B
+* C = alpha * A + beta * B
 * where alpha and beta are scalars, and A, B, C are m by n matrix.
 * The matrix should be stored in column-major order.
  */
 template<int prec>
 __global__ void campary_ge_add_kernel(int m, int n, multi_prec<prec> * alpha, multi_prec<prec> * A, int lda, multi_prec<prec> * beta, multi_prec<prec> * B, int ldb, multi_prec<prec> * C, int ldc) {
-    multi_prec<prec> temp1;
-    multi_prec<prec> temp2;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int indexA = row + col * lda;
     int indexB = row + col * ldb;
     int indexC = row + col * ldc;
-
     if (col < n && row < m) {
         C[indexC] = alpha * A[indexA] + beta * B[indexB];
     }
@@ -396,7 +395,7 @@ void campary_axpy_dot(int n, multi_prec<prec> *alpha, multi_prec<prec> *w, multi
  */
 template <int prec>
 void campary_ge_add(int m, int n, multi_prec<prec> * alpha, multi_prec<prec> * A, int lda, multi_prec<prec> * beta, multi_prec<prec> * B, int ldb, multi_prec<prec> * C, int ldc){
-    dim3 dimBlock(CAMPARY_VECTOR_MULTIPLY_THREADS, CAMPARY_VECTOR_MULTIPLY_THREADS);
+    dim3 dimBlock(CAMPARY_MATRIX_THREADS_X, CAMPARY_MATRIX_THREADS_Y);
     dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
     campary_ge_add_kernel <prec> <<<dimGrid, dimBlock>>>(m, n, alpha, A, lda, beta, B, ldb, C, ldc);
 }
