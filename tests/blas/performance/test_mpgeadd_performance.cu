@@ -23,7 +23,6 @@
 #define EXCLUDE_XBLAS 1
 #define EXCLUDE_MPDECIMAL 1
 #define EXCLUDE_GARPREC 1
-#define EXCLUDE_CAMPARY 1
 #define EXCLUDE_CUBLAS 1
 #define EXCLUDE_OPENBLAS 1
 
@@ -43,7 +42,7 @@
 
 //Execution configuration for mpger
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND   128
-#define MPRES_CUDA_THREADS_FIELDS_ROUND  128
+#define MPRES_CUDA_THREADS_FIELDS_ROUND  32
 #define MPRES_CUDA_BLOCKS_RESIDUES       128
 
 
@@ -226,6 +225,7 @@ void runTest(){
     //Multiple-precision tests
     mpfr_test(M, N, alpha[0], matrixA, LDA, beta[0], matrixB, LDB, matrixC, LDC);
     mpres_test(M, N, alpha[0], matrixA, LDA, beta[0], matrixB, LDB, matrixC, LDC);
+    campary_ge_add_test<CAMPARY_PRECISION>(M, N, alpha[0], matrixA, LDA, beta[0], matrixB, LDB, matrixC, LDC, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
 
@@ -268,6 +268,7 @@ int main(){
     Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
 
     //Run the test

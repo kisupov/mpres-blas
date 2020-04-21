@@ -32,7 +32,7 @@ namespace cuda {
      * Addition of two matrices: R = A + B
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
-     * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the matrix.
+     * @note This kernel can be run on a 2D grid of 1D blocks.
      * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
      * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
      * @param A  - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
@@ -135,7 +135,7 @@ namespace cuda {
      * Addition of two matrices: R = A + B
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
-     * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the matrix.
+     * @note This kernel can be run on a 2D grid of 1D blocks.
      * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
      * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
      * @param A  - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
@@ -182,7 +182,7 @@ namespace cuda {
      * Parallel element-wise multiplication of a matrix by a scalar (R = alpha * A)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
-     * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the matrix.
+     * @note This kernel can be run on a 2D grid of 1D blocks.
      * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
      * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
      * @param A  - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
@@ -222,7 +222,7 @@ namespace cuda {
      * Parallel element-wise multiplication of a matrix by a scalar (R = alpha * A)
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
-     * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the matrix.
+     * @note This kernel can be run on a 2D grid of 1D blocks.
      * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
      * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
      * @param A  - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.

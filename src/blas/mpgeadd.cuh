@@ -37,9 +37,9 @@ namespace cuda
      * where alpha and beta are scalars, and A, B, C are m by n matrix.
      * The matrix should be stored in column-major order.
 
-     * @tparam gridDim1 - number of blocks (x dimension) used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise operations
+     * @tparam gridDim1 - grid dimension (gridDim1 x gridDim1 blocks) used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise operations
      * @tparam blockDim1 - number of threads per block used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise operations
-     * @tparam gridDim2 - number of blocks (x dimension) used to compute the digits of multiple-precision significands in element-wise operations
+     * @tparam gridDim2 - grid dimension (gridDim2 x gridDim2 blocks) used to compute the digits of multiple-precision significands in element-wise operations
      *
      * @param m - specifies the number of rows of the matrix A. The value of m must be at least zero.
      * @param n - specifies the number of columns of the matrix A. The value of n must be at least zero.
@@ -63,79 +63,44 @@ namespace cuda
 
         //We run 2D grids of 1D blocks.
         //Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own element of the vector y or column of the matrix.
-        dim3 blocks1(gridDim1, n, 1); //Number of blocks for computing the signs, exponents, interval evaluations, and also for rounding the result
-        dim3 blocks2(gridDim2, n, 1); //Number of blocks for computing residues
+        dim3 dim2dGrid1(gridDim1, gridDim1); //Number of blocks for computing the signs, exponents, interval evaluations, and also for rounding the result
+        dim3 dim2dGrid2(gridDim2, gridDim2); //Number of blocks for computing residues
 
         /*
          * Multiplication by scalars
          */
 
-        //Optimized case: matrix A is treated as a vector
-        if(lda == 1){
-            //Multiplication buffer = alpha * A - Computing the signs, exponents, and interval evaluations
-            mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (buffer, 1, A, 1, alpha, m * n);
+        //Multiplication buffer = alpha * A - Computing the signs, exponents, and interval evaluations
+        mp_mat2scal_mul_esi_kernel<<< dim2dGrid1, blockDim1 >>> (buffer, m, A, lda, alpha, m, n);
 
-            //Multiplication buffer = alpha * A - Multiplying the digits in the RNS
-            mp_vec2scal_mul_digits_kernel<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, 1, A, 1, alpha, m * n);
+        //Multiplication buffer = alpha * A - Multiplying the digits in the RNS
+        mp_mat2scal_mul_digits_kernel<<< dim2dGrid2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, m, A, lda, alpha, m, n);
 
-            //Multiplication buffer = alpha * A  - Rounding the result
-            mp_vector_round<<< gridDim1, blockDim1 >>> (buffer, 1, m * n);
-        } else{
-            //Multiplication buffer = alpha * A - Computing the signs, exponents, and interval evaluations
-            mp_mat2scal_mul_esi_kernel<<< blocks1, blockDim1 >>> (buffer, m, A, lda, alpha, m, n);
+        //Multiplication buffer = alpha * A  - Rounding the result
+        mp_vector_round<<< gridDim1, blockDim1 >>> (buffer, 1, m * n);
 
-            //Multiplication buffer = alpha * A - Multiplying the digits in the RNS
-            mp_mat2scal_mul_digits_kernel<<< blocks2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, m, A, lda, alpha, m, n);
+        //Multiplication С =  beta * B - Computing the signs, exponents, and interval evaluations
+        mp_mat2scal_mul_esi_kernel<<< dim2dGrid1, blockDim1 >>> (C, ldc, B, ldb, beta, m, n);
 
-            //Multiplication buffer = alpha * A  - Rounding the result
-            mp_vector_round<<< gridDim1, blockDim1 >>> (buffer, 1, m * n);
-        }
+        //Multiplication С =  beta * B - Multiplying the digits in the RNS
+        mp_mat2scal_mul_digits_kernel<<< dim2dGrid2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, B, ldb, beta, m, n);
 
-        //Optimized case: matrices B and C are treated as vectors
-        if(ldb == 1 && ldc == 1){
-            //Multiplication С =  beta * B - Computing the signs, exponents, and interval evaluations
-            mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (C, 1, B, 1, beta, m * n);
-
-            //Multiplication С =  beta * B - Multiplying the digits in the RNS
-            mp_vec2scal_mul_digits_kernel<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (C, 1, B, 1, beta, m * n);
-
-            //Multiplication С =  beta * B - Rounding the result
-            mp_vector_round<<< gridDim1, blockDim1 >>> (C, 1, m * n);
-        } else{
-            //Multiplication С =  beta * B - Computing the signs, exponents, and interval evaluations
-            mp_mat2scal_mul_esi_kernel<<< blocks1, blockDim1 >>> (C, ldc, B, ldb, beta, m, n);
-
-            //Multiplication С =  beta * B - Multiplying the digits in the RNS
-            mp_mat2scal_mul_digits_kernel<<< blocks2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, B, ldb, beta, m, n);
-
-            //Multiplication С =  beta * B - Rounding the result
-            mp_matrix_round<<< blocks1, blockDim1 >>> (C, ldc, m, n);
-        }
+        //Multiplication С =  beta * B - Rounding the result
+        mp_matrix_round<<< dim2dGrid1, blockDim1 >>> (C, ldc, m, n);
 
         /*
          * Addition of two matrices
          */
 
-        //Optimized case: matrix С is treated as a vector
-        if(ldc == 1){
-            //Addition of two vectors: C = C + buffer - Computing the signs, exponents, and interval evaluations
-            mp_vector_add_esi_kernel<<< gridDim1, blockDim1 >>> (C, 1, C, 1, buffer, 1, m * n);
+        //Addition of two matrices: C = C + buffer - Computing the signs, exponents, and interval evaluations
+        mp_matrix_add_esi_kernel<<< dim2dGrid1, blockDim1 >>> (C, ldc, C, ldc, buffer, m, m, n);
 
-            //Addition of two vectors: C = C + buffer - Adding the digits in the RNS
-            mp_vector_add_digits_kernel<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (C, 1, C, 1, buffer, 1, m * n);
+        //Addition of two matrices: C = C + buffer - Adding the digits in the RNS
+        mp_matrix_add_digits_kernel<<< dim2dGrid2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, C, ldc, buffer, m, m, n);
 
-            //Final rounding
-            mp_vector_round<<< gridDim1, blockDim1 >>> (C, 1, m * n);
-        } else{
-            //Addition of two matrices: C = C + buffer - Computing the signs, exponents, and interval evaluations
-            mp_matrix_add_esi_kernel<<< blocks1, blockDim1 >>> (C, ldc, C, ldc, buffer, m, m, n);
+        //Final rounding
+        mp_matrix_round<<< dim2dGrid1, blockDim1 >>> (C, ldc, m, n);
 
-            //Addition of two matrices: C = C + buffer - Adding the digits in the RNS
-            mp_matrix_add_digits_kernel<<< blocks2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, C, ldc, buffer, m, m, n);
-
-            //Final rounding
-            mp_matrix_round<<< blocks1, blockDim1 >>> (C, ldc, m, n);
-        }
     }
 
 } // namespace cuda
