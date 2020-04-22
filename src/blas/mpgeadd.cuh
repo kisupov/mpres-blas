@@ -44,8 +44,8 @@ namespace cuda
      * @tparam blockDim3x - number of blocks (x dimension) used to rounding the result
      * @tparam blockDim3y - number of blocks (y dimension) used to rounding the result
      *
-     * @param m - specifies the number of rows of the matrix A. The value of m must be at least zero.
-     * @param n - specifies the number of columns of the matrix A. The value of n must be at least zero.
+     * @param m - specifies the number of rows of the matrix A. The value of m must be greater than zero.
+     * @param n - specifies the number of columns of the matrix A. The value of n must be greater than zero.
      * @param alpha - pointer to the scalar in the global GPU memory
      * @param A - pointer to the array, size lda * n, in the global GPU memory. Before entry, the leading m-by-n part of the array must contain the matrix A.
      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).

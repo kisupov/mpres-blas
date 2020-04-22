@@ -33,62 +33,6 @@ namespace cuda
 {
 
     /*
-     * Below are the kernels for element-wise multiplication of a TRANSPOSED matrix of size m * n by a vector x of size m
-     * Each column of the matrix (of size m) is multiplied by the vector x
-     * The result (R) is an m-by-n matrix in the column-major order
-     * Both the input matrix and the result are stored in column-major, i.e. [column 1] [column 2] ... [column n]
-     * The lda value specifies the leading dimension of A.
-     * The ldr value specifies the leading dimension of R.
-     */
-
-    //Computing the signs, exponents, and interval evaluations
-    //m is the size of a matrix column and the vector x
-    //n is the number of matrix columns
-    __global__ static void trans_matvec_product_esi_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t x, const int m, const int n) {
-        int lenx = x.len[0]; //actual length of x
-        int lena = A.len[0]; //actual length of A
-        int lenr = R.len[0]; //actual length of R
-        int colId = blockIdx.y; // The column index
-        //Iterate over matrix columns
-        while (colId < n){
-            int ida = colId * lda; // The firs element of the corresponding column in the matrix A
-            int idr = colId * ldr; // The firs element of the corresponding column in the matrix R
-            int numberIdx = blockDim.x * blockIdx.x + threadIdx.x; //Index of the element of A in the colId-th column. Must be less than m
-            //We process in the stride loop all the elements of the i-th column of A
-            while (numberIdx < m) {
-                R.sign[idr + numberIdx] = A.sign[ida + numberIdx] ^ x.sign[numberIdx];
-                R.exp[idr + numberIdx] = A.exp[ida + numberIdx] + x.exp[numberIdx];
-                cuda::er_md_rd(&R.eval[idr + numberIdx], &A.eval[ida + numberIdx], &x.eval[numberIdx], &cuda::RNS_EVAL_UNIT.upp);
-                cuda::er_md_ru(&R.eval[lenr + idr + numberIdx], &A.eval[lena + ida + numberIdx], &x.eval[lenx + numberIdx], &cuda::RNS_EVAL_UNIT.low);
-                //Go to the next iteration
-                numberIdx += gridDim.x * blockDim.x;
-            }
-            //Go to the next column
-            colId += gridDim.y;
-        }
-    }
-
-    //Multiplying the digits in the RNS
-    //m is the size of a matrix column and the vector x
-    //n is the number of matrix columns
-    __global__ static void trans_matvec_product_digits_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t x, const int m, const int n) {
-        int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
-        int colId = blockIdx.y; // The column index
-        while (colId < n){
-            int index = blockIdx.x * blockDim.x + threadIdx.x;  //Index of the element of A in the i-th column. Must be less than m * RNS_MODULI_SIZE
-            //We process in the stride loop all the elements of the i-th column of A
-            while (index < m * RNS_MODULI_SIZE) {
-                R.digits[colId * ldr * RNS_MODULI_SIZE + index] = cuda::mod_mul(A.digits[colId * lda * RNS_MODULI_SIZE + index], x.digits[index], lmodul);
-                //Go to the next iteration
-                index += gridDim.x * blockDim.x;
-            }
-            //Go to the next column
-            colId += gridDim.y;
-        }
-    }
-
-
-    /*
      * Kernel that calculates the sum of all the elements in each row of an m-by-n multiple-precision matrix
      * The result (a vector of size m) is then added to the vector y
      * @param A - matrix of m rows and n columns
@@ -189,8 +133,8 @@ namespace cuda
      * @param trans - specifies the operation:
      * if trans = 'N' or 'n', then y := alpha*A*x + beta*y.
      * if trans = 'T' or 't' or 'C' or 'c' then y = alpha*A**T*x + beta*y (transposed matrix).
-     * @param m - specifies the number of rows of the matrix A. The value of m must be at least zero.
-     * @param n - specifies the number of columns of the matrix A. The value of n must be at least zero.
+     * @param m - specifies the number of rows of the matrix A. The value of m must be greater than zero.
+     * @param n - specifies the number of columns of the matrix A. The value of n must be greater than zero.
      * @param alpha - pointer to the scalar in the global GPU memory
      * @param A - pointer to the array, size lda * n, in the global GPU memory. Before entry, the leading m-by-n part of the array must contain the matrix A.
      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
@@ -239,8 +183,8 @@ namespace cuda
             //Rounding y
             mp_vector_round<<< gridDim1, blockDim1 >>> (y, incy, m);
 
-            //The following is tne element-wise multiplication of an m-by-n matrix A by a vector buffer1 (contains alpha * x) of size n.
-            //Each column of the matrix is multiplied by one element of the vector (without reduction).
+            //We consider the vector buffer1 (contains alpha * x)  as a diagonal n-by-n matrix and perform the right diagonal scaling, buffer2 = A * buffer1
+            //Each column of the matrix is multiplied by one element of the vector.
             //We run a 2D grid of 1D blocks.
             //Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the matrix.
             //The result is written to the intermediate m-by-n buffer2.
@@ -267,7 +211,7 @@ namespace cuda
             const unsigned int POW = nextPow2(blockDim3);
 
             // Call to the internal reduction kernel
-            cuda::matrix_reduction_kernel<<<m, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
+            matrix_reduction_kernel<<<m, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
 
         } else {
 
@@ -289,19 +233,19 @@ namespace cuda
             //Rounding y
             mp_vector_round<<< gridDim1, blockDim1 >>> (y, incy, n);
 
-            //The following is tne element-wise multiplication of an m-by-n transposed matrix A by a vector buffer1 (contains alpha * x) of size m.
-            //Each column of the matrix is multiplied by the vector (without reduction).
+            //We consider the vector buffer1 (contains alpha * x)  as a diagonal m-by-m matrix and perform the left diagonal scaling, buffer2 = buffer1 * A
+            //Each column of the matrix is multiplied by the vector.
             //We run a 2D grid of 1D blocks.
             //Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the matrix.
             //The result is written to the intermediate m-by-n buffer2.
 
             //Multiplication buffer2 = A^T * buffer1 - Computing the signs, exponents, and interval evaluations
             dim3 blocks1(gridDim1, n, 1);
-            cuda::trans_matvec_product_esi_kernel<<<blocks1, blockDim1>>> (buffer2, m, A, lda, buffer1, m, n);
+            mp_mat2vec_left_scal_esi_kernel<<<blocks1, blockDim1>>> (buffer2, m, A, lda, buffer1, 1, m, n);
 
             //Multiplication buffer2 = A^T * buffer1 - Multiplying the digits in the RNS
             dim3 blocks2(gridDim2, n, 1);
-            cuda::trans_matvec_product_digits_kernel<<<blocks2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, m, n);
+            mp_mat2vec_left_scal_digits_kernel<<<blocks2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, 1, m, n);
 
             //Rounding the intermediate result (buffer2)
             mp_vector_round<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
@@ -317,7 +261,7 @@ namespace cuda
             const unsigned int POW = nextPow2(blockDim3);
 
             // Call to the internal reduction kernel
-            cuda::trans_matrix_reduction_kernel<<<n, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
+            trans_matrix_reduction_kernel<<<n, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
         }
     }
 

@@ -327,7 +327,83 @@ namespace cuda {
             colId += gridDim.y;
         }
     }
+    /*!
+     * Left scaling of an m-by-n matrix by a vector of size m
+     * Each i-th column of the matrix A is multiplied by the vector x.
+     * The result is written into the matrix R of size m by n
+     * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
+     * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
+     * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the matrix.
+     * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
+     * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
+     * @param A - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
+     * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
+     * @param x - pointer to the vector in the global GPU memory, size at least (1+(m-1)*abs(incx)).
+     * @param incx - storage spacing between elements of x. The value of incx must not be zero.
+     * @param m -  specifies the number of rows of the matrices
+     * @param n - specifies the number of columns of the matrices
+     */
+    __global__ static void mp_mat2vec_left_scal_esi_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t x, const int incx, const int m, const int n) {
+        int lenx = x.len[0];
+        int lena = A.len[0];
+        int lenr = R.len[0];
+        int colId = blockIdx.y;
+        //Iterate over matrix columns
+        while (colId < n){
+            int ida = colId * lda; // The firs element of the corresponding column in the matrix A
+            int idr = colId * ldr; // The firs element of the corresponding column in the matrix R
+            int numberIdx = blockDim.x * blockIdx.x + threadIdx.x; //Index of the element of A in the colId-th column. Must be less than m
+            int ix = incx > 0 ? numberIdx * incx : (-m + numberIdx + 1)*incx;
+            //We process in the stride loop all the elements of the i-th column of A
+            while (numberIdx < m) {
+                R.sign[idr + numberIdx] = A.sign[ida + numberIdx] ^ x.sign[ix];
+                R.exp[idr + numberIdx] = A.exp[ida + numberIdx] + x.exp[ix];
+                cuda::er_md_rd(&R.eval[idr + numberIdx], &A.eval[ida + numberIdx], &x.eval[ix], &cuda::RNS_EVAL_UNIT.upp);
+                cuda::er_md_ru(&R.eval[lenr + idr + numberIdx], &A.eval[lena + ida + numberIdx], &x.eval[lenx + ix], &cuda::RNS_EVAL_UNIT.low);
+                numberIdx += gridDim.x * blockDim.x;
+                ix += gridDim.x * blockDim.x * incx;
+            }
+            //Go to the next column
+            colId += gridDim.y;
+        }
+    }
 
+    /*!
+      * Left scaling of an m-by-n matrix by a vector of size m
+      * Each i-th column of the matrix A is multiplied by the vector x.
+      * The result is written into the matrix R of size m by n
+      * Kernel #2 --- Computing the significands in the RNS (digits)
+      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
+      * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate)
+      * is associated with its own column of the matrix.
+      * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
+      * or RNS_MODULI_SIZE as declared in the calling subprogram
+      * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
+      * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
+      * @param A - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
+      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
+      * @param x - pointer to the vector in the global GPU memory, size at least (1+(m-1)*abs(incx)).
+      * @param incx - storage spacing between elements of x. The value of incx must not be zero.
+      * @param m -  specifies the number of rows of the matrices
+      * @param n - specifies the number of columns of the matrices
+      */
+    __global__ static void mp_mat2vec_left_scal_digits_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t x, const int incx, const int m, const int n) {
+        int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
+        int colId = blockIdx.y;
+        while (colId < n){
+            int index = blockIdx.x * blockDim.x + threadIdx.x;  //Index of the element of A in the i-th column. Must be less than m * RNS_MODULI_SIZE
+            int ix = incx > 0 ? (blockIdx.x * blockDim.x * incx + threadIdx.x) : ((-m + blockIdx.x + 1) * blockDim.x * incx + threadIdx.x);
+            //We process in the stride loop all the elements of the i-th column of A
+            while (index < m * RNS_MODULI_SIZE) {
+                R.digits[colId * ldr * RNS_MODULI_SIZE + index] = cuda::mod_mul(A.digits[colId * lda * RNS_MODULI_SIZE + index], x.digits[ix], lmodul);
+                //Go to the next iteration
+                index += gridDim.x * blockDim.x;
+                ix += gridDim.x * blockDim.x * incx;
+            }
+            //Go to the next column
+            colId += gridDim.y;
+        }
+    }
 
 
     /*!

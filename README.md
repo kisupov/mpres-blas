@@ -21,6 +21,7 @@ Currently the following multiple-precision functions are only supported:
 * GEMV --- Matrix-vector multiplication (`mpgemv`)
 * GER --- Rank-1 update of a general matrix (`mpger`)
 * GE_ADD --- Matrix add and scale (`mpgeadd`)
+* GE_DIAG_SCALE --- Diagonal scaling (`mpgediagscale`)
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
 Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for details.
