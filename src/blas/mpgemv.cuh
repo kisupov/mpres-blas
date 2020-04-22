@@ -25,76 +25,12 @@
 
 
 #include "../mpvector.cuh"
+#include "../mpmatrix.cuh"
 #include "../kernel_config.cuh"
 #include "../mblas_enum.cuh"
 
 namespace cuda
 {
-
-   /*
-    * Below are the kernels for element-wise multiplication of a matrix of size m * n by a vector x of size n
-    * Each column of the matrix is scaled by one element of the vector
-    * The result (R) is an m-by-n matrix in the column-major order
-    * Both the input matrix and the result are stored in column-major, i.e. [column 1] [column 2] ... [column n]
-    * The lda value specifies the leading dimension of A.
-    * The ldr value specifies the leading dimension of R.
-    */
-
-     //Computing the signs, exponents, and interval evaluations
-     //m is the size of a matrix column
-     //n is the size of x and the number of matrix columns
-    __global__ static void matvec_product_esi_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t x, const int m, const int n) {
-        int lenx = x.len[0]; //actual length of x
-        int lena = A.len[0]; //actual length of A
-        int lenr = R.len[0]; //actual length of R
-        int colId = blockIdx.y; // The column index
-         //Iterate over matrix columns / vector elements
-         while (colId < n){
-            int ida = colId * lda; // The firs element of the corresponding column in the matrix A
-            int idr = colId * ldr; // The firs element of the corresponding column in the matrix R
-            int numberIdx = blockDim.x * blockIdx.x + threadIdx.x; //Index of the element of A in the colId-th column. Must be less than m
-            //Load the corresponding vector element into the registers
-            int x_sign = x.sign[colId];
-            int x_exp = x.exp[colId];
-            er_float_t x_eval0 = x.eval[colId];
-            er_float_t x_eval1 = x.eval[colId + lenx];
-            er_float_ptr x_eval0ptr = &x_eval0;
-            er_float_ptr x_eval1ptr = &x_eval1;
-            //We process in the stride loop all the elements of the i-th column of A
-            while (numberIdx < m) {
-                R.sign[idr + numberIdx] = A.sign[ida + numberIdx] ^ x_sign;
-                R.exp[idr + numberIdx] = A.exp[ida + numberIdx] + x_exp;
-                cuda::er_md_rd(&R.eval[idr + numberIdx], &A.eval[ida + numberIdx], x_eval0ptr, &cuda::RNS_EVAL_UNIT.upp);
-                cuda::er_md_ru(&R.eval[lenr + idr + numberIdx], &A.eval[lena + ida + numberIdx], x_eval1ptr, &cuda::RNS_EVAL_UNIT.low);
-                //Go to the next iteration
-                numberIdx += gridDim.x * blockDim.x;
-            }
-            //Go to the next column
-            colId += gridDim.y;
-        }
-    }
-
-
-    //Multiplying the digits in the RNS
-    //m is the size of a matrix column
-    //n is the size of x and the number of matrix columns
-    __global__ static void matvec_product_digits_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t x, const int m, const int n) {
-        int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
-        int colId = blockIdx.y; // The column index
-        while (colId < n){
-            //Load the digit of the current vector element into the registers
-            int lx = x.digits[colId * RNS_MODULI_SIZE + threadIdx.x % RNS_MODULI_SIZE];
-            int index = blockIdx.x * blockDim.x + threadIdx.x; //Index of the element of A in the i-th column. Must be less than m * RNS_MODULI_SIZE
-            //We process in the stride loop all the elements of the i-th column of A
-            while (index < m * RNS_MODULI_SIZE) {
-                R.digits[colId * ldr * RNS_MODULI_SIZE + index] = cuda::mod_mul(A.digits[colId * lda * RNS_MODULI_SIZE + index], lx, lmodul);
-                //Go to the next iteration
-                index += gridDim.x * blockDim.x;
-            }
-            //Go to the next column
-            colId += gridDim.y;
-        }
-    }
 
     /*
      * Below are the kernels for element-wise multiplication of a TRANSPOSED matrix of size m * n by a vector x of size m
@@ -270,15 +206,12 @@ namespace cuda
     void mpgemv(enum mblas_trans_type trans, const int m, const int n, mp_array_t &alpha, mp_array_t &A, const int lda,
             mp_array_t &x, const int incx, mp_array_t &beta, mp_array_t &y, const int incy, mp_array_t &buffer1, mp_array_t &buffer2){
 
-        //Test the input parameters
-        if( (m < 0) || (n < 0) || (lda < MAX(1, m)) ){
-            return;
-        }
-        if( (incx == 0) || (incy == 0) ){
-            return;
-        }
         //Quick return if possible
-        if( (m == 0) || (n == 0) ){
+        if( (m <= 0) || (n <= 0) ){
+            return;
+        }
+        //Test the input parameters
+        if( (incx == 0) || (incy == 0) || (lda < MAX(1, m)) ){
             return;
         }
 
@@ -314,12 +247,11 @@ namespace cuda
 
             //Multiplication buffer2 = A * buffer1 - Computing the signs, exponents, and interval evaluations
             dim3 blocks1(gridDim1, n, 1);
-            cuda::matvec_product_esi_kernel<<<blocks1, blockDim1>>> (buffer2, m, A, lda, buffer1, m, n);
+            mp_mat2vec_right_scal_esi_kernel<<<blocks1, blockDim1>>> (buffer2, m, A, lda, buffer1, 1, m, n);
 
             //Multiplication buffer2 = A * buffer1 - Multiplying the digits in the RNS
-            //cuda::matvec_product_digits_kernel<<<gridDim2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, A, lda, buffer1, m, n);
             dim3 blocks2(gridDim2, n, 1);
-            cuda::matvec_product_digits_kernel<<<blocks2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, m, n);
+            mp_mat2vec_right_scal_digits_kernel<<<blocks2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, 1, m, n);
 
             //Rounding the intermediate result (buffer2)
             mp_vector_round<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);

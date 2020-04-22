@@ -59,8 +59,12 @@ namespace cuda
     template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y, int blockDim3x, int blockDim3y>
     void mpgeadd(const int m, const int n, mp_array_t &alpha, mp_array_t &A, const int lda,  mp_array_t &beta, mp_array_t &B, const int ldb, mp_array_t &C, const int ldc, mp_array_t &buffer){
 
+        //Quick return if possible
+        if( (m <= 0) || (n <= 0) ){
+            return;
+        }
         //Test the input parameters
-        if( (m <= 0) || (n <= 0) || (lda < MAX(1, m)) || (ldb < MAX(1, m)) || (ldc < MAX(1, m)) ){
+        if( (lda < MAX(1, m)) || (ldb < MAX(1, m)) || (ldc < MAX(1, m)) ){
             return;
         }
 
