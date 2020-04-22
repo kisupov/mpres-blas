@@ -46,7 +46,7 @@ namespace cuda {
      * @param buffer2 - auxiliary array of size n in the global GPU memory
      */
     template <int gridDim1, int blockDim1, int gridDim2>
-    void mprot(int n, mp_array_t &x, int incx, mp_array_t &y, int incy, mp_array_t &c, mp_array_t &s, mp_array_t &buffer1, mp_array_t &buffer2) {
+    void mprot(const int n, mp_array_t &x, const int incx, mp_array_t &y, const int incy, mp_array_t &c, mp_array_t &s, mp_array_t &buffer1, mp_array_t &buffer2) {
 
         // Only positive operation size is permitted for ROT
         if(n <= 0){

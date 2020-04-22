@@ -51,7 +51,7 @@ namespace cuda {
      * @param buffer - array of size n in the global GPU memory
      */
     template <int gridDim1, int blockDim1, int gridDim2, int gridDim3, int blockDim3>
-    void mpaxpydot(int n, mp_array_t &alpha, mp_array_t &w, int incw, mp_array_t &v, int incv, mp_array_t &u, int incu, mp_array_t &r, mp_array_t &buffer) {
+    void mpaxpydot(const int n, mp_array_t &alpha, mp_array_t &w, const int incw, mp_array_t &v, const int incv, mp_array_t &u, const int incu, mp_array_t &r, mp_array_t &buffer) {
 
         // Only positive operation size is permitted for AXPY_DOT
         if(n <= 0){

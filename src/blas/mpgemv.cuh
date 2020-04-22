@@ -26,6 +26,7 @@
 
 #include "../mpvector.cuh"
 #include "../kernel_config.cuh"
+#include "../mblas_enum.cuh"
 
 namespace cuda
 {
@@ -266,13 +267,10 @@ namespace cuda
      * @param buffer2 - auxiliary array, size m * n, in the global GPU memory for storing the intermediate matrix
      */
     template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
-    void mpgemv(const char *trans, int m, int n, mp_array_t &alpha, mp_array_t &A, int lda,
-            mp_array_t &x, int incx, mp_array_t &beta, mp_array_t &y, int incy, mp_array_t &buffer1, mp_array_t &buffer2){
+    void mpgemv(enum mblas_trans_type trans, const int m, const int n, mp_array_t &alpha, mp_array_t &A, const int lda,
+            mp_array_t &x, const int incx, mp_array_t &beta, mp_array_t &y, const int incy, mp_array_t &buffer1, mp_array_t &buffer2){
 
         //Test the input parameters
-        if( !((trans == "N") || (trans == "n") || (trans == "T") || (trans == "t") || (trans == "C") || (trans =="c"))  ){
-            return;
-        }
         if( (m < 0) || (n < 0) || (lda < MAX(1, m)) ){
             return;
         }
@@ -288,7 +286,7 @@ namespace cuda
         int numThreadsX = (incx == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
         int numThreadsY = (incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
-        if(trans == "N" || trans == "n"){
+        if(trans == mblas_no_trans){
 
             //Multiplication buffer1 = alpha * x - Computing the signs, exponents, and interval evaluations
             mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (buffer1, 1, x, incx, alpha, n);

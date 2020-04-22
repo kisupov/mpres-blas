@@ -318,7 +318,7 @@ void mpack_test(const char * trans, int m, int n, int lenx, int leny, mpfr_t alp
 /////////
 // MPRES-BLAS (structure of arrays)
 /////////
-void mpres_test(const char *trans, int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy){
+void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS gemv");
@@ -345,8 +345,7 @@ void mpres_test(const char *trans, int m, int n, int lenx, int leny, mpfr_t alph
     cuda::mp_array_init(dA, lda * n);
     cuda::mp_array_init(dalpha, 1);
     cuda::mp_array_init(dbeta, 1);
-    bool noTrans = (TRANS == "N" || TRANS == "n");
-    cuda::mp_array_init(dbuf1, noTrans ? n : m);
+    cuda::mp_array_init(dbuf1, (trans == mblas_no_trans) ? n : m);
     cuda::mp_array_init(dbuf2, m * n);
 
     // Convert from MPFR
@@ -523,7 +522,7 @@ void testNoTrans(){
     mpfr_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
     arprec_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
     mpack_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
-    mpres_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
+    mpres_test(mblas_no_trans, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
     mpres_test_straightforward(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
     garprec_gemv_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
     campary_gemv_test<CAMPARY_PRECISION>(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, INP_DIGITS, REPEAT_TEST);
@@ -575,7 +574,7 @@ void testTrans(){
     //Multiple-precision tests
     openblas_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
     mpack_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
-    mpres_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
+    mpres_test(mblas_trans, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
