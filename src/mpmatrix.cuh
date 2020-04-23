@@ -240,19 +240,11 @@ namespace cuda {
         }
     }
 
-    /********************* Matrix-vector scaling kernels *********************/
-
-    /*
- * Below are the kernels for element-wise multiplication of a matrix of size m * n by a vector x of size n
- *
- * The result (R) is an m-by-n matrix in the column-major order
- * Both the input matrix and the result are stored in column-major, i.e. [column 1] [column 2] ... [column n]
- * The lda value specifies the leading dimension of A.
- * The ldr value specifies the leading dimension of R.
- */
+    /********************* Matrix diagonal scaling kernels (multiplying a general matrix by a diagonal matrix) *********************/
 
     /*!
-     * Right scaling of an m-by-n matrix by a vector of size n
+     * Multiplication of a general m-by-n matrix A by a diagonal n-by-n matrix D on the right (R = AD)
+     * The diagonal matrix is stored as a vector x of size n
      * Each i-th column of the matrix A is multiplied by i-th element of the vector x.
      * The result is written into the matrix R of size m by n
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
@@ -298,7 +290,8 @@ namespace cuda {
     }
 
     /*!
-     * Right scaling of an m-by-n matrix by a vector of size n
+     * Multiplication of a general m-by-n matrix A by a diagonal n-by-n matrix D on the right (R = AD)
+     * The diagonal matrix is stored as a vector x of size n
      * Each i-th column of the matrix A is multiplied by i-th element of the vector x.
      * The result is written into the matrix R of size m by n
      * Kernel #2 --- Computing the significands in the RNS (digits)
@@ -327,9 +320,11 @@ namespace cuda {
             colId += gridDim.y;
         }
     }
+    
     /*!
-     * Left scaling of an m-by-n matrix by a vector of size m
-     * Each i-th column of the matrix A is multiplied by the vector x.
+     * Multiplication of a general m-by-n matrix A by a diagonal m-by-m matrix D on the left (R = DA)
+     * The diagonal matrix is stored as a vector x of size m
+     * Each i-th column of the matrix A is multiplied by the vector x
      * The result is written into the matrix R of size m by n
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
@@ -369,24 +364,25 @@ namespace cuda {
     }
 
     /*!
-      * Left scaling of an m-by-n matrix by a vector of size m
-      * Each i-th column of the matrix A is multiplied by the vector x.
-      * The result is written into the matrix R of size m by n
-      * Kernel #2 --- Computing the significands in the RNS (digits)
-      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
-      * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate)
-      * is associated with its own column of the matrix.
-      * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
-      * or RNS_MODULI_SIZE as declared in the calling subprogram
-      * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
-      * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
-      * @param A - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
-      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
-      * @param x - pointer to the vector in the global GPU memory, size at least (1+(m-1)*abs(incx)).
-      * @param incx - storage spacing between elements of x. The value of incx must not be zero.
-      * @param m -  specifies the number of rows of the matrices
-      * @param n - specifies the number of columns of the matrices
-      */
+     * Multiplication of a general m-by-n matrix A by a diagonal m-by-m matrix D on the left (R = DA)
+     * The diagonal matrix is stored as a vector x of size m
+     * Each i-th column of the matrix A is multiplied by the vector x.
+     * The result is written into the matrix R of size m by n
+     * Kernel #2 --- Computing the significands in the RNS (digits)
+     * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
+     * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate)
+     * is associated with its own column of the matrix.
+     * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
+     * or RNS_MODULI_SIZE as declared in the calling subprogram
+     * @param R - pointer to the result array, size ldr * n. After calculations, the leading m-by-n part of the array contains the matrix R
+     * @param ldr - specifies the leading dimension of R as declared in the calling (sub)program. The value of ldr must be at least max(1, m)
+     * @param A - pointer to the array, size lda * n. Before entry, the leading m-by-n part of the array must contain the matrix A.
+     * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
+     * @param x - pointer to the vector in the global GPU memory, size at least (1+(m-1)*abs(incx)).
+     * @param incx - storage spacing between elements of x. The value of incx must not be zero.
+     * @param m -  specifies the number of rows of the matrices
+     * @param n - specifies the number of columns of the matrices
+     */
     __global__ static void mp_mat2vec_left_scal_digits_kernel(mp_array_t R, int ldr, mp_array_t A, int lda, mp_array_t x, const int incx, const int m, const int n) {
         int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
         int colId = blockIdx.y;
