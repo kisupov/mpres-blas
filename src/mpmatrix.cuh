@@ -243,9 +243,8 @@ namespace cuda {
     /********************* Matrix diagonal scaling kernels (multiplying a general matrix by a diagonal matrix) *********************/
 
     /*!
-     * Multiplication of a general m-by-n matrix A by a diagonal n-by-n matrix D on the right (R = AD)
-     * The diagonal matrix is stored as a vector x of size n
-     * Each i-th column of the matrix A is multiplied by i-th element of the vector x.
+     * Multiplication of a general m-by-n matrix A by a diagonal n-by-n matrix on the right which is stored as a vector x of size n
+     * Each i-th column of the matrix A is multiplied by i-th element of the vector x
      * The result is written into the matrix R of size m by n
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
@@ -290,9 +289,8 @@ namespace cuda {
     }
 
     /*!
-     * Multiplication of a general m-by-n matrix A by a diagonal n-by-n matrix D on the right (R = AD)
-     * The diagonal matrix is stored as a vector x of size n
-     * Each i-th column of the matrix A is multiplied by i-th element of the vector x.
+     * Multiplication of a general m-by-n matrix A by a diagonal n-by-n matrix on the right which is stored as a vector x of size n
+     * Each i-th column of the matrix A is multiplied by i-th element of the vector x
      * The result is written into the matrix R of size m by n
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
@@ -322,8 +320,7 @@ namespace cuda {
     }
     
     /*!
-     * Multiplication of a general m-by-n matrix A by a diagonal m-by-m matrix D on the left (R = DA)
-     * The diagonal matrix is stored as a vector x of size m
+     * Multiplication of a general m-by-n matrix A by a diagonal m-by-m matrix on the left which is stored as a vector x of size m
      * Each i-th column of the matrix A is multiplied by the vector x
      * The result is written into the matrix R of size m by n
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
@@ -364,9 +361,8 @@ namespace cuda {
     }
 
     /*!
-     * Multiplication of a general m-by-n matrix A by a diagonal m-by-m matrix D on the left (R = DA)
-     * The diagonal matrix is stored as a vector x of size m
-     * Each i-th column of the matrix A is multiplied by the vector x.
+     * Multiplication of a general m-by-n matrix A by a diagonal m-by-m matrix on the left which is stored as a vector x of size m
+     * Each i-th column of the matrix A is multiplied by the vector x
      * The result is written into the matrix R of size m by n
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note All matrices are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
