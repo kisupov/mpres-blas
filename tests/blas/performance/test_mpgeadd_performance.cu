@@ -81,7 +81,7 @@ static void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols
 /********************* GE_ADD implementations and benchmarks *********************/
 
 /////////
-// MPFR (only for non-transposed matrix and unit strides)
+// MPFR
 /////////
 void mpfr_ge_add(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t beta, mpfr_t *B, int ldb, mpfr_t *C, int ldc){
     #pragma omp parallel shared(m, n, A, B, C)

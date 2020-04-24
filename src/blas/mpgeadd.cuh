@@ -44,8 +44,8 @@ namespace cuda
      * @tparam blockDim3x - number of blocks (x dimension) used to rounding the result
      * @tparam blockDim3y - number of blocks (y dimension) used to rounding the result
      *
-     * @param m - specifies the number of rows of the matrix A. The value of m must be at least zero.
-     * @param n - specifies the number of columns of the matrix A. The value of n must be at least zero.
+     * @param m - specifies the number of rows of the matrix A. The value of m must be greater than zero.
+     * @param n - specifies the number of columns of the matrix A. The value of n must be greater than zero.
      * @param alpha - pointer to the scalar in the global GPU memory
      * @param A - pointer to the array, size lda * n, in the global GPU memory. Before entry, the leading m-by-n part of the array must contain the matrix A.
      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
@@ -57,10 +57,14 @@ namespace cuda
      * @param buffer - auxiliary array in the global GPU memory, size at least m * n.
      */
     template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y, int blockDim3x, int blockDim3y>
-    void mpgeadd(int m, int n, mp_array_t &alpha, mp_array_t &A, int lda,  mp_array_t &beta, mp_array_t &B, int ldb, mp_array_t &C, int ldc, mp_array_t &buffer){
+    void mpgeadd(const int m, const int n, mp_array_t &alpha, mp_array_t &A, const int lda,  mp_array_t &beta, mp_array_t &B, const int ldb, mp_array_t &C, const int ldc, mp_array_t &buffer){
 
+        //Quick return if possible
+        if( (m <= 0) || (n <= 0) ){
+            return;
+        }
         //Test the input parameters
-        if( (m <= 0) || (n <= 0) || (lda < MAX(1, m)) || (ldb < MAX(1, m)) || (ldc < MAX(1, m)) ){
+        if( (lda < MAX(1, m)) || (ldb < MAX(1, m)) || (ldc < MAX(1, m)) ){
             return;
         }
 

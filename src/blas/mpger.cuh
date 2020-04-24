@@ -158,7 +158,7 @@ namespace cuda
      * @param buffer2 - auxiliary array of size m-by-n in the global GPU memory for storing the intermediate Cartesian product (alpha*x*y^T)
      */
     template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y, int blockDim3x, int blockDim3y>
-    void mpger(int m, int n, mp_array_t &alpha, mp_array_t &x, int incx, mp_array_t &y, int incy, mp_array_t &A, int lda, mp_array_t &buffer1, mp_array_t &buffer2){
+    void mpger(const int m, const int n, mp_array_t &alpha, mp_array_t &x, const int incx, mp_array_t &y, const int incy, mp_array_t &A, const int lda, mp_array_t &buffer1, mp_array_t &buffer2){
 
         //Test the input parameters
         if( (m < 0) || (n < 0) || (lda < MAX(1, m)) ){
