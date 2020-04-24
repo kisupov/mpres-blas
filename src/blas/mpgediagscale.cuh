@@ -52,7 +52,7 @@ namespace cuda
      * @param A - pointer to the array, size lda * n, in the global GPU memory. Before entry, the leading m-by-n part of the array must contain the matrix A.
      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
      */
-    template<int gridDim1, int blockDim1, int gridDim2, blockDim3x, blockDim3y>
+    template<int gridDim1, int blockDim1, int gridDim2, int blockDim3x, int blockDim3y>
     void mpgediagscale(enum mblas_side_type side, const int m, const int n, mp_array_t &D, const int incd,  mp_array_t &A, const int lda){
 
         //Quick return if possible

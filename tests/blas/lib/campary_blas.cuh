@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include "mpfr.h"
 #include "../../../src/params.h"
+#include "../../../src/mblas_enum.cuh"
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
@@ -42,7 +43,7 @@
 #define CAMPARY_REDUCTION_THREADS 32
 #define CAMPARY_VECTOR_MULTIPLY_THREADS 32
 #define CAMPARY_MATRIX_THREADS_X 32
-#define CAMPARY_MATRIX_THREADS_Y 4
+#define CAMPARY_MATRIX_THREADS_Y 8
 
 
 
@@ -280,6 +281,33 @@ __global__ void campary_ge_add_kernel(int m, int n, multi_prec<prec> * alpha, mu
     }
 }
 
+/*
+* Scales a general matrix A on the right side or by a diagonal matrix D: A = AD
+ */
+template<int prec>
+__global__ void campary_ge_diag_scale_r_kernel(int m, int n, multi_prec<prec> * D, int incd, multi_prec<prec> * A, int lda) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int indexA = row + col * lda;
+    int indexD = incd > 0 ? col * incd : (-n + col + 1)*incd;
+    if (col < n && row < m) {
+        A[indexA] = D[indexD] * A[indexA];
+    }
+}
+
+/*
+* Scales a general matrix A on the left side or by a diagonal matrix D: A = DA
+ */
+template<int prec>
+__global__ void campary_ge_diag_scale_l_kernel(int m, int n, multi_prec<prec> * D, int incd, multi_prec<prec> * A, int lda) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int indexA = row + col * lda;
+    int indexD = incd > 0 ? row * incd : (-m + row + 1)*incd;
+    if (col < n && row < m) {
+        A[indexA] = D[indexD] * A[indexA];
+    }
+}
 
 /********************* BLAS functions *********************/
 
@@ -398,6 +426,20 @@ void campary_ge_add(int m, int n, multi_prec<prec> * alpha, multi_prec<prec> * A
     dim3 dimBlock(CAMPARY_MATRIX_THREADS_X, CAMPARY_MATRIX_THREADS_Y);
     dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
     campary_ge_add_kernel <prec> <<<dimGrid, dimBlock>>>(m, n, alpha, A, lda, beta, B, ldb, C, ldc);
+}
+
+/*
+ * GE_DIAG_SCALE
+ */
+template <int prec>
+void campary_ge_diag_scale(enum mblas_side_type side, int m, int n, multi_prec<prec> * D, int incd, multi_prec<prec> * A, int lda){
+    dim3 dimBlock(CAMPARY_MATRIX_THREADS_X, CAMPARY_MATRIX_THREADS_Y);
+    dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
+    if(side == mblas_right_side){
+        campary_ge_diag_scale_r_kernel <prec> <<<dimGrid, dimBlock>>>(m, n, D, incd, A, lda);
+    } else{
+        campary_ge_diag_scale_l_kernel <prec> <<<dimGrid, dimBlock>>>(m, n, D, incd, A, lda);
+    }
 }
 
 /********************* Benchmarks *********************/
@@ -973,6 +1015,66 @@ void campary_ge_add_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t 
     cudaFree(dA);
     cudaFree(dB);
     cudaFree(dC);
+}
+
+/*
+ * GE_DIAG_SCALE test
+ */
+template<int prec>
+void campary_ge_diag_scale_test(enum  mblas_side_type side, int m, int n, int lend, mpfr_t *D, int incd, mpfr_t *A, int lda, int convert_prec, int repeats){
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CAMPARY ge_diag_scale");
+
+    //Host data
+    multi_prec<prec> *hA = new multi_prec<prec>[lda * n];
+    multi_prec<prec> *hD = new multi_prec<prec>[lend];
+
+    //GPU data
+    multi_prec<prec> *dA;
+    multi_prec<prec> *dD;
+
+    cudaMalloc(&dA, sizeof(multi_prec<prec>) * lda * n);
+    cudaMalloc(&dD, sizeof(multi_prec<prec>) * lend);
+
+    //Convert from MPFR
+    #pragma omp parallel for
+    for(int i = 0; i < lda * n; i++){
+        hA[i] = convert_to_string_sci(A[i], convert_prec).c_str();
+    }
+    #pragma omp parallel for
+    for(int i = 0; i < lend; i++){
+        hD[i] = convert_to_string_sci(D[i], convert_prec).c_str();
+    }
+    //Copying to the GPU
+    cudaMemcpy(dD, hD, sizeof(multi_prec<prec>) * lend, cudaMemcpyHostToDevice);
+
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    for(int i = 0; i < repeats; i ++){
+        cudaMemcpy(dA, hA, sizeof(multi_prec<prec>) * lda * n, cudaMemcpyHostToDevice);
+        StartCudaTimer();
+        campary_ge_diag_scale<prec>(side, m, n, dD, incd, dA, lda)
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hA, dA, sizeof(multi_prec<prec>) * lda * n, cudaMemcpyDeviceToHost);
+    for(int i = 1; i < lda * n; i++){
+        hA[0] += hA[i];
+    }
+    printResult<prec>(hA[0]);
+
+    //Cleanup
+    delete [] hA;
+    delete [] hD;
+    cudaFree(dA);
+    cudaFree(dD);
 }
 
 

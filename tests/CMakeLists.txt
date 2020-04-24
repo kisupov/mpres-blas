@@ -83,6 +83,10 @@ add_executable(test_mpgeadd_performance blas/performance/test_mpgeadd_performanc
 target_compile_options(test_mpgeadd_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpgeadd_performance gmp mpfr OpenMP::OpenMP_CXX cump)
 
+# Performance test for GE_DIAG_SCALE
+add_executable(test_mpgediagscale_performance blas/performance/test_mpgediagscale_performance.cu)
+target_compile_options(test_mpgediagscale_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpgediagscale_performance gmp mpfr OpenMP::OpenMP_CXX cump)
 
 #########################
 ## Accuracy tests for BLAS routines

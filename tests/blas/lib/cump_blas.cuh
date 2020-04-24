@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include "mpfr.h"
+#include "../../../src/mblas_enum.cuh"
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
@@ -217,6 +218,33 @@ __global__ void cump_ge_add_kernel(int m, int n, mpf_array_t alpha, mpf_array_t 
     }
 }
 
+/*
+* Scales a general matrix A on the right side or by a diagonal matrix D: A = AD
+ */
+__global__ void cump_ge_diag_scale_r_kernel(int m, int n, mpf_array_t D, int incd, mpf_array_t A, int lda) {
+    using namespace cump;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int indexA = row + col * lda;
+    int indexD = incd > 0 ? col * incd : (-n + col + 1)*incd;
+    if (col < n && row < m) {
+        mpf_mul(A[indexA], A[indexA], D[indexD]);
+    }
+}
+
+/*
+* Scales a general matrix A on the left side or by a diagonal matrix D: A = DA
+ */
+__global__ void cump_ge_diag_scale_l_kernel(int m, int n, mpf_array_t D, int incd, mpf_array_t A, int lda) {
+    using namespace cump;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int indexA = row + col * lda;
+    int indexD = incd > 0 ? row * incd : (-m + row + 1)*incd;
+    if (col < n && row < m) {
+        mpf_mul(A[indexA], A[indexA], D[indexD]);
+    }
+}
 
 
 
@@ -1014,6 +1042,80 @@ void cump_ge_add_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t bet
     cumpf_array_clear(dB);
     cumpf_array_clear(dC);
     cumpf_array_clear(dbuf);
+}
+
+/*
+ * GE_DIAG_SCALE test
+ */
+void cump_ge_diag_scale_test(enum  mblas_side_type side, int m, int n, int lend, mpfr_t *D, int incd, mpfr_t *A, int lda, int prec, int convert_prec, int repeats) {
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CUMP ge_diag_scale");
+
+    //Set precision
+    mpf_set_default_prec(prec);
+    cumpf_set_default_prec(prec);
+
+    //Execution configuration
+    dim3 dimBlock(64, 1);
+    dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
+
+    //Host data
+    mpf_t *hA = new mpf_t[lda * n];
+    mpf_t *hD = new mpf_t[lend];
+
+    //GPU data
+    cumpf_array_t dA;
+    cumpf_array_t dD;
+
+    cumpf_array_init2(dA, lda * n, prec);
+    cumpf_array_init2(dD, lend, prec);
+
+    //Convert from MPFR
+    for (int i = 0; i < lda * n; i++) {
+        mpf_init2(hA[i], prec);
+        mpf_set_str(hA[i], convert_to_string_sci(A[i], convert_prec).c_str(), 10);
+    }
+    for (int i = 0; i < lend; i++) {
+        mpf_init2(hD[i], prec);
+        mpf_set_str(hD[i], convert_to_string_sci(D[i], convert_prec).c_str(), 10);
+    }
+    //Copying to the GPU
+    cumpf_array_set_mpf(dD, hD, lend);
+    //Launch
+    if (side == mblas_right_side){
+        for (int i = 0; i < repeats; i++) {
+            cumpf_array_set_mpf(dA, hA, lda * n);
+            StartCudaTimer();
+            cump_ge_diag_scale_r_kernel <<<dimGrid, dimBlock>>> (m, n, dD, incd, dA, lda);
+            EndCudaTimer();
+        }
+    } else {
+        for (int i = 0; i < repeats; i++) {
+            cumpf_array_set_mpf(dA, hA, lda * n);StartCudaTimer();
+            cump_ge_diag_scale_l_kernel << < dimGrid, dimBlock >> > (m, n, dD, incd, dA, lda);EndCudaTimer();
+        }
+    }
+    PrintCudaTimer("took");
+
+    //Copying to the host
+    mpf_array_set_cumpf(hA, dA, lda * n);
+    for (int i = 1; i < lda * n; i++) {
+        mpf_add(hA[0], hA[i], hA[0]);
+    }
+    gmp_printf("result: %.70Ff \n", hA[0]);
+
+    //Cleanup
+    for (int i = 0; i < lda * n; i++) {
+        mpf_clear(hA[i]);
+    }
+    for (int i = 0; i < lend; i++) {
+        mpf_clear(hD[i]);
+    }
+    delete[] hA;
+    delete[] hD;
+    cumpf_array_clear(dA);
+    cumpf_array_clear(dD);
 }
 
 
