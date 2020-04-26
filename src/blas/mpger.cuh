@@ -140,8 +140,6 @@ namespace cuda
      * @tparam blockDim1y - number of threads per block (y dimension) used to compute the signs, exponents, interval evaluations
      * @tparam gridDim2x - number of blocks (x dimension) used to compute the digits of multiple-precision significands in element-wise operations
      * @tparam gridDim2y - number of blocks (y dimension) used to compute the digits of multiple-precision significands in element-wise operations
-     * @tparam blockDim3x - number of blocks (x dimension) used to rounding the result
-     * @tparam blockDim3y - number of blocks (y dimension) used to rounding the result
      *
      * @param m - specifies the number of rows of the matrix A. The value of m must be at least zero.
      * @param n - specifies the number of columns of the matrix A. The value of n must be at least zero.
@@ -157,7 +155,7 @@ namespace cuda
      * @param buffer1 - auxiliary array in the global GPU memory, size at least n.
      * @param buffer2 - auxiliary array of size m-by-n in the global GPU memory for storing the intermediate Cartesian product (alpha*x*y^T)
      */
-    template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y, int blockDim3x, int blockDim3y>
+    template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y>
     void mpger(const int m, const int n, mp_array_t &alpha, mp_array_t &x, const int incx, mp_array_t &y, const int incy, mp_array_t &A, const int lda, mp_array_t &buffer1, mp_array_t &buffer2){
 
         //Test the input parameters
@@ -180,8 +178,8 @@ namespace cuda
         dim3 grid2(gridDim2x, gridDim2y);
         int numThreadsX = (incx == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
         int numThreadsY = (incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
-        //  To rounding the result
-        dim3 block3(blockDim3x, blockDim3y);
+        //  To rounding the result (we do not currently parameterize rounding)
+        dim3 block3(16, 16);
         dim3 grid3((m + block3.x - 1) / block3.x, (n + block3.y - 1) / block3.y);
 
         //Multiplication buffer1 = alpha * y - Computing the signs, exponents, and interval evaluations
@@ -191,7 +189,7 @@ namespace cuda
         mp_vec2scal_mul_digits_kernel<<< gridDim2x, numThreadsY >>> (buffer1, 1, y, incy, alpha, n);
 
         //Rounding the intermediate result (buffer1)
-        mp_vector_round<<< (n + blockDim3x - 1) / blockDim3x, blockDim3x >>> (buffer1, 1, n);
+        mp_vector_round<<< (n + 32 - 1) / 32, 32 >>> (buffer1, 1, n);
 
         //Calculation of the Cartesian product: buffer2 = x * buffer1^T - Computing the signs, exponents, and interval evaluations
         //The result is written to the intermediate buffer2, size m * n
@@ -202,7 +200,7 @@ namespace cuda
         cartesian_product_digits_kernel<<<grid2, numThreadsX>>> (buffer2, x, incx, buffer1, m, n);
 
         //Rounding the intermediate result (buffer2)
-        mp_vector_round<<< (n + blockDim3x - 1) / blockDim3x, blockDim3x >>>(buffer2, 1, m * n);
+        mp_vector_round<<< (n + 32 - 1) / 32, 32 >>>(buffer2, 1, m * n);
 
         /*
          * Addition of two matrices

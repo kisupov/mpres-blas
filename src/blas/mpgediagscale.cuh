@@ -36,12 +36,10 @@ namespace cuda
      * A = DA (left scaling) or A = AD (right scaling) with D diagonal
      * The matrix A should be stored in column-major order.
      * The matrix D should be stored as a vector.
-
-     * @tparam gridDim1 - number of blocks (x dimension) used to compute the signs, exponents, interval evaluations
+     *
+     * @tparam gridDim1 - number of blocks used to compute the signs, exponents, interval evaluations. A 2D grid of gridDim1 x gridDim1 blocks will be launched
      * @tparam blockDim1 - number of threads per block used to compute the signs, exponents, interval evaluations
-     * @tparam gridDim2 - number of blocks (x dimension) used to compute the digits of multiple-precision significands
-     * @tparam blockDim3x - number of blocks (x dimension) used to rounding the result
-     * @tparam blockDim3y - number of blocks (y dimension) used to rounding the result
+     * @tparam gridDim2 - number of blocks used to compute the digits of multiple-precision significands. A 2D grid of gridDim2 x gridDim2 blocks will be launched
      *
      * @param side - specifies the type of operation to be performed
      * @param m - specifies the number of rows of the matrix A. The value of m must be greater than zero.
@@ -52,7 +50,7 @@ namespace cuda
      * @param A - pointer to the array, size lda * n, in the global GPU memory. Before entry, the leading m-by-n part of the array must contain the matrix A.
      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
      */
-    template<int gridDim1, int blockDim1, int gridDim2, int blockDim3x, int blockDim3y>
+    template<int gridDim1, int blockDim1, int gridDim2>
     void mpgediagscale(enum mblas_side_type side, const int m, const int n, mp_array_t &D, const int incd,  mp_array_t &A, const int lda){
 
         //Quick return if possible
@@ -66,12 +64,12 @@ namespace cuda
 
         //Execution configuration
         //  To compute the signs, exponents, and interval evaluations
-        dim3 grid1(gridDim1, n);
+        dim3 grid1(gridDim1, gridDim1);
         //  To compute the digits in RNS
-        dim3 grid2(gridDim2, n);
+        dim3 grid2(gridDim2, gridDim2);
         int numThreads = (incd == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
-        //  To rounding the result
-        dim3 block3(blockDim3x, blockDim3y);
+        //  To rounding the result (we do not currently parameterize rounding)
+        dim3 block3(16, 16);
         dim3 grid3((m + block3.x - 1) / block3.x, (n + block3.y - 1) / block3.y);
 
         if(side == mblas_right_side) { //A = AD

@@ -27,8 +27,8 @@
 #include "3rdparty.cuh"
 
 
-#define M 100  // Number of matrix rows and the vector Y dimension
-#define N 100 // Number of matrix columns and the vector X dimension
+#define M 300  // Number of matrix rows and the vector Y dimension
+#define N 300 // Number of matrix columns and the vector X dimension
 #define LDA (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
 #define TRANS "N" // Specifies the operation: if trans = 'N' or 'n', then y := alpha*A*x + beta*y; if trans = 'T' or 't' or 'C' or 'c' then y = alpha*A**T*x + beta*y (transposed matrix).
 #define INCX 1 // Specifies the increment for the elements of x.

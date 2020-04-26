@@ -41,13 +41,10 @@
 #define SIDE "R" // specifies the type of operation to be performed
 
 
-//Execution configuration for mpger
-
-#define MPRES_GRID_SIZE_X_ESI 256
+//Execution configuration for mpres
+#define MPRES_GRID_SIZE_X_ESI 128
 #define MPRES_BLOCK_SIZE_ESI 128
-#define MPRES_GRID_SIZE_DIGITS 256
-#define MPRES_BLOCK_SIZE_X_ROUND 256
-#define MPRES_BLOCK_SIZE_Y_ROUND 1
+#define MPRES_GRID_SIZE_DIGITS 128
 
 int MP_PRECISION_DEC; //in decimal digits
 int INP_BITS; //in bits
@@ -188,9 +185,7 @@ void mpres_test(int m, int n, mpfr_t *D, int incd, mpfr_t *A, int lda, int lend)
                 cuda::mpgediagscale<
                         MPRES_GRID_SIZE_X_ESI,
                         MPRES_BLOCK_SIZE_ESI,
-                        MPRES_GRID_SIZE_DIGITS,
-                        MPRES_BLOCK_SIZE_X_ROUND,
-                        MPRES_BLOCK_SIZE_Y_ROUND>
+                        MPRES_GRID_SIZE_DIGITS>
                 ( ((SIDE == "R") ? mblas_right_side : mblas_left_side), m, n, dD, incd, dA, lda);
         EndCudaTimer();
     }
@@ -259,8 +254,6 @@ int main(){
     Logger::printParam("MPRES_GRID_SIZE_X_ESI", MPRES_GRID_SIZE_X_ESI);
     Logger::printParam("MPRES_BLOCK_SIZE_ESI", MPRES_BLOCK_SIZE_ESI);
     Logger::printParam("MPRES_GRID_SIZE_DIGITS", MPRES_GRID_SIZE_DIGITS);
-    Logger::printParam("MPRES_BLOCK_SIZE_X_ROUND", MPRES_BLOCK_SIZE_X_ROUND);
-    Logger::printParam("MPRES_BLOCK_SIZE_Y_ROUND", MPRES_BLOCK_SIZE_Y_ROUND);
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
 

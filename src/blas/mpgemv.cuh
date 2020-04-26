@@ -125,9 +125,9 @@ namespace cuda
      * where alpha and beta are scalars, x and y are vectors and A is an m-by-n matrix.
      * The matrix should be stored in column-major order.
 
-     * @tparam gridDim1 - number of blocks (x dimension) used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise scalar-vector and matrix-vector operations
+     * @tparam gridDim1 - number of blocks used to compute the signs, exponents, interval evaluations in element-wise scalar-vector and matrix-vector operations. A 2D grid of gridDim1 x gridDim1 blocks will be launched
      * @tparam blockDim1 - number of threads per block used to compute the signs, exponents, interval evaluations, and also to round the result in element-wise scalar-vector and matrix-vector operations
-     * @tparam gridDim2 - number of blocks (x dimension) used to compute the digits of multiple-precision significands in element-wise scalar-vector and matrix-vector operations
+     * @tparam gridDim2 - number of blocks  used to compute the digits of multiple-precision significands in element-wise scalar-vector and matrix-vector operations.  A 2D grid of gridDim2 x gridDim2 blocks will be launched
      * @tparam blockDim3 - number of threads per block for parallel summation (the number of blocks is equal to the size of y)
      *
      * @param trans - specifies the operation:
@@ -159,7 +159,12 @@ namespace cuda
             return;
         }
 
-        // Setting the number of threads per block for computing residues
+        //Execution configuration
+        //  To compute the signs, exponents, and interval evaluations
+        dim3 grid1(gridDim1, gridDim1);
+        //  To compute the digits in RNS
+        dim3 grid2(gridDim2, gridDim2);
+        //  To compute digits (residues) in the vector operations
         int numThreadsX = (incx == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
         int numThreadsY = (incy == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
 
@@ -190,12 +195,10 @@ namespace cuda
             //The result is written to the intermediate m-by-n buffer2.
 
             //Multiplication buffer2 = A * buffer1 - Computing the signs, exponents, and interval evaluations
-            dim3 blocks1(gridDim1, n, 1);
-            mp_mat2vec_right_scal_esi_kernel<<<blocks1, blockDim1>>> (buffer2, m, A, lda, buffer1, 1, m, n);
+            mp_mat2vec_right_scal_esi_kernel<<<grid1, blockDim1>>> (buffer2, m, A, lda, buffer1, 1, m, n);
 
             //Multiplication buffer2 = A * buffer1 - Multiplying the digits in the RNS
-            dim3 blocks2(gridDim2, n, 1);
-            mp_mat2vec_right_scal_digits_kernel<<<blocks2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, 1, m, n);
+            mp_mat2vec_right_scal_digits_kernel<<<grid2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, 1, m, n);
 
             //Rounding the intermediate result (buffer2)
             mp_vector_round<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
@@ -240,12 +243,10 @@ namespace cuda
             //The result is written to the intermediate m-by-n buffer2.
 
             //Multiplication buffer2 = A^T * buffer1 - Computing the signs, exponents, and interval evaluations
-            dim3 blocks1(gridDim1, n, 1);
-            mp_mat2vec_left_scal_esi_kernel<<<blocks1, blockDim1>>> (buffer2, m, A, lda, buffer1, 1, m, n);
+            mp_mat2vec_left_scal_esi_kernel<<<grid1, blockDim1>>> (buffer2, m, A, lda, buffer1, 1, m, n);
 
             //Multiplication buffer2 = A^T * buffer1 - Multiplying the digits in the RNS
-            dim3 blocks2(gridDim2, n, 1);
-            mp_mat2vec_left_scal_digits_kernel<<<blocks2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, 1, m, n);
+            mp_mat2vec_left_scal_digits_kernel<<<grid2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, 1, m, n);
 
             //Rounding the intermediate result (buffer2)
             mp_vector_round<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
