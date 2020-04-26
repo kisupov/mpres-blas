@@ -33,8 +33,8 @@
 #include "../../../src/blas/mpger.cuh"
 #include "3rdparty.cuh"
 
-#define M 100  // Number of matrix rows and the vector X dimension
-#define N 100  // Number of matrix columns and the vector Y dimension
+#define M 500  // Number of matrix rows and the vector X dimension
+#define N 500  // Number of matrix columns and the vector Y dimension
 #define LDA (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
 #define INCX 1 // Specifies the increment for the elements of x.
 #define INCY 1 // Specifies the increment for the elements of y.
@@ -43,8 +43,6 @@
 //Execution configuration for mpger
 #define MPRES_BLOCK_SIZE_X_ESI 32
 #define MPRES_BLOCK_SIZE_Y_ESI 1
-#define MPRES_BLOCK_SIZE_X_ROUND 32
-#define MPRES_BLOCK_SIZE_Y_ROUND 1
 #define MPRES_GRID_SIZE_X_DIGITS 128
 #define MPRES_GRID_SIZE_Y_DIGITS 64
 
@@ -239,9 +237,7 @@ void mpres_test(int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int l
                 MPRES_BLOCK_SIZE_X_ESI,
                 MPRES_BLOCK_SIZE_Y_ESI,
                 MPRES_GRID_SIZE_X_DIGITS,
-                MPRES_GRID_SIZE_Y_DIGITS,
-                MPRES_BLOCK_SIZE_X_ROUND,
-                MPRES_BLOCK_SIZE_Y_ROUND>
+                MPRES_GRID_SIZE_Y_DIGITS>
                 (m, n, dalpha, dx, incx,dy, incy, dA, lda, dbuf1, dbuf2);
         EndCudaTimer();
     }
@@ -332,8 +328,6 @@ int main(){
     Logger::printParam("MPRES_BLOCK_SIZE_Y_ESI", MPRES_BLOCK_SIZE_Y_ESI);
     Logger::printParam("MPRES_GRID_SIZE_X_DIGITS", MPRES_GRID_SIZE_X_DIGITS);
     Logger::printParam("MPRES_GRID_SIZE_Y_DIGITS", MPRES_GRID_SIZE_Y_DIGITS);
-    Logger::printParam("MPRES_BLOCK_SIZE_X_ROUND", MPRES_BLOCK_SIZE_X_ROUND);
-    Logger::printParam("MPRES_BLOCK_SIZE_Y_ROUND", MPRES_BLOCK_SIZE_Y_ROUND);
     Logger::endSection(true);
 
     //Run the test
