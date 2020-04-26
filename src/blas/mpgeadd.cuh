@@ -41,8 +41,6 @@ namespace cuda
      * @tparam blockDim1y - number of threads per block (y dimension) used to compute the signs, exponents, interval evaluations
      * @tparam gridDim2x - number of blocks (x dimension) used to compute the digits of multiple-precision significands in element-wise operations
      * @tparam gridDim2y - number of blocks (y dimension) used to compute the digits of multiple-precision significands in element-wise operations
-     * @tparam blockDim3x - number of blocks (x dimension) used to rounding the result
-     * @tparam blockDim3y - number of blocks (y dimension) used to rounding the result
      *
      * @param m - specifies the number of rows of the matrix A. The value of m must be greater than zero.
      * @param n - specifies the number of columns of the matrix A. The value of n must be greater than zero.
@@ -56,7 +54,7 @@ namespace cuda
      * @param ldc - specifies the leading dimension of C as declared in the calling (sub)program. The value of ldc must be at least max(1, m).
      * @param buffer - auxiliary array in the global GPU memory, size at least m * n.
      */
-    template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y, int blockDim3x, int blockDim3y>
+    template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y>
     void mpgeadd(const int m, const int n, mp_array_t &alpha, mp_array_t &A, const int lda,  mp_array_t &beta, mp_array_t &B, const int ldb, mp_array_t &C, const int ldc, mp_array_t &buffer){
 
         //Quick return if possible
@@ -74,8 +72,8 @@ namespace cuda
         dim3 grid1((m + block1.x - 1) / block1.x, (n + block1.y - 1) / block1.y);
         //  To compute the digits in RNS
         dim3 grid2(gridDim2x, gridDim2y);
-        //  To rounding the result
-        dim3 block3(blockDim3x, blockDim3y);
+        //  To rounding the result (we do not currently parameterize rounding)
+        dim3 block3(16, 16);
         dim3 grid3((m + block3.x - 1) / block3.x, (n + block3.y - 1) / block3.y);
 
         /*
