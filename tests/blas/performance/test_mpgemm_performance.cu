@@ -178,7 +178,6 @@ void mpack_test(const char *transA, const char *transB, const int m, const int n
     delete [] lC;
 }
 
-
 /////////
 // MPRES-BLAS
 /////////
@@ -186,6 +185,144 @@ void mpres_test_notrans(const int m, const int n, const int k, mpfr_t alpha, mpf
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS gemm");
+
+    // Host data
+    mp_float_ptr hA = new mp_float_t[lda * k];
+    mp_float_ptr hB = new mp_float_t[ldb * n];
+    mp_float_ptr hC = new mp_float_t[ldc * n];
+    mp_float_t halpha;
+    mp_float_t hbeta;
+
+    //GPU data
+    mp_array_t dA;
+    mp_array_t dB;
+    mp_array_t dC;
+    mp_array_t dalpha;
+    mp_array_t dbeta;
+    mp_array_t dbuffer;
+
+    //Init data
+    cuda::mp_array_init(dA, lda * k);
+    cuda::mp_array_init(dB, ldb * n);
+    cuda::mp_array_init(dC, ldc * n);
+    cuda::mp_array_init(dalpha, 1);
+    cuda::mp_array_init(dbeta, 1);
+    cuda::mp_array_init(dbuffer, m * n);
+
+    // Convert from MPFR
+    convert_matrix(hA, A, lda, k);
+    convert_matrix(hB, B, ldb, n);
+    convert_matrix(hC, C, ldc, n);
+    mp_set_mpfr(&halpha, alpha);
+    mp_set_mpfr(&hbeta, beta);
+
+    //Copying to the GPU
+    cuda::mp_array_host2device(dA, hA, lda * k);
+    cuda::mp_array_host2device(dB, hB, ldb * n);
+    cuda::mp_array_host2device(dalpha, &halpha, 1);
+    cuda::mp_array_host2device(dbeta, &hbeta, 1);
+
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+    //Launch
+    for (int i = 0; i < REPEAT_TEST; i++) {
+        cuda::mp_array_host2device(dC, hC, ldc * n);
+        StartCudaTimer();
+        cuda::mpgemm<
+                MPRES_BLOCK_SIZE_X_ESI,
+                MPRES_BLOCK_SIZE_Y_ESI,
+                MPRES_GRID_SIZE_X_DIGITS,
+                MPRES_GRID_SIZE_Y_DIGITS,
+                MPRES_BLOCK_SIZE_MATRIX_MULT>
+                (mblas_no_trans, mblas_no_trans, m, n, k, dalpha, dA, lda, dB, ldb, dbeta, dC, ldc, dbuffer);
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cuda::mp_array_device2host(hC, dC, ldc * n);
+    print_mp_sum(hC, ldc * n);
+
+    //Cleanup
+    delete [] hA;
+    delete [] hB;
+    delete [] hC;
+    cuda::mp_array_clear(dA);
+    cuda::mp_array_clear(dB);
+    cuda::mp_array_clear(dC);
+    cuda::mp_array_clear(dalpha);
+    cuda::mp_array_clear(dbeta);
+    cuda::mp_array_clear(dbuffer);
+}
+
+
+/////////
+// MPRES-BLAS (straightforward implementation)
+// Only for non-transposed matrices
+/////////
+__global__ void mpgemm_straightforward_kernel(const unsigned int m, const unsigned int n, const unsigned int k, mp_array_t alpha, mp_array_t A, const int lda, mp_array_t B, const int ldb, mp_array_t C, const int ldc) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int indexC = row + col * ldc;
+    if(col < n && row < m){
+        mp_float_t mul = cuda::MP_ZERO;
+        mp_float_t sum = cuda::MP_ZERO;
+        for(int i = 0; i < k; i++){
+            // if(col == 0 && row == 0)
+            // cuda::mp_mul(&mul, B, (col * ldb + i), B, (col * ldb + i));
+            cuda::mp_mul(&mul, A, (lda * i + row), B, (col * ldb + i) );
+            cuda::mp_mul(&mul, alpha, 0, &mul);
+            cuda::mp_add(&sum, &sum, &mul);
+        }
+        cuda::mp_add(C, indexC, C, indexC, &sum);
+    }
+}
+
+template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y, int blockDim3>
+void mpgemm_straightforward(const int m, const int n, const int k, mp_array_t &alpha, mp_array_t &A, const int lda, mp_array_t &B, const int ldb, mp_array_t &beta, mp_array_t &C, const int ldc){
+
+    //Quick return if possible
+    if( (m <= 0) || (n <= 0) || (k <= 0) ){
+        return;
+    }
+
+    //Test the input parameters
+    if( lda < MAX(1, m) || (ldb < MAX(1, k)) || (ldc < MAX(1, m)) ){
+        return;
+    }
+
+    //Execution configuration for C = beta * C
+    dim3 block1(blockDim1x, blockDim1y);
+    dim3 grid1((m + block1.x - 1) / block1.x, (n + block1.y - 1) / block1.y);
+    //  To compute the digits in RNS
+    dim3 grid2(gridDim2x, gridDim2y);
+    //  To rounding the result (we do not currently parameterize rounding)
+    dim3 block3(16, 16);
+    dim3 grid3((m + block3.x - 1) / block3.x, (n + block3.y - 1) / block3.y);
+
+    //Multiplication C = beta * C - Computing the signs, exponents, and interval evaluations
+    cuda::mp_mat2scal_mul_esi_kernel<<< grid1, block1 >>> (C, ldc, C, ldc, beta, m, n);
+
+    //Multiplication C = beta * C - Multiplying the digits in the RNS
+    cuda::mp_mat2scal_mul_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, C, ldc, beta, m, n);
+
+    //Multiplication C = beta * C  - Rounding the result
+    cuda::mp_matrix_round<<< grid3, block3 >>> (C, ldc, m, n);
+
+    //Execution configuration for C = alpha * A * B + C
+    dim3 block(blockDim3, blockDim3);
+
+    //C = alpha * A * B + C
+    dim3 grid((n + blockDim3 - 1) / blockDim3, (m + blockDim3 - 1) / blockDim3);
+    mpgemm_straightforward_kernel<<< grid, block >>> (m, n, k, alpha, A, lda, B, ldb, C, ldc);
+}
+
+void mpres_test_straightforward(const int m, const int n, const int k, mpfr_t alpha, mpfr_t *A, const int lda, mpfr_t *B, const int ldb, mpfr_t beta, mpfr_t *C, const int ldc){
+    InitCudaTimer();
+    Logger::printDash();
+    PrintTimerName("[GPU] MPRES-BLAS gemm straightforward");
 
     // Host data
     mp_float_ptr hA = new mp_float_t[lda * k];
@@ -227,13 +364,13 @@ void mpres_test_notrans(const int m, const int n, const int k, mpfr_t alpha, mpf
     for (int i = 0; i < REPEAT_TEST; i++) {
         cuda::mp_array_host2device(dC, hC, ldc * n);
         StartCudaTimer();
-        cuda::mpgemm<
+        mpgemm_straightforward<
                 MPRES_BLOCK_SIZE_X_ESI,
                 MPRES_BLOCK_SIZE_Y_ESI,
                 MPRES_GRID_SIZE_X_DIGITS,
                 MPRES_GRID_SIZE_Y_DIGITS,
                 MPRES_BLOCK_SIZE_MATRIX_MULT>
-                (mblas_no_trans, mblas_no_trans, m, n, k, dalpha, dA, lda, dB, ldb, dbeta, dC, ldc);
+                (m, n, k, dalpha, dA, lda, dB, ldb, dbeta, dC, ldc);
         EndCudaTimer();
     }
     PrintCudaTimer("took");
@@ -277,6 +414,7 @@ void testNoTrans(){
     openblas_test(CblasNoTrans, CblasNoTrans, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
     mpack_test(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
     mpres_test_notrans(M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
+    mpres_test_straightforward(M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
    //campary_gemm_test<CAMPARY_PRECISION>(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, INP_DIGITS, REPEAT_TEST);
    //cump_gemm_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
