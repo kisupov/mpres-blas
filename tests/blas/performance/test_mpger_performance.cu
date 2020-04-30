@@ -118,9 +118,9 @@ void openblas_test(int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, in
     }
 
     //Launch
-    for(int i = 0; i < REPEAT_TEST; i ++){
-        for (int i = 0; i < lda * n; ++i) {
-            dr[i] = dA[i];
+    for(int i = 0; i < REPEAT_TEST; i++){
+        for (int j = 0; j < lda * n; j++) {
+            dr[j] = dA[j];
         }
         StartCpuTimer();
         cblas_dger(CblasColMajor, m, n, dalpha, dx, incx, dy, incy, dr, lda);
