@@ -27,7 +27,7 @@
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
-#include "../../../src/blas/mpgemv.cuh"
+#include "../../../src/blas/mpgemm.cuh"
 #include "3rdparty.cuh"
 
 
@@ -35,17 +35,18 @@
 #define N 100  // Specifies the number of columns of the matrix op(B) and the number of columns of the matrix C.
 #define K 100  // Specifies the number of columns of the matrix op(A) and the number of rows of the matrix op(B).
 #define LDA (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
-#define LDB (K) // Specifies the leading dimension of A as declared in the calling (sub)program.
-#define LDC (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
+#define LDB (K) // Specifies the leading dimension of B as declared in the calling (sub)program.
+#define LDC (M) // Specifies the leading dimension of C as declared in the calling (sub)program.
 #define TRANSA "N" // Specifies the form of op(A) used in the matrix multiplication
 #define TRANSB "N" // Specifies the form of op(B) used in the matrix multiplication
 #define REPEAT_TEST 1 //Number of repeats
 
-//Execution configuration for mpgemv
-#define MPRES_CUDA_BLOCKS_FIELDS_ROUND 256
-#define MPRES_CUDA_THREADS_FIELDS_ROUND 128
-#define MPRES_CUDA_BLOCKS_RESIDUES 256
-#define MPRES_CUDA_THREADS_REDUCE 32
+//Execution configuration for mpgemm
+#define MPRES_BLOCK_SIZE_X_ESI 32
+#define MPRES_BLOCK_SIZE_Y_ESI 1
+#define MPRES_GRID_SIZE_X_DIGITS 128
+#define MPRES_GRID_SIZE_Y_DIGITS 64
+#define MPRES_BLOCK_SIZE_MATRIX_MULT 16
 
 #define OPENBLAS_THREADS 4
 
@@ -69,12 +70,6 @@ static void initialize(){
 }
 
 static void finalize(){
-}
-
-static void convert_vector(mp_float_ptr dest, mpfr_t *source, int width){
-    for( int i = 0; i < width; i++ ){
-        mp_set_mpfr(&dest[i], source[i]);
-    }
 }
 
 static void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
@@ -187,46 +182,42 @@ void mpack_test(const char *transA, const char *transB, const int m, const int n
 /////////
 // MPRES-BLAS
 /////////
-void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy){
+void mpres_test_notrans(const int m, const int n, const int k, mpfr_t alpha, mpfr_t *A, const int lda, mpfr_t *B, const int ldb, mpfr_t beta, mpfr_t *C, const int ldc){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS gemv");
+    PrintTimerName("[GPU] MPRES-BLAS gemm");
 
     // Host data
-    mp_float_ptr hx = new mp_float_t[lenx];
-    mp_float_ptr hy = new mp_float_t[leny];
-    mp_float_ptr hA = new mp_float_t[lda * n];
+    mp_float_ptr hA = new mp_float_t[lda * k];
+    mp_float_ptr hB = new mp_float_t[ldb * n];
+    mp_float_ptr hC = new mp_float_t[ldc * n];
     mp_float_t halpha;
     mp_float_t hbeta;
 
     //GPU data
-    mp_array_t dx;
-    mp_array_t dy;
     mp_array_t dA;
+    mp_array_t dB;
+    mp_array_t dC;
     mp_array_t dalpha;
     mp_array_t dbeta;
-    mp_array_t dbuf1;
-    mp_array_t dbuf2;
 
     //Init data
-    cuda::mp_array_init(dx, lenx);
-    cuda::mp_array_init(dy, leny);
-    cuda::mp_array_init(dA, lda * n);
+    cuda::mp_array_init(dA, lda * k);
+    cuda::mp_array_init(dB, ldb * n);
+    cuda::mp_array_init(dC, ldc * n);
     cuda::mp_array_init(dalpha, 1);
     cuda::mp_array_init(dbeta, 1);
-    cuda::mp_array_init(dbuf1, (trans == mblas_no_trans) ? n : m);
-    cuda::mp_array_init(dbuf2, m * n);
 
     // Convert from MPFR
-    convert_vector(hx, x, lenx);
-    convert_vector(hy, y, leny);
-    convert_matrix(hA, A, lda, n);
+    convert_matrix(hA, A, lda, k);
+    convert_matrix(hB, B, ldb, n);
+    convert_matrix(hC, C, ldc, n);
     mp_set_mpfr(&halpha, alpha);
     mp_set_mpfr(&hbeta, beta);
 
     //Copying to the GPU
-    cuda::mp_array_host2device(dx, hx, lenx);
-    cuda::mp_array_host2device(dA, hA, lda * n);
+    cuda::mp_array_host2device(dA, hA, lda * k);
+    cuda::mp_array_host2device(dB, hB, ldb * n);
     cuda::mp_array_host2device(dalpha, &halpha, 1);
     cuda::mp_array_host2device(dbeta, &hbeta, 1);
 
@@ -234,15 +225,15 @@ void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, m
     cudaCheckErrors();
     //Launch
     for (int i = 0; i < REPEAT_TEST; i++) {
-        cuda::mp_array_host2device(dy, hy, leny);
+        cuda::mp_array_host2device(dC, hC, ldc * n);
         StartCudaTimer();
-
-        cuda::mpgemv<
-                MPRES_CUDA_BLOCKS_FIELDS_ROUND,
-                MPRES_CUDA_THREADS_FIELDS_ROUND,
-                MPRES_CUDA_BLOCKS_RESIDUES,
-                MPRES_CUDA_THREADS_REDUCE>
-                (trans, m, n, dalpha, dA, lda, dx, incx, dbeta, dy, incy, dbuf1, dbuf2);
+        cuda::mpgemm<
+                MPRES_BLOCK_SIZE_X_ESI,
+                MPRES_BLOCK_SIZE_Y_ESI,
+                MPRES_GRID_SIZE_X_DIGITS,
+                MPRES_GRID_SIZE_Y_DIGITS,
+                MPRES_BLOCK_SIZE_MATRIX_MULT>
+                (mblas_no_trans, mblas_no_trans, m, n, k, dalpha, dA, lda, dB, ldb, dbeta, dC, ldc);
         EndCudaTimer();
     }
     PrintCudaTimer("took");
@@ -250,20 +241,18 @@ void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, m
     cudaCheckErrors();
 
     //Copying to the host
-    cuda::mp_array_device2host(hy, dy, leny);
-    print_mp_sum(hy, leny);
+    cuda::mp_array_device2host(hC, dC, ldc * n);
+    print_mp_sum(hC, ldc * n);
 
     //Cleanup
-    delete [] hx;
-    delete [] hy;
     delete [] hA;
-    cuda::mp_array_clear(dx);
-    cuda::mp_array_clear(dy);
+    delete [] hB;
+    delete [] hC;
     cuda::mp_array_clear(dA);
+    cuda::mp_array_clear(dB);
+    cuda::mp_array_clear(dC);
     cuda::mp_array_clear(dalpha);
     cuda::mp_array_clear(dbeta);
-    cuda::mp_array_clear(dbuf1);
-    cuda::mp_array_clear(dbuf2);
 }
 
 
@@ -271,10 +260,10 @@ void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, m
 /********************* Main test *********************/
 
 /*
- * Test for non-transposed matrix
- * x is of size n
- * y is of size m
- * a is of size lda * n, where the value of lda must be at least max(1, m).
+ * Test for non-transposed matrices
+ * A is of size lda * л, where the value of lda must be at least max(1, m).
+ * B is of size ldb * n, where the value of ldb must be at least max(1, k).
+ * C is of size ldc * n, where the value of lda must be at least max(1, m).
  */
 void testNoTrans(){
 
@@ -287,9 +276,9 @@ void testNoTrans(){
 
     openblas_test(CblasNoTrans, CblasNoTrans, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
     mpack_test(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
-   // mpres_test(mblas_no_trans, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
- //   campary_gemv_test<CAMPARY_PRECISION>(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, INP_DIGITS, REPEAT_TEST);
- //   cump_gemv_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
+    mpres_test_notrans(M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
+   //campary_gemm_test<CAMPARY_PRECISION>(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, INP_DIGITS, REPEAT_TEST);
+   //cump_gemm_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
@@ -333,11 +322,13 @@ int main(){
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-/*    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
-    Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
-    Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);*/
+    Logger::printParam("MPRES_BLOCK_SIZE_X_ESI", MPRES_BLOCK_SIZE_X_ESI);
+    Logger::printParam("MPRES_BLOCK_SIZE_Y_ESI", MPRES_BLOCK_SIZE_Y_ESI);
+    Logger::printParam("MPRES_GRID_SIZE_X_DIGITS", MPRES_GRID_SIZE_X_DIGITS);
+    Logger::printParam("MPRES_GRID_SIZE_X_DIGITS", MPRES_GRID_SIZE_X_DIGITS);
+    Logger::printParam("MPRES_GRID_SIZE_Y_DIGITS", MPRES_GRID_SIZE_Y_DIGITS);
+    Logger::printParam("MPRES_BLOCK_SIZE_MATRIX_MULT", MPRES_BLOCK_SIZE_MATRIX_MULT);
+    /* Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION); */
     Logger::endSection(true);
 
     //Run the test

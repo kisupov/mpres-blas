@@ -40,7 +40,7 @@ namespace cuda
      * @param incy - storage spacing between elements of y
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
-    __global__ void matrix_reduction_kernel(const unsigned int m, const unsigned int n, mp_array_t A, mp_array_t y, int incy, const unsigned int nextPow2) {
+    __global__ static void matrix_reduction_kernel(const unsigned int m, const unsigned int n, mp_array_t A, mp_array_t y, int incy, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
 
         // parameters
