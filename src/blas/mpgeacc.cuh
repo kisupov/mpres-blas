@@ -1,6 +1,6 @@
 /*
- *  Multiple-precision GE_ADD function for GPU (BLAS Level-3)
- *  Matrix add and scale.
+ *  Multiple-precision GE_ACC function for GPU (BLAS Level-3)
+ *  Matrix accumulation and scale.
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -20,8 +20,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPGEADD_CUH
-#define MPGEADD_CUH
+#ifndef MPGEACC_CUH
+#define MPGEACC_CUH
 
 
 #include "../mpvector.cuh"
@@ -32,10 +32,11 @@ namespace cuda
 {
 
     /*!
-     * Scales two matrices A and B and stores their sum in a matrix C
-     * C = alpha * A + beta * B
-     * where alpha and beta are scalars, and A, B, C are m by n matrices.
+     * Scales a matrix A and scales a matrix B and accumulates the result in the matrix B
+     * B = alpha * A + beta * B
+     * where alpha and beta are scalars, and A and B are m by n matrices.
      * All the  matrices should be stored in column-major order.
+     * @note Only a non-transposed matrix A is currently supported.
      *
      * @tparam blockDim1x - number of threads per block (x dimension) used to compute the signs, exponents, interval evaluations
      * @tparam blockDim1y - number of threads per block (y dimension) used to compute the signs, exponents, interval evaluations
@@ -50,19 +51,17 @@ namespace cuda
      * @param beta - pointer to the scalar in the global GPU memory
      * @param B - pointer to the array, size ldb * n, in the global GPU memory. Before entry, the leading m-by-n part of the array must contain the matrix B.
      * @param ldb - specifies the leading dimension of B as declared in the calling (sub)program. The value of ldb must be at least max(1, m).
-     * @param C - pointer to the array, size ldb * n, in the global GPU memory. After calculations, the leading m-by-n part of the array contains the matrix C
-     * @param ldc - specifies the leading dimension of C as declared in the calling (sub)program. The value of ldc must be at least max(1, m).
      * @param buffer - auxiliary array in the global GPU memory, size at least m * n.
      */
     template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y>
-    void mpgeadd(const int m, const int n, mp_array_t &alpha, mp_array_t &A, const int lda,  mp_array_t &beta, mp_array_t &B, const int ldb, mp_array_t &C, const int ldc, mp_array_t &buffer){
+    void mpgeacc(const int m, const int n, mp_array_t &alpha, mp_array_t &A, const int lda,  mp_array_t &beta, mp_array_t &B, const int ldb, mp_array_t &buffer){
 
         //Quick return if possible
         if( (m <= 0) || (n <= 0) ){
             return;
         }
         //Test the input parameters
-        if( (lda < MAX(1, m)) || (ldb < MAX(1, m)) || (ldc < MAX(1, m)) ){
+        if( (lda < MAX(1, m)) || (ldb < MAX(1, m)) ){
             return;
         }
 
@@ -89,30 +88,30 @@ namespace cuda
         //Multiplication buffer = alpha * A  - Rounding the result
         mp_matrix_round<<< grid3, block3 >>> (buffer, m, m, n);
 
-        //Multiplication С =  beta * B - Computing the signs, exponents, and interval evaluations
-        mp_mat2scal_mul_esi_kernel<<< grid1, block1 >>> (C, ldc, B, ldb, beta, m, n);
+        //Multiplication B =  beta * B - Computing the signs, exponents, and interval evaluations
+        mp_mat2scal_mul_esi_kernel<<< grid1, block1 >>> (B, ldb, B, ldb, beta, m, n);
 
-        //Multiplication С =  beta * B - Multiplying the digits in the RNS
-        mp_mat2scal_mul_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, B, ldb, beta, m, n);
+        //Multiplication B =  beta * B - Multiplying the digits in the RNS
+        mp_mat2scal_mul_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (B, ldb, B, ldb, beta, m, n);
 
-        //Multiplication С =  beta * B - Rounding the result
-        mp_matrix_round<<< grid3, block3 >>> (C, ldc, m, n);
+        //Multiplication B =  beta * B - Rounding the result
+        mp_matrix_round<<< grid3, block3 >>> (B, ldb, m, n);
 
         /*
          * Addition of two matrices
          */
 
-        //Addition of two matrices: C = C + buffer - Computing the signs, exponents, and interval evaluations
-        mp_matrix_add_esi_kernel<<< grid1, block1 >>> (C, ldc, C, ldc, buffer, m, m, n);
+        //Addition of two matrices: B = B + buffer - Computing the signs, exponents, and interval evaluations
+        mp_matrix_add_esi_kernel<<< grid1, block1 >>> (B, ldb, B, ldb, buffer, m, m, n);
 
-        //Addition of two matrices: C = C + buffer - Adding the digits in the RNS
-        mp_matrix_add_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, C, ldc, buffer, m, m, n);
+        //Addition of two matrices: B = B + buffer - Adding the digits in the RNS
+        mp_matrix_add_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (B, ldb, B, ldb, buffer, m, m, n);
 
         //Final rounding
-        mp_matrix_round<<< grid3, block3 >>> (C, ldc, m, n);
+        mp_matrix_round<<< grid3, block3 >>> (B, ldb, m, n);
 
     }
 
 } // namespace cuda
 
-#endif //MPGEADD_CUH
+#endif //MPGEACC_CUH
