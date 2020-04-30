@@ -19,6 +19,7 @@ Currently the following multiple-precision functions are only supported:
 * ROT --- Apply a plane rotation to vectors (`mprot`)
 * AXPY_DOT --- Combined AXPY and DOT (`mpaxpydot`)
 * GEMV --- Matrix-vector multiplication (`mpgemv`)
+* GEMM --- General matrix multiplication (`mpgemm`)
 * GER --- Rank-1 update of a general matrix (`mpger`)
 * GE_ADD --- Matrix add and scale (`mpgeadd`)
 * GE_DIAG_SCALE --- Diagonal scaling (`mpgediagscale`)

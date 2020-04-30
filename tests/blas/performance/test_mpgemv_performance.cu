@@ -117,9 +117,9 @@ void openblas_test(const char *trans, const int m, const int n, int lenx, int le
     }
 
     //Launch
-    for(int i = 0; i < REPEAT_TEST; i ++){
-        for (int i = 0; i < leny; ++i) {
-            dr[i] = dy[i];
+    for(int i = 0; i < REPEAT_TEST; i++){
+        for (int j = 0; j < leny; j++) {
+            dr[j] = dy[j];
         }
         StartCpuTimer();
         if(trans == "N" || trans == "n") {
@@ -144,7 +144,8 @@ void openblas_test(const char *trans, const int m, const int n, int lenx, int le
 void mpfr_gemv(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y){
     #pragma omp parallel shared(m, n, A, x, y)
     {
-        mpfr_t mul_acc, ax;
+        mpfr_t mul_acc;
+        mpfr_t ax;
         mpfr_init2(ax, MP_PRECISION);
         mpfr_init2(mul_acc, MP_PRECISION);
         int i = 0;
@@ -182,7 +183,7 @@ void mpfr_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t
     // Launch
     for(int i = 0; i < REPEAT_TEST; i++){
         #pragma omp parallel for
-        for(int j = 0; j < m; j ++){
+        for(int j = 0; j < m; j++){
             mpfr_set(result[j], y[j], MPFR_RNDN);
         }
         StartCpuTimer();
@@ -517,7 +518,7 @@ void testNoTrans(){
     mpfr_t *alpha = create_random_array(1, INP_BITS);
     mpfr_t *beta = create_random_array(1, INP_BITS);
 
-    //Multiple-precision tests
+    //Launch tests
     openblas_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
     mpfr_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
     arprec_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
@@ -571,7 +572,7 @@ void testTrans(){
     mpfr_t *alpha = create_random_array(1, INP_BITS);
     mpfr_t *beta = create_random_array(1, INP_BITS);
 
-    //Multiple-precision tests
+    //Launch tests
     openblas_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
     mpack_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
     mpres_test(mblas_trans, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);

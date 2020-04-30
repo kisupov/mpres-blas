@@ -970,6 +970,40 @@ namespace cuda {
     }
 
     /*!
+     * Multiplication of two multiple-precision numbers using the mp_array_t type for the first argument
+     * result = x[idx] * y
+     */
+    DEVICE_CUDA_FORCEINLINE void mp_mul(mp_float_ptr result, mp_array_t x, int idx, mp_float_ptr y) {
+        result->exp = x.exp[idx] + y->exp;
+        result->sign = x.sign[idx] ^ y->sign;
+        cuda::er_md_rd(&result->eval[0], &x.eval[idx], &y->eval[0], &cuda::RNS_EVAL_UNIT.upp);
+        cuda::er_md_ru(&result->eval[1], &x.eval[idx + x.len[0]], &y->eval[1], &cuda::RNS_EVAL_UNIT.low);
+        for(int i = 0; i < RNS_MODULI_SIZE; i ++){
+            result->digits[i] = cuda::mod_mul(x.digits[RNS_MODULI_SIZE * idx + i], y->digits[i], cuda::RNS_MODULI[i]);
+        }
+        if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
+            cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
+        }
+    }
+
+    /*!
+     * Multiplication of two multiple-precision numbers using the mp_array_t type for the arguments
+     * result = x[idx] * y[idy]
+     */
+    DEVICE_CUDA_FORCEINLINE void mp_mul(mp_float_ptr result, mp_array_t x, int idx, mp_array_t y, int idy) {
+        result->exp = x.exp[idx] + y.exp[idy];
+        result->sign = x.sign[idx] ^ y.sign[idy];
+        cuda::er_md_rd(&result->eval[0], &x.eval[idx], &y.eval[idy], &cuda::RNS_EVAL_UNIT.upp);
+        cuda::er_md_ru(&result->eval[1], &x.eval[idx + x.len[0]], &y.eval[idy + y.len[0]], &cuda::RNS_EVAL_UNIT.low);
+        for(int i = 0; i < RNS_MODULI_SIZE; i ++){
+            result->digits[i] = cuda::mod_mul(x.digits[RNS_MODULI_SIZE * idx + i], y.digits[RNS_MODULI_SIZE * idy + i], cuda::RNS_MODULI[i]);
+        }
+        if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
+            cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
+        }
+    }
+
+    /*!
      * Parallel (n threads) multiplication of two multiple-precision numbers
      * This function must be performed by n threads simultaneously within a single thread block
      * result = x * y
