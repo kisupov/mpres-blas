@@ -22,6 +22,7 @@ Currently the following multiple-precision functions are only supported:
 * GEMM --- General matrix multiplication (`mpgemm`)
 * GER --- Rank-1 update of a general matrix (`mpger`)
 * GE_ADD --- Matrix add and scale (`mpgeadd`)
+* GE_ACC --- Matrix accumulation and scale (`mpgeacc`)
 * GE_DIAG_SCALE --- Diagonal scaling (`mpgediagscale`)
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.

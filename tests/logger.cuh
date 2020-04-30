@@ -37,6 +37,7 @@ namespace Logger {
         BLAS_GEMV_PERFORMANCE_TEST,
         BLAS_GER_PERFORMANCE_TEST,
         BLAS_GE_ADD_PERFORMANCE_TEST,
+        BLAS_GE_ACC_PERFORMANCE_TEST,
         BLAS_GE_DIAG_SCALE_PERFORMANCE_TEST,
         BLAS_GEMM_PERFORMANCE_TEST,
         BLAS_ASUM_ACCURACY_TEST,
@@ -67,6 +68,8 @@ namespace Logger {
                 return "Performance test for BLAS GER routines";
             case BLAS_GE_ADD_PERFORMANCE_TEST:
                 return "Performance test for BLAS GE_ADD routines";
+            case BLAS_GE_ACC_PERFORMANCE_TEST:
+                return "Performance test for BLAS GE_ACC routines";
             case BLAS_GE_DIAG_SCALE_PERFORMANCE_TEST:
                 return "Performance test for BLAS GE_DIAG_SCALE routines";
             case BLAS_GEMM_PERFORMANCE_TEST:

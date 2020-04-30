@@ -78,10 +78,20 @@ add_executable(test_mpger_performance blas/performance/test_mpger_performance.cu
 target_compile_options(test_mpger_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpger_performance gmp mpfr openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas cump)
 
+# Performance test for GEMM
+add_executable(test_mpgemm_performance blas/performance/test_mpgemm_performance.cu)
+target_compile_options(test_mpgemm_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpgemm_performance gmp mpfr openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cump)
+
 # Performance test for GE_ADD
 add_executable(test_mpgeadd_performance blas/performance/test_mpgeadd_performance.cu)
 target_compile_options(test_mpgeadd_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpgeadd_performance gmp mpfr OpenMP::OpenMP_CXX cump)
+
+# Performance test for GE_ACC
+add_executable(test_mpgeacc_performance blas/performance/test_mpgeacc_performance.cu)
+target_compile_options(test_mpgeacc_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpgeacc_performance gmp mpfr OpenMP::OpenMP_CXX cump)
 
 # Performance test for GE_DIAG_SCALE
 add_executable(test_mpgediagscale_performance blas/performance/test_mpgediagscale_performance.cu)
@@ -89,10 +99,6 @@ target_compile_options(test_mpgediagscale_performance PRIVATE  $<${cuda_lang}:$<
 target_link_libraries(test_mpgediagscale_performance gmp mpfr OpenMP::OpenMP_CXX cump)
 
 
-# Performance test for GEMM
-add_executable(test_mpgemm_performance blas/performance/test_mpgemm_performance.cu)
-target_compile_options(test_mpgemm_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpgemm_performance gmp mpfr openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cump)
 
 #########################
 ## Accuracy tests for BLAS routines

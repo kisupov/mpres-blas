@@ -266,8 +266,8 @@ __global__ void campary_gemv_kernel(int m, int n, multi_prec<prec> *A, int lda, 
 /*
 * Scales two matrices A and B and stores their sum in a matrix C
 * C = alpha * A + beta * B
-* where alpha and beta are scalars, and A, B, C are m by n matrix.
-* The matrix should be stored in column-major order.
+* where alpha and beta are scalars, and A, B, C are m by n matrices.
+* All the matrices should be stored in column-major order.
  */
 template<int prec>
 __global__ void campary_ge_add_kernel(int m, int n, multi_prec<prec> * alpha, multi_prec<prec> * A, int lda, multi_prec<prec> * beta, multi_prec<prec> * B, int ldb, multi_prec<prec> * C, int ldc) {
@@ -278,6 +278,23 @@ __global__ void campary_ge_add_kernel(int m, int n, multi_prec<prec> * alpha, mu
     int indexC = row + col * ldc;
     if (col < n && row < m) {
         C[indexC] = alpha * A[indexA] + beta * B[indexB];
+    }
+}
+
+/*
+* Scales a matrix A and scales a matrix B and accumulates the result in the matrix B
+* B = alpha * A + beta * B
+* where alpha and beta are scalars, and A and B are matrices.
+* All the matrices should be stored in column-major order.
+ */
+template<int prec>
+__global__ void campary_ge_acc_kernel(int m, int n, multi_prec<prec> * alpha, multi_prec<prec> * A, int lda, multi_prec<prec> * beta, multi_prec<prec> * B, int ldb) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int indexA = row + col * lda;
+    int indexB = row + col * ldb;
+    if (col < n && row < m) {
+        B[indexB] = alpha * A[indexA] + beta * B[indexB];
     }
 }
 
@@ -426,6 +443,16 @@ void campary_ge_add(int m, int n, multi_prec<prec> * alpha, multi_prec<prec> * A
     dim3 dimBlock(CAMPARY_MATRIX_THREADS_X, CAMPARY_MATRIX_THREADS_Y);
     dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
     campary_ge_add_kernel <prec> <<<dimGrid, dimBlock>>>(m, n, alpha, A, lda, beta, B, ldb, C, ldc);
+}
+
+/*
+ * GE_ACC
+ */
+template <int prec>
+void campary_ge_acc(int m, int n, multi_prec<prec> * alpha, multi_prec<prec> * A, int lda, multi_prec<prec> * beta, multi_prec<prec> * B, int ldb){
+    dim3 dimBlock(CAMPARY_MATRIX_THREADS_X, CAMPARY_MATRIX_THREADS_Y);
+    dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
+    campary_ge_acc_kernel <prec> <<<dimGrid, dimBlock>>>(m, n, alpha, A, lda, beta, B, ldb);
 }
 
 /*
@@ -1015,6 +1042,78 @@ void campary_ge_add_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t 
     cudaFree(dA);
     cudaFree(dB);
     cudaFree(dC);
+}
+
+/*
+ * GE_ACC test
+ */
+template<int prec>
+void campary_ge_acc_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t beta, mpfr_t *B, int ldb, int convert_prec, int repeats){
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CAMPARY ge_acc");
+
+    //Host data
+    multi_prec<prec> halpha;
+    multi_prec<prec> hbeta;
+    multi_prec<prec> *hA = new multi_prec<prec>[lda * n];
+    multi_prec<prec> *hB = new multi_prec<prec>[ldb * n];
+
+    //GPU data
+    multi_prec<prec> *dalpha;
+    multi_prec<prec> *dbeta;
+    multi_prec<prec> *dA;
+    multi_prec<prec> *dB;
+
+    cudaMalloc(&dalpha, sizeof(multi_prec<prec>));
+    cudaMalloc(&dbeta, sizeof(multi_prec<prec>));
+    cudaMalloc(&dA, sizeof(multi_prec<prec>) * lda * n);
+    cudaMalloc(&dB, sizeof(multi_prec<prec>) * ldb * n);
+
+    //Convert from MPFR
+    halpha = convert_to_string_sci(alpha, convert_prec).c_str();
+    hbeta = convert_to_string_sci(beta, convert_prec).c_str();
+    #pragma omp parallel for
+    for(int i = 0; i < lda * n; i++){
+        hA[i] = convert_to_string_sci(A[i], convert_prec).c_str();
+    }
+    #pragma omp parallel for
+    for(int i = 0; i < ldb * n; i++){
+        hB[i] = convert_to_string_sci(B[i], convert_prec).c_str();
+    }
+
+    //Copying to the GPU
+    cudaMemcpy(dalpha, &halpha, sizeof(multi_prec<prec>), cudaMemcpyHostToDevice);
+    cudaMemcpy(dbeta, &hbeta, sizeof(multi_prec<prec>), cudaMemcpyHostToDevice);
+    cudaMemcpy(dA, hA, sizeof(multi_prec<prec>) * lda * n, cudaMemcpyHostToDevice);
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    for(int i = 0; i < repeats; i ++){
+        cudaMemcpy(dB, hB, sizeof(multi_prec<prec>) * ldb * n, cudaMemcpyHostToDevice);
+        StartCudaTimer();
+        campary_ge_acc<prec>(m, n, dalpha, dA, lda, dbeta, dB, ldb)
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hB, dB, sizeof(multi_prec<prec>) * ldb * n, cudaMemcpyDeviceToHost);
+    for(int i = 1; i < ldb * n; i++){
+        hB[0] += hB[i];
+    }
+    printResult<prec>(hB[0]);
+
+    //Cleanup
+    delete [] hA;
+    delete [] hB;
+    cudaFree(dalpha);
+    cudaFree(dbeta);
+    cudaFree(dA);
+    cudaFree(dB);
 }
 
 /*
