@@ -1240,7 +1240,7 @@ void cump_ge_diag_scale_test(enum  mblas_side_type side, int m, int n, int lend,
 }
 
 /*
- * GE_DIAG_SCALE test
+ * GE_LRSCALE test
  */
 void cump_ge_lrscale_test(int m, int n, mpfr_t *DL, int incdl, mpfr_t *DR, int incdr, mpfr_t *A, int lda, int prec, int convert_prec, int repeats) {
     Logger::printDash();
