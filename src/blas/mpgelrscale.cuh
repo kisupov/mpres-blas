@@ -69,7 +69,8 @@ namespace cuda
         dim3 grid1(gridDim1, gridDim1);
         //  To compute the digits in RNS
         dim3 grid2(gridDim2, gridDim2);
-        int numThreads = (incd == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
+        int numThreadsL = (incdl == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
+        int numThreadsR = (incdr == 1) ? BLOCK_SIZE_FOR_RESIDUES : RNS_MODULI_SIZE;
         //  To rounding the result (we do not currently parameterize rounding)
         dim3 block3(16, 16);
         dim3 grid3((m + block3.x - 1) / block3.x, (n + block3.y - 1) / block3.y);
@@ -78,7 +79,7 @@ namespace cuda
 
         mp_mat2vec_left_scal_esi_kernel<<<grid1, blockDim1>>> (A, lda, A, lda, DL, incdl, m, n);
 
-        mp_mat2vec_left_scal_digits_kernel<<<grid2, numThreads>>> (A, lda, A, lda, DL, incdl, m, n);
+        mp_mat2vec_left_scal_digits_kernel<<<grid2, numThreadsL>>> (A, lda, A, lda, DL, incdl, m, n);
 
         mp_matrix_round<<<grid3, block3>>> (A, lda, m, n);
 
@@ -86,7 +87,7 @@ namespace cuda
 
         mp_mat2vec_right_scal_esi_kernel<<<grid1, blockDim1>>> (A, lda, A, lda, DR, incdr, m, n);
 
-        mp_mat2vec_right_scal_digits_kernel<<<grid2, numThreads>>> (A, lda, A, lda, DR, incdr, m, n);
+        mp_mat2vec_right_scal_digits_kernel<<<grid2, numThreadsR>>> (A, lda, A, lda, DR, incdr, m, n);
 
         mp_matrix_round<<<grid3, block3>>> (A, lda, m, n);
     }

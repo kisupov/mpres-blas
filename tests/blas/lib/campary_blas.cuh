@@ -326,6 +326,21 @@ __global__ void campary_ge_diag_scale_l_kernel(int m, int n, multi_prec<prec> * 
     }
 }
 
+/*
+* Scales a general matrix A on the left side by a diagonal matrix DL and on the right side by a diagonal matrix DR: A = DL * A * DR
+ */
+template<int prec>
+__global__ void campary_ge_lrscale_kernel(int m, int n, multi_prec<prec> * DL, int incdl, multi_prec<prec> * DR, int incdr, multi_prec<prec> * A, int lda) {
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int indexA = row + col * lda;
+    int indexDL = incdl > 0 ? row * incdl : (-m + row + 1)*incdl;
+    int indexDR = incdr > 0 ? col * incdr : (-n + col + 1)*incdr;
+    if (col < n && row < m) {
+        A[indexA] = DL[indexDL] * A[indexA] * DR[indexDR];
+    }
+}
+
 /********************* BLAS functions *********************/
 
 /*
@@ -467,6 +482,16 @@ void campary_ge_diag_scale(enum mblas_side_type side, int m, int n, multi_prec<p
     } else{
         campary_ge_diag_scale_l_kernel <prec> <<<dimGrid, dimBlock>>>(m, n, D, incd, A, lda);
     }
+}
+
+/*
+ * GE_LRSCALE
+ */
+template <int prec>
+void campary_ge_lrscale(int m, int n, multi_prec<prec> * DL, int incdl, multi_prec<prec> * DR, int incdr, multi_prec<prec> * A, int lda){
+    dim3 dimBlock(CAMPARY_MATRIX_THREADS_X, CAMPARY_MATRIX_THREADS_Y);
+    dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
+    campary_ge_lrscale_kernel <prec> <<<dimGrid, dimBlock>>>(m, n, DL, incdl, DR, incdr, A, lda);
 }
 
 /********************* Benchmarks *********************/
@@ -1174,6 +1199,79 @@ void campary_ge_diag_scale_test(enum  mblas_side_type side, int m, int n, int le
     delete [] hD;
     cudaFree(dA);
     cudaFree(dD);
+}
+
+/*
+ * GE_LRSCALE test
+ */
+template<int prec>
+void campary_ge_lrscale_test(int m, int n,  mpfr_t *DL, int incdl, mpfr_t *DR, int incdr, mpfr_t *A, int lda, int convert_prec, int repeats){
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CAMPARY ge_lrscale");
+
+    int lendl = (1 + (m - 1) * abs(incdl));
+    int lendr = (1 + (n - 1) * abs(incdr));
+
+    //Host data
+    multi_prec<prec> *hA = new multi_prec<prec>[lda * n];
+    multi_prec<prec> *hDL = new multi_prec<prec>[lendl];
+    multi_prec<prec> *hDR = new multi_prec<prec>[lendr];
+
+    //GPU data
+    multi_prec<prec> *dA;
+    multi_prec<prec> *dDL;
+    multi_prec<prec> *dDR;
+
+    cudaMalloc(&dA, sizeof(multi_prec<prec>) * lda * n);
+    cudaMalloc(&dDL, sizeof(multi_prec<prec>) * lendl);
+    cudaMalloc(&dDR, sizeof(multi_prec<prec>) * lendr);
+
+    //Convert from MPFR
+    #pragma omp parallel for
+    for(int i = 0; i < lda * n; i++){
+        hA[i] = convert_to_string_sci(A[i], convert_prec).c_str();
+    }
+    #pragma omp parallel for
+    for(int i = 0; i < lendl; i++){
+        hDL[i] = convert_to_string_sci(DL[i], convert_prec).c_str();
+    }
+    #pragma omp parallel for
+    for(int i = 0; i < lendr; i++){
+        hDR[i] = convert_to_string_sci(DR[i], convert_prec).c_str();
+    }
+    //Copying to the GPU
+    cudaMemcpy(dDL, hDL, sizeof(multi_prec<prec>) * lendl, cudaMemcpyHostToDevice);
+    cudaMemcpy(dDR, hDR, sizeof(multi_prec<prec>) * lendr, cudaMemcpyHostToDevice);
+
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    for(int i = 0; i < repeats; i ++){
+        cudaMemcpy(dA, hA, sizeof(multi_prec<prec>) * lda * n, cudaMemcpyHostToDevice);
+        StartCudaTimer();
+        campary_ge_lrscale<prec>(m, n, dDL, incdl, dDR, incdr, dA, lda)
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hA, dA, sizeof(multi_prec<prec>) * lda * n, cudaMemcpyDeviceToHost);
+    for(int i = 1; i < lda * n; i++){
+        hA[0] += hA[i];
+    }
+    printResult<prec>(hA[0]);
+
+    //Cleanup
+    delete [] hA;
+    delete [] hDL;
+    delete [] hDR;
+    cudaFree(dA);
+    cudaFree(dDL);
+    cudaFree(dDR);
 }
 
 

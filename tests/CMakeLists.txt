@@ -98,6 +98,10 @@ add_executable(test_mpgediagscale_performance blas/performance/test_mpgediagscal
 target_compile_options(test_mpgediagscale_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpgediagscale_performance gmp mpfr OpenMP::OpenMP_CXX cump)
 
+# Performance test for GE_LRSCALE
+add_executable(test_mpgelrscale_performance blas/performance/test_mpgelrscale_performance.cu)
+target_compile_options(test_mpgelrscale_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpgelrscale_performance gmp mpfr OpenMP::OpenMP_CXX cump)
 
 
 #########################
