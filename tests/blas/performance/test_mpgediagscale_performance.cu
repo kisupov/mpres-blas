@@ -76,7 +76,7 @@ static void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols
 }
 
 
-/********************* GE_ADD implementations and benchmarks *********************/
+/********************* GE_DIAG_SCALE implementations and benchmarks *********************/
 
 /////////
 // MPFR
