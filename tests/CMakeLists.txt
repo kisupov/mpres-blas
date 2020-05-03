@@ -58,6 +58,11 @@ add_executable(test_mpaxpy_performance blas/performance/test_mpaxpy_performance.
 target_compile_options(test_mpaxpy_performance PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpaxpy_performance gmp mpfr arprec openblas xblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas mpdec cump)
 
+# Performance test for NORM
+add_executable(test_mpnorm_performance blas/performance/test_mpnorm_performance.cu)
+target_compile_options(test_mpnorm_performance PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpnorm_performance gmp mpfr OpenMP::OpenMP_CXX)
+
 # Performance test for ROT
 add_executable(test_mprot_performance blas/performance/test_mprot_performance.cu)
 target_compile_options(test_mprot_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)

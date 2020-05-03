@@ -1,7 +1,7 @@
 /*
- *  Multiple-precision summation routines for GPU
+ *  Multiple-precision reduction CUDA kernels (sum, sum of absolute values, max value)
  *
- *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
+ *  Copyright 2019, 2020 by Konstantin Isupov.
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -27,11 +27,13 @@
 
 namespace cuda {
 
+    /********************* Computing the sum of the elements of a multiple-precision vector *********************/
+
     /*
      * Multiple-precision summation kernel
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
-    __global__ static void mp_array_reduce_kernel1(const unsigned int n, mp_array_t input, mp_float_ptr result, const unsigned int nextPow2) {
+    __global__ void mp_array_reduce_sum_kernel1(const unsigned int n, mp_array_t input, mp_float_ptr result, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
 
         // parameters
@@ -72,8 +74,9 @@ namespace cuda {
     /*
      * Multiple-precision summation kernel.  This kernel is exactly the same as the previous one,
      * but takes mp_float_ptr instead of mp_array_t for the input vector and mp_array_t instead of mp_float_ptr for the result
+     * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
-    __global__ static void mp_array_reduce_kernel2(const unsigned int n, mp_float_ptr input, mp_array_t result, const unsigned int nextPow2) {
+    __global__ void mp_array_reduce_sum_kernel2(const unsigned int n, mp_float_ptr input, mp_array_t result, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
         const unsigned int tid = threadIdx.x;
         const unsigned int bid = blockIdx.x;
@@ -106,39 +109,178 @@ namespace cuda {
         //__syncthreads();
     }
 
-    /*!
-     * Calculates the sum of the elements of a multiple-precision vector (two-pass summation)
-     * @tparam gridDim1 - number of blocks used to launch the kernel
-     * @tparam blockDim1 - number of threads per block
-     * @param n - size of the vector
-     * @param x - multiple-precision vector in the GPU memory
-     * @param result - pointer to the sum (vector of length one) in the GPU memory
+    /********************* Computing the sum of the absolute values of the elements of a multiple-precision vector *********************/
+
+    /*
+     * Kernel that calculates the sum of magnitudes of the vector elements
+     * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
-    template <int gridDim1, int blockDim1>
-    void mp_array_reduce(int n, mp_array_t x, mp_array_t result) {
-        mp_float_ptr d_buf; // device buffer
+    __global__ void mp_array_reduce_sum_abs_kernel1(const unsigned int n, mp_array_t input, int incx, mp_float_ptr result, const unsigned int nextPow2) {
+        extern __shared__ mp_float_t sdata[];
 
-        //Allocate memory buffers for the device results
-        cudaMalloc((void **) &d_buf, sizeof(mp_float_t) * gridDim1);
+        // parameters
+        const unsigned int tid = threadIdx.x;
+        const unsigned int bid = blockIdx.x;
+        const unsigned int bsize = blockDim.x;
+        const unsigned int k = gridDim.x * bsize;
+        unsigned int i = bid * bsize + tid;
 
-        // Compute the size of shared memory allocated per block
-        size_t smemsize = blockDim1 * sizeof(mp_float_t);
+        // do reduction in global mem
+        sdata[tid] = cuda::MP_ZERO;
+        while (i < n) {
+            cuda::mp_add_abs(&sdata[tid], &sdata[tid], input, i * incx);
+            i += k;
+        }
+        __syncthreads();
 
-        // Kernel memory configurations. We prefer shared memory
-        cudaFuncSetCacheConfig(mp_array_reduce_kernel1, cudaFuncCachePreferShared);
-        cudaFuncSetCacheConfig(mp_array_reduce_kernel2, cudaFuncCachePreferShared);
+        // do reduction in shared mem
+        i = nextPow2 >> 1; // half of nextPow2
+        while(i >= 1){
+            if ((tid < i) && (tid + i < bsize)) {
+                cuda::mp_add_abs(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+            }
+            i = i >> 1;
+            __syncthreads();
+        }
 
-        // Power of two that is greater that or equals to blockDim1
-        const unsigned int POW = nextPow2(blockDim1);
+        // write result for this block to global mem
+        if (tid == 0) {
+            result[bid] = sdata[tid];
+        };
+        __syncthreads();
+    }
 
-        //Launch the 1st CUDA kernel to perform parallel summation on the GPU
-        mp_array_reduce_kernel1 <<< gridDim1, blockDim1, smemsize >>> (n, x, d_buf, POW);
+    /*
+     * Kernel that calculates the sum of magnitudes of the vector elements.
+     * This kernel is exactly the same as the previous one, but takes mp_float_ptr instead of mp_array_t for the input vector
+     * and mp_array_t instead of mp_float_ptr for the result
+     * @param nextPow2 - least power of two greater than or equal to blockDim.x
+     */
+    __global__ void mp_array_reduce_sum_abs_kernel2(const unsigned int n, mp_float_ptr input, int incx, mp_array_t result, const unsigned int nextPow2) {
+        extern __shared__ mp_float_t sdata[];
+        const unsigned int tid = threadIdx.x;
+        const unsigned int bid = blockIdx.x;
+        const unsigned int bsize = blockDim.x;
+        const unsigned int k = gridDim.x * bsize;
+        unsigned int i = bid * bsize + tid;
+        sdata[tid] = cuda::MP_ZERO;
+        while (i < n) {
+            cuda::mp_add_abs(&sdata[tid], &sdata[tid], &input[i*incx]);
+            i += k;
+        }
+        __syncthreads();
+        i = nextPow2 >> 1;
+        while(i >= 1){
+            if ((tid < i) && (tid + i < bsize)) {
+                cuda::mp_add_abs(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+            }
+            i = i >> 1;
+            __syncthreads();
+        }
+        if (tid == 0) {
+            result.sign[bid] = 0;
+            result.exp[bid] = sdata[tid].exp;
+            result.eval[bid] = sdata[tid].eval[0];
+            result.eval[bid + result.len[0]] = sdata[tid].eval[1];
+            for(int j = 0; j < RNS_MODULI_SIZE; j++){
+                result.digits[RNS_MODULI_SIZE * bid + j] = sdata[tid].digits[j];
+            }
+        }
+    }
 
-        //Launch the 2nd CUDA kernel to perform summation of the results of parallel blocks on the GPU
-        mp_array_reduce_kernel2 <<< 1, blockDim1, smemsize >>> (gridDim1, d_buf, result, POW);
+    /********************* Computing the maximum of the absolute values of the elements of a multiple-precision vector *********************/
 
-        // Cleanup
-        cudaFree(d_buf);
+    /*
+      * Kernel that calculates the maximum absolute value of the elements of a multiple-precision vector
+      * @param nextPow2 - least power of two greater than or equal to blockDim.x
+      */
+    __global__ void mp_array_reduce_max_abs_kernel1(const unsigned int n, mp_array_t input, int incx, mp_float_ptr result, const unsigned int nextPow2) {
+        extern __shared__ mp_float_t sdata[];
+
+        // parameters
+        const unsigned int tid = threadIdx.x;
+        const unsigned int bid = blockIdx.x;
+        const unsigned int bsize = blockDim.x;
+        const unsigned int k = gridDim.x * bsize;
+        unsigned int i = bid * bsize + tid;
+        unsigned int ix = i * incx;
+
+        sdata[tid] = cuda::MP_ZERO; //since we attempt to find the maximum absolute value
+        while (i < n) {
+            if(cuda::mp_cmp_abs(input, ix, &sdata[tid]) == 1){
+                //sdata[tid] = input[ix]
+                sdata[tid].exp = input.exp[ix];
+                sdata[tid].sign = input.sign[ix];
+                sdata[tid].eval[0] = input.eval[ix];
+                sdata[tid].eval[1] = input.eval[ix + input.len[0]];
+                for(int j = 0; j < RNS_MODULI_SIZE; j++){
+                    sdata[tid].digits[j] = input.digits[ix * RNS_MODULI_SIZE + j];
+                }
+            }
+            i += k;
+            ix += k * incx;
+        }
+        __syncthreads();
+
+        // do reduction in shared mem
+        i = nextPow2 >> 1; // half of nextPow2
+        while(i >= 1){
+            if ( (tid < i) && (tid + i < bsize) && (cuda::mp_cmp_abs(&sdata[tid + i], &sdata[tid]) == 1) ) {
+                sdata[tid] = sdata[tid + i];
+            }
+            i = i >> 1;
+            __syncthreads();
+        }
+
+        // write the absolute value of the result for this block to global mem
+        if (tid == 0) {
+            sdata[tid].sign = 0;
+            result[bid] = sdata[tid];
+        };
+        __syncthreads();
+    }
+
+    /*
+    * Kernel that calculates the maximum absolute value of the elements of a multiple-precision vector.
+    * This kernel is exactly the same as the previous one, but takes mp_float_ptr instead of mp_array_t for the input vector
+    * and mp_array_t instead of mp_float_ptr for the result
+    * @param nextPow2 - least power of two greater than or equal to blockDim.x
+    */
+    __global__ void mp_array_reduce_max_abs_kernel2(const unsigned int n, mp_float_ptr input, int incx, mp_array_t result, const unsigned int nextPow2) {
+        extern __shared__ mp_float_t sdata[];
+        const unsigned int tid = threadIdx.x;
+        const unsigned int bid = blockIdx.x;
+        const unsigned int bsize = blockDim.x;
+        const unsigned int k = gridDim.x * bsize;
+        unsigned int i = bid * bsize + tid;
+        unsigned int ix = i * incx;
+
+        sdata[tid] = cuda::MP_ZERO;
+        while (i < n) {
+            if(cuda::mp_cmp_abs(&input[ix], &sdata[tid]) == 1){
+                sdata[tid] = input[ix];
+            }
+            i += k;
+            ix += k * incx;
+        }
+        __syncthreads();
+        i = nextPow2 >> 1;
+        while(i >= 1){
+            if ((tid < i) && (tid + i < bsize) && (cuda::mp_cmp_abs(&sdata[tid + i], &sdata[tid]) == 1)) {
+                sdata[tid] = sdata[tid + i];
+            }
+            i = i >> 1;
+            __syncthreads();
+        }
+        if (tid == 0) {
+            result.sign[bid] = 0;
+            result.exp[bid] = sdata[tid].exp;
+            result.eval[bid] = sdata[tid].eval[0];
+            result.eval[bid + result.len[0]] = sdata[tid].eval[1];
+            for(int j = 0; j < RNS_MODULI_SIZE; j++){
+                result.digits[RNS_MODULI_SIZE * bid + j] = sdata[tid].digits[j];
+            }
+        }
     }
 
 } //end of namespace

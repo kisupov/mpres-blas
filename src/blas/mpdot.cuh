@@ -30,6 +30,42 @@
 
 namespace cuda {
 
+    /*
+     * Calculates the sum of the elements of a multiple-precision vector (two-pass summation)
+     * @tparam gridDim1 - number of blocks used to launch the kernel
+     * @tparam blockDim1 - number of threads per block
+     * @param n - size of the vector
+     * @param x - multiple-precision vector in the GPU memory
+     * @param result - pointer to the sum (vector of length one) in the GPU memory
+     */
+    template <int gridDim1, int blockDim1>
+    static void mp_array_reduce_sum(int n, mp_array_t x, mp_array_t result) {
+        mp_float_ptr d_buf; // device buffer
+
+        //Allocate memory buffers for the device results
+        cudaMalloc((void **) &d_buf, sizeof(mp_float_t) * gridDim1);
+
+        // Compute the size of shared memory allocated per block
+        size_t smemsize = blockDim1 * sizeof(mp_float_t);
+
+        // Kernel memory configurations. We prefer shared memory
+        cudaFuncSetCacheConfig(mp_array_reduce_sum_kernel1, cudaFuncCachePreferShared);
+        cudaFuncSetCacheConfig(mp_array_reduce_sum_kernel2, cudaFuncCachePreferShared);
+
+        // Power of two that is greater that or equals to blockDim1
+        const unsigned int POW = nextPow2(blockDim1);
+
+        //Launch the 1st CUDA kernel to perform parallel summation on the GPU
+        mp_array_reduce_sum_kernel1 <<< gridDim1, blockDim1, smemsize >>> (n, x, d_buf, POW);
+
+        //Launch the 2nd CUDA kernel to perform summation of the results of parallel blocks on the GPU
+        mp_array_reduce_sum_kernel2 <<< 1, blockDim1, smemsize >>> (gridDim1, d_buf, result, POW);
+
+        // Cleanup
+        cudaFree(d_buf);
+    }
+
+
     /*!
      * Computes a vector-vector dot product, r[0] = x0*y0 + x1*y1 + ... + xn*yn
      * @tparam gridDim1 - number of thread blocks used to compute the signs, exponents, interval evaluations, and also to round the result in vector-vector multiplication
@@ -66,7 +102,7 @@ namespace cuda {
         mp_vector_round <<< gridDim1, blockDim1>>> (buffer, 1, n);
 
         //Two-pass summation
-        mp_array_reduce< gridDim3, blockDim3 >(n, buffer, r);
+        mp_array_reduce_sum< gridDim3, blockDim3 >(n, buffer, r);
 
     }
 

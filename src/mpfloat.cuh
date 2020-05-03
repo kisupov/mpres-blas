@@ -31,12 +31,14 @@ int MP_PRECISION; // The precision of arithmetic operations
 int MP_H; // An integer such that 2^MP_H <= SQRT(M) / M < 2^{MP_H +1}. Used in rounding
 int MP_J; // An integer such that 2^MP_J <= (M - SQRT(M)) / M < 2^{MP_J +1}. Used in exponent alignment
 mp_float_t MP_ZERO; //Zero in the used multiple-precision representation
+mp_float_t MP_MIN; //The smallest number in MP format (largest negative value)
 
 //Constants for GPU
 namespace cuda {
     __device__ __constant__ int MP_H;
     __device__ __constant__ int MP_J;
     __device__ __constant__ mp_float_t MP_ZERO;
+    __device__ __constant__ mp_float_t MP_MIN;
 }
 
 void mp_const_init() {
@@ -68,10 +70,18 @@ void mp_const_init() {
     for (int i = 0; i < RNS_MODULI_SIZE; ++i) {
         MP_ZERO.digits[i] = 0;
     }
+    //Setting MP_MIN
+    MP_MIN.sign = 1;
+    MP_MIN.exp = MP_EXP_MAX;
+    for (int i = 0; i < RNS_MODULI_SIZE; ++i) {
+        MP_MIN.digits[i] = RNS_MODULI[i] - 1;
+    }
+    rns_eval_compute(&MP_MIN.eval[0], &MP_MIN.eval[1], MP_MIN.digits);
     //Copying constants to the GPU memory
     cudaMemcpyToSymbol(cuda::MP_H, &MP_H, sizeof(int));
     cudaMemcpyToSymbol(cuda::MP_J, &MP_J, sizeof(int));
     cudaMemcpyToSymbol(cuda::MP_ZERO, &MP_ZERO, sizeof(mp_float_t));
+    cudaMemcpyToSymbol(cuda::MP_MIN, &MP_MIN, sizeof(mp_float_t));
 }
 
 /*
@@ -469,6 +479,8 @@ GCC_FORCEINLINE void mp_mul(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y)
  * Returns 1 if x > y, -1 if x < y, and 0 otherwise
  */
 GCC_FORCEINLINE int mp_cmp(mp_float_ptr x, mp_float_ptr y) {
+    int sign_x = x->sign;
+    int sign_y = y->sign;
     int digits_x[RNS_MODULI_SIZE];
     int digits_y[RNS_MODULI_SIZE];
     er_float_t eval_x[2];
@@ -504,10 +516,53 @@ GCC_FORCEINLINE int mp_cmp(mp_float_ptr x, mp_float_ptr y) {
     }
     //RNS magnitude comparison
     int cmp = rns_cmp(digits_x, &eval_x[0], &eval_x[1], digits_y, &eval_y[0], & eval_y[1]);
-    int greater = (x->sign == 0 && y->sign == 1) || (x->sign == 0 && y->sign == 0 && cmp == 1) || (x->sign == 1 && y->sign == 1 && cmp == -1); // x > y
-    int less = (x->sign == 1 && y->sign == 0) || (x->sign == 0 && y->sign == 0 && cmp == -1) || (x->sign == 1 && y->sign == 1 && cmp == 1); // x < y
+    int greater = (sign_x == 0 && sign_y == 1) || (sign_x == 0 && sign_y == 0 && cmp == 1) || (sign_x == 1 && sign_y == 1 && cmp == -1); // x > y
+    int less = (sign_x == 1 && sign_y == 0) || (sign_x == 0 && sign_y == 0 && cmp == -1) || (sign_x == 1 && sign_y== 1 && cmp == 1); // x < y
     return greater ? 1 : less ? -1 : 0;
 }
+
+/*!
+ * Comparison of the absolute values of x and y
+ * Returns 1 if |x| > |y|, -1 if |x| < |y|, and 0 otherwise
+ */
+GCC_FORCEINLINE int mp_cmp_abs(mp_float_ptr x, mp_float_ptr y) {
+    int digits_x[RNS_MODULI_SIZE];
+    int digits_y[RNS_MODULI_SIZE];
+    er_float_t eval_x[2];
+    er_float_t eval_y[2];
+    eval_x[0] = x->eval[0];
+    eval_x[1] = x->eval[1];
+    eval_y[0] = y->eval[0];
+    eval_y[1] = y->eval[1];
+
+    //Exponent alignment
+    int dexp = x->exp - y->exp;
+    int gamma =  dexp  * (dexp > 0);
+    int theta = -dexp * (dexp < 0);
+    int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < MP_J);
+    int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < MP_J);
+
+    gamma = gamma * nzy;
+    theta = theta * nzx;
+
+    eval_x[0].exp += gamma;
+    eval_x[1].exp += gamma;
+    eval_y[0].exp += theta;
+    eval_y[1].exp += theta;
+
+    eval_x[0].frac *= nzx;
+    eval_x[1].frac *= nzx;
+    eval_y[0].frac *= nzy;
+    eval_y[1].frac *= nzy;
+
+    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+        digits_x[i] = mod_mul(x->digits[i], RNS_POW2[gamma][i] * nzx, RNS_MODULI[i]);
+        digits_y[i] = mod_mul(y->digits[i], RNS_POW2[theta][i] * nzy, RNS_MODULI[i]);
+    }
+    //RNS magnitude comparison
+    return rns_cmp(digits_x, &eval_x[0], &eval_x[1], digits_y, &eval_y[0], & eval_y[1]);
+}
+
 
 /*
  * GPU functions
@@ -1069,11 +1124,14 @@ namespace cuda {
         }
     }
 
+
     /*!
      * Comparison of x and y
      * Returns 1 if x > y, -1 if x < y, and 0 otherwise
      */
     DEVICE_CUDA_FORCEINLINE int mp_cmp(mp_float_ptr x, mp_float_ptr y) {
+        int sign_x = x->sign;
+        int sign_y = y->sign;
         int digits_x[RNS_MODULI_SIZE];
         int digits_y[RNS_MODULI_SIZE];
         er_float_t eval_x[2];
@@ -1109,9 +1167,140 @@ namespace cuda {
         }
         //RNS magnitude comparison
         int cmp = cuda::rns_cmp(digits_x, &eval_x[0], &eval_x[1], digits_y, &eval_y[0], & eval_y[1]);
-        int greater = (x->sign == 0 && y->sign == 1) || (x->sign == 0 && y->sign == 0 && cmp == 1) || (x->sign == 1 && y->sign == 1 && cmp == -1); // x > y
-        int less = (x->sign == 1 && y->sign == 0) || (x->sign == 0 && y->sign == 0 && cmp == -1) || (x->sign == 1 && y->sign == 1 && cmp == 1); // x < y
+        int greater = (sign_x == 0 && sign_y == 1) || (sign_x == 0 && sign_y == 0 && cmp == 1) || (sign_x == 1 && sign_y == 1 && cmp == -1); // x > y
+        int less = (sign_x == 1 && sign_y == 0) || (sign_x == 0 && sign_y == 0 && cmp == -1) || (sign_x == 1 && sign_y== 1 && cmp == 1); // x < y
         return greater ? 1 : less ? -1 : 0;
+    }
+
+    /*!
+     * Comparison of x and y using the mp_array_t type for the first argument
+     * Returns 1 if x[idx] > y, -1 if x[idx] < y, and 0 otherwise
+     */
+    DEVICE_CUDA_FORCEINLINE int mp_cmp(mp_array_t x, int idx, mp_float_ptr y) {
+        int sign_x = x.sign[idx];
+        int sign_y = y->sign;
+        int digits_x[RNS_MODULI_SIZE];
+        int digits_y[RNS_MODULI_SIZE];
+        er_float_t eval_x[2];
+        er_float_t eval_y[2];
+        eval_x[0] = x.eval[idx];
+        eval_x[1] = x.eval[idx + x.len[0]];
+        eval_y[0] = y->eval[0];
+        eval_y[1] = y->eval[1];
+
+        //Exponent alignment
+        int dexp = x.exp[idx] - y->exp;
+        int gamma =  dexp  * (dexp > 0);
+        int theta = -dexp * (dexp < 0);
+        int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < cuda::MP_J);
+        int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < cuda::MP_J);
+
+        gamma = gamma * nzy;
+        theta = theta * nzx;
+
+        eval_x[0].exp += gamma;
+        eval_x[1].exp += gamma;
+        eval_y[0].exp += theta;
+        eval_y[1].exp += theta;
+
+        eval_x[0].frac *= nzx;
+        eval_x[1].frac *= nzx;
+        eval_y[0].frac *= nzy;
+        eval_y[1].frac *= nzy;
+
+        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            digits_x[i] = cuda::mod_mul(x.digits[RNS_MODULI_SIZE * idx + i], cuda::RNS_POW2[gamma][i] * nzx, cuda::RNS_MODULI[i]);
+            digits_y[i] = cuda::mod_mul(y->digits[i], cuda::RNS_POW2[theta][i] * nzy, cuda::RNS_MODULI[i]);
+        }
+        //RNS magnitude comparison
+        int cmp = cuda::rns_cmp(digits_x, &eval_x[0], &eval_x[1], digits_y, &eval_y[0], & eval_y[1]);
+        int greater = (sign_x == 0 && sign_y == 1) || (sign_x == 0 && sign_y == 0 && cmp == 1) || (sign_x == 1 && sign_y == 1 && cmp == -1); // x > y
+        int less = (sign_x == 1 && sign_y == 0) || (sign_x == 0 && sign_y == 0 && cmp == -1) || (sign_x == 1 && sign_y== 1 && cmp == 1); // x < y
+        return greater ? 1 : less ? -1 : 0;
+    }
+
+    /*!
+     * Comparison of the absolute values of x and y
+     * Returns 1 if |x| > |y|, -1 if |x| < |y|, and 0 otherwise
+     */
+    DEVICE_CUDA_FORCEINLINE int mp_cmp_abs(mp_float_ptr x, mp_float_ptr y) {
+        int digits_x[RNS_MODULI_SIZE];
+        int digits_y[RNS_MODULI_SIZE];
+        er_float_t eval_x[2];
+        er_float_t eval_y[2];
+        eval_x[0] = x->eval[0];
+        eval_x[1] = x->eval[1];
+        eval_y[0] = y->eval[0];
+        eval_y[1] = y->eval[1];
+
+        //Exponent alignment
+        int dexp = x->exp - y->exp;
+        int gamma =  dexp  * (dexp > 0);
+        int theta = -dexp * (dexp < 0);
+        int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < cuda::MP_J);
+        int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < cuda::MP_J);
+
+        gamma = gamma * nzy;
+        theta = theta * nzx;
+
+        eval_x[0].exp += gamma;
+        eval_x[1].exp += gamma;
+        eval_y[0].exp += theta;
+        eval_y[1].exp += theta;
+
+        eval_x[0].frac *= nzx;
+        eval_x[1].frac *= nzx;
+        eval_y[0].frac *= nzy;
+        eval_y[1].frac *= nzy;
+
+        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            digits_x[i] = cuda::mod_mul(x->digits[i], cuda::RNS_POW2[gamma][i] * nzx, cuda::RNS_MODULI[i]);
+            digits_y[i] = cuda::mod_mul(y->digits[i], cuda::RNS_POW2[theta][i] * nzy, cuda::RNS_MODULI[i]);
+        }
+        //RNS magnitude comparison
+        return cuda::rns_cmp(digits_x, &eval_x[0], &eval_x[1], digits_y, &eval_y[0], & eval_y[1]);
+    }
+
+    /*!
+     * Comparison of the absolute values of x and y using the mp_array_t type for the first argument
+     * Returns 1 if |x[idx]| > |y|, -1 if |x[idx]| < |y|, and 0 otherwise
+     */
+    DEVICE_CUDA_FORCEINLINE int mp_cmp_abs(mp_array_t x, int idx, mp_float_ptr y) {
+        int digits_x[RNS_MODULI_SIZE];
+        int digits_y[RNS_MODULI_SIZE];
+        er_float_t eval_x[2];
+        er_float_t eval_y[2];
+        eval_x[0] = x.eval[idx];
+        eval_x[1] = x.eval[idx + x.len[0]];
+        eval_y[0] = y->eval[0];
+        eval_y[1] = y->eval[1];
+
+        //Exponent alignment
+        int dexp = x.exp[idx] - y->exp;
+        int gamma =  dexp  * (dexp > 0);
+        int theta = -dexp * (dexp < 0);
+        int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < cuda::MP_J);
+        int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < cuda::MP_J);
+
+        gamma = gamma * nzy;
+        theta = theta * nzx;
+
+        eval_x[0].exp += gamma;
+        eval_x[1].exp += gamma;
+        eval_y[0].exp += theta;
+        eval_y[1].exp += theta;
+
+        eval_x[0].frac *= nzx;
+        eval_x[1].frac *= nzx;
+        eval_y[0].frac *= nzy;
+        eval_y[1].frac *= nzy;
+
+        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            digits_x[i] = cuda::mod_mul(x.digits[RNS_MODULI_SIZE * idx + i], cuda::RNS_POW2[gamma][i] * nzx, cuda::RNS_MODULI[i]);
+            digits_y[i] = cuda::mod_mul(y->digits[i], cuda::RNS_POW2[theta][i] * nzy, cuda::RNS_MODULI[i]);
+        }
+        //RNS magnitude comparison
+        return cuda::rns_cmp(digits_x, &eval_x[0], &eval_x[1], digits_y, &eval_y[0], & eval_y[1]);
     }
 
 
