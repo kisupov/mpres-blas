@@ -40,7 +40,7 @@ namespace cuda
      * @param incy - storage spacing between elements of y
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
-    __global__ static void matrix_reduction_kernel(const unsigned int m, const unsigned int n, mp_array_t A, mp_array_t y, int incy, const unsigned int nextPow2) {
+    __global__ static void matrix_row_sum_kernel(const unsigned int m, const unsigned int n, mp_array_t A, mp_array_t y, int incy, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
 
         // parameters
@@ -72,18 +72,18 @@ namespace cuda
             int iy = incy > 0 ? bid * incy : (-m + bid + 1)*incy;
             cuda::mp_add(y, iy, y, iy, &sdata[tid]);
         }
-        __syncthreads();
+        //__syncthreads();
     }
 
     /*
-     * Kernel that calculates the sum of all the elements in each columnt of an m-by-n multiple-precision matrix
+     * Kernel that calculates the sum of all the elements in each column of an m-by-n multiple-precision matrix
      * The result (a vector of size n) is then added to the vector y
      * @param A - matrix of m rows and n columns
      * @param y - vector of size n
      * @param incy - storage spacing between elements of y
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
-    __global__ static void trans_matrix_reduction_kernel(const unsigned int m, const unsigned int n, mp_array_t input, mp_array_t y, int incy, const unsigned int nextPow2) {
+    __global__ static void matrix_col_sum_kernel(const unsigned int m, const unsigned int n, mp_array_t input, mp_array_t y, int incy, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
 
         // parameters
@@ -115,7 +115,7 @@ namespace cuda
             int iy = incy > 0 ? bid * incy : (-n + bid + 1)*incy;
             cuda::mp_add(y, iy, y, iy, &sdata[tid]);
         }
-        __syncthreads();
+        //__syncthreads();
     }
 
     /*!
@@ -208,13 +208,13 @@ namespace cuda
             //The result is a vector of size m
 
             // Kernel memory configurations. We prefer shared memory
-            //cudaFuncSetCacheConfig(matrix_reduction_kernel, cudaFuncCachePreferShared);
+            //cudaFuncSetCacheConfig(matrix_row_sum_kernel, cudaFuncCachePreferShared);
 
             // Power of two that is greater that or equals to blockDim3
             const unsigned int POW = nextPow2(blockDim3);
 
-            // Call to the internal reduction kernel
-            matrix_reduction_kernel<<<m, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
+            // Compute row sums
+            matrix_row_sum_kernel<<<m, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
 
         } else {
 
@@ -256,13 +256,13 @@ namespace cuda
             //The result is a vector of size n
 
             // Kernel memory configurations. We prefer shared memory
-            //cudaFuncSetCacheConfig(trans_matrix_reduction_kernel, cudaFuncCachePreferShared);
+            //cudaFuncSetCacheConfig(matrix_col_sum_kernel, cudaFuncCachePreferShared);
 
             // Power of two that is greater that or equals to blockDim3
             const unsigned int POW = nextPow2(blockDim3);
 
-            // Call to the internal reduction kernel
-            trans_matrix_reduction_kernel<<<n, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
+            // Compute column sums
+            matrix_col_sum_kernel<<<n, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
         }
     }
 

@@ -26,6 +26,7 @@ Currently the following multiple-precision functions are only supported:
 * GE_ACC --- Matrix accumulation and scale (`mpgeacc`)
 * GE_DIAG_SCALE --- Diagonal scaling (`mpgediagscale`)
 * GE_LRSCALE --- Two-sided diagonal scaling (`mpgelrscale`)
+* GE_NORM --- Matrix norms (`mpgenorm`)
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
 Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for details.

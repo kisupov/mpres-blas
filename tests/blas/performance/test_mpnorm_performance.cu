@@ -19,14 +19,15 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define EXCLUDE_ARPREC 1
+#define EXCLUDE_OPENBLAS 1
 #define EXCLUDE_XBLAS 1
+#define EXCLUDE_ARPREC 1
+#define EXCLUDE_MPACK 1
 #define EXCLUDE_MPDECIMAL 1
+#define EXCLUDE_CUMP 1
 #define EXCLUDE_GARPREC 1
 #define EXCLUDE_CAMPARY 1
-#define EXCLUDE_CUMP 1
 #define EXCLUDE_CUBLAS 1
-#define EXCLUDE_OPENBLAS 1
 
 #include "omp.h"
 #include "../../logger.cuh"
@@ -39,7 +40,7 @@
 #define N 1000000 //Operation size
 #define INCX (1) // Specifies the increment for the elements of x
 #define REPEAT_TEST 10 //Number of repeats
-#define NORM_TYPE "INF" //ONE = one norm, INF = infinity-norm
+#define NORM_TYPE "ONE" //ONE = one norm, INF = infinity-norm
 
 //Execution configuration for mpres
 #define MPRES_CUDA_BLOCKS_REDUCE   128
@@ -213,8 +214,6 @@ static void mpres_test(int n, mpfr_t *x, int incx){
     mpfr_clear(mpfr_result);
     cuda::mp_array_clear(dx);
     cuda::mp_array_clear(dresult);
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
 }
 
 
@@ -230,6 +229,7 @@ int main() {
     Logger::printTestParameters(N, REPEAT_TEST, MP_PRECISION, MP_PRECISION_DEC);
     Logger::beginSection("Operation info:");
     Logger::printParam("INCX", INCX);
+    Logger::printParam("NORM_TYPE", NORM_TYPE);
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
     Logger::printParam("MPRES_CUDA_BLOCKS_REDUCE", MPRES_CUDA_BLOCKS_REDUCE);

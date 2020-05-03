@@ -37,7 +37,7 @@ namespace cuda {
      * @param n - operation size (must be positive)
      * @param x - pointer to the vector in the global GPU memory
      * @param incx - storage spacing between elements of x (must be positive)
-     * @param r - pointer to the result norm (vector of length one) in the GPU memory
+     * @param r - pointer to the computed norm (result) --- a vector of length one in the GPU memory
      */
     template <int gridDim1, int blockDim1>
     void mpnorm(enum mblas_norm_type norm, const int n, mp_array_t &x, const int incx, mp_array_t &r) {
