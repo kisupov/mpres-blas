@@ -1,9 +1,8 @@
 /*
  *  Inter-modulo (non-modular) computations in the Residue Number System.
- *  The CPU and GPU algorithms are presented for computing the interval evaluation
- *  of the fractional representation of an RNS number, power-of-two RNS scaling,
- *  and mixed-radix conversion. For details, see
- *  http://dx.doi.org/10.1142/S0218126618500044 (Interval evaluation in RNS)
+ *  Algorithms for CPU and GPU are presented for computing the interval evaluation of the fractional representation
+ *  of an RNS number, power-of-two RNS scaling, magnitude comparison, and mixed-radix conversion. For details, see
+ *  https://dx.doi.org/10.1109/ACCESS.2020.2982365 (Interval evaluation in RNS, Magnitude comparison)
  *  http://dx.doi.org/10.1109/ICEnT.2017.36 (Power-of-two RNS scaling)
  *  Szabo, Tanaka, Residue Arithmetic and its Application to Computer Technology (Mixed-radix conversion)
  *
@@ -262,15 +261,29 @@ static int mod_inverse_mpz(mpz_t x, int m) {
 /*
  * Set RNS number target from another RNS number x
  */
-inline void rns_set(int *target, int * x) {
+GCC_FORCEINLINE void rns_set(int *target, int * x) {
     memcpy(target, x, sizeof(int) * RNS_MODULI_SIZE);
+}
+
+/*
+ * Converts x from binary system to RNS
+ * The result is stored in target
+ */
+GCC_FORCEINLINE void rns_from_binary(int * target, mpz_t x) {
+    mpz_t residue;
+    mpz_init(residue);
+    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+        mpz_mod_ui(residue, x, RNS_MODULI[i]);
+        target[i] = mpz_get_ui(residue);
+    }
+    mpz_clear(residue);
 }
 
 /*
  * Converts x from RNS to binary system using Chinese remainder theorem.
  * The result is stored in target
  */
-void rns_to_binary(mpz_t target, int * x) {
+GCC_FORCEINLINE void rns_to_binary(mpz_t target, int * x) {
     mpz_t term;
     mpz_init(term);
     mpz_set_ui(target, 0);
@@ -285,7 +298,7 @@ void rns_to_binary(mpz_t target, int * x) {
 /*
  * Computing the EXACT fractional representation of x (i.e. x/M) using CRT
  */
-void rns_fractional(er_float_ptr result, int * x) {
+GCC_FORCEINLINE void rns_fractional(er_float_ptr result, int * x) {
     mpfr_t mpfr;
     mpfr_init(mpfr);
     mpz_t m;
@@ -498,6 +511,32 @@ GCC_FORCEINLINE void perform_mrc(int *mr, int * x) {
     }
 }
 
+/*
+ * Pairwise comparison of the mixed-radix digits
+ */
+GCC_FORCEINLINE static int mrs_cmp(int * x, int * y) {
+    for (int i = RNS_MODULI_SIZE - 1; i >= 0; i--) {
+        if (x[i] > y[i]) {
+            return 1;
+        } else if (y[i] > x[i]) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+/*!
+ * Compares RNS numbers using mixed-radix conversion
+ * @return 1, if x > y; -1, if x < y; 0, if x = y
+ */
+int mrc_compare_rns(int * x, int * y) {
+    int mx[RNS_MODULI_SIZE];
+    int my[RNS_MODULI_SIZE];
+    perform_mrc(mx, x);
+    perform_mrc(my, y);
+    return mrs_cmp(mx, my);
+}
+
 
 /*
  * GPU functions
@@ -522,6 +561,32 @@ namespace cuda{
                 mr[i] = cuda::mod_mul(mr[i], cuda::MRC_MULT_INV[j][i], cuda::RNS_MODULI[i]);
             }
         }
+    }
+
+    /*
+     * Pairwise comparison of the mixed-radix digits
+     */
+    DEVICE_CUDA_FORCEINLINE static int mrs_cmp(int * x, int * y) {
+        for (int i = RNS_MODULI_SIZE - 1; i >= 0; i--) {
+            if (x[i] > y[i]) {
+                return 1;
+            } else if (y[i] > x[i]) {
+                return -1;
+            }
+        }
+        return 0;
+    }
+
+    /*!
+     * Compares two RNS numbers using mixed-radix conversion
+     * @return 1, if x > y; -1, if x < y; 0, if x = y
+     */
+    DEVICE_CUDA_FORCEINLINE int mrc_compare_rns(int * x, int * y) {
+        int mx[RNS_MODULI_SIZE];
+        int my[RNS_MODULI_SIZE];
+        cuda::perform_mrc(mx, x);
+        cuda::perform_mrc(my, y);
+        return cuda::mrs_cmp(mx, my);
     }
 
 } //end of namespace
@@ -1207,5 +1272,137 @@ namespace cuda{
     }
 
 } //end of namespace
+
+
+/********************* RNS magnitude comparison functions *********************/
+
+/*!
+ * Given two integers x and y such that 0 \le x,y < M, represented as x = (x1 ,x2,...,xn) and y = (y1 ,y2,...,yn),
+ * this routine returns:
+ *  0, if x = y
+ *  1, if x > y
+ * -1, if x < y
+ * @param x - pointer to the number in the RNS
+ * @param y - pointer to the number in the RNS
+ */
+GCC_FORCEINLINE int rns_cmp(int *x, int *y) {
+    interval_t xeval; //Interval evaluation of x
+    interval_t yeval; //Interval evaluation of y
+    rns_eval_compute(&xeval.low, &xeval.upp, x);
+    rns_eval_compute(&yeval.low, &yeval.upp, y);
+    if(er_ucmp(&xeval.low, &yeval.upp) > 0){
+        return 1;
+    }
+    if(er_ucmp(&yeval.low, &xeval.upp) > 0){
+        return -1;
+    }
+    bool equals = true;
+    for(int i = 0; i < RNS_MODULI_SIZE; i++){
+        if(x[i] != y[i]){
+            equals = false;
+            break;
+        }
+    }
+    return equals ? 0 : mrc_compare_rns(x, y);
+}
+
+/*!
+ * Given two integers x and y such that 0 \le x,y < M, represented as x = (x1 ,x2,...,xn) and y = (y1 ,y2,...,yn),
+ * and their interval evaluations I(X/M) = [lxeval, uxeval], I(Y/M) = [lyeval, uyeval], this routine returns:
+ *  0, if x = y
+ *  1, if x > y
+ * -1, if x < y
+ * @param x - pointer to the number in the RNS
+ * @param lxeval - pointer to the lower bound of the interval evaluation of x
+ * @param uxeval - pointer to the upper bound of the interval evaluation of x
+ * @param y - pointer to the number in the RNS
+ * @param lyeval - pointer to the lower bound of the interval evaluation of y
+ * @param uyeval - pointer to the upper bound of the interval evaluation of y
+ */
+GCC_FORCEINLINE int rns_cmp(int *x, er_float_ptr lxeval, er_float_ptr uxeval, int *y, er_float_ptr lyeval, er_float_ptr uyeval) {
+    if(er_ucmp(lxeval, uyeval) > 0){
+        return 1;
+    }
+    if(er_ucmp(lyeval, uxeval) > 0){
+        return -1;
+    }
+    bool equals = true;
+    for(int i = 0; i < RNS_MODULI_SIZE; i++){
+        if(x[i] != y[i]){
+            equals = false;
+            break;
+        }
+    }
+    return equals ? 0 : mrc_compare_rns(x, y);
+}
+
+
+/*
+ * GPU functions
+ */
+namespace cuda {
+
+    /*!
+     * Given two integers x and y such that 0 \le x,y < M, represented as x = (x1 ,x2,...,xn) and y = (y1 ,y2,...,yn),
+     * this routine returns:
+     *  0, if x = y
+     *  1, if x > y
+     * -1, if x < y
+     * @param x - pointer to the number in the RNS
+     * @param y - pointer to the number in the RNS
+     */
+    DEVICE_CUDA_FORCEINLINE int rns_cmp(int *x, int *y) {
+        interval_t xeval; //Interval evaluation of x
+        interval_t yeval; //Interval evaluation of y
+        cuda::rns_eval_compute(&xeval.low, &xeval.upp, x);
+        cuda::rns_eval_compute(&yeval.low, &yeval.upp, y);
+        if(cuda::er_ucmp(&xeval.low, &yeval.upp) > 0){
+            return 1;
+        }
+        if(cuda::er_ucmp(&yeval.low, &xeval.upp) > 0){
+            return -1;
+        }
+        bool equals = true;
+        for(int i = 0; i < RNS_MODULI_SIZE; i++){
+            if(x[i] != y[i]){
+                equals = false;
+                break;
+            }
+        }
+        return equals ? 0 : cuda::mrc_compare_rns(x, y);
+    }
+
+    /*!
+     * Given two integers x and y such that 0 \le x,y < M, represented as x = (x1 ,x2,...,xn) and y = (y1 ,y2,...,yn),
+     * and their interval evaluations I(X/M) = [lxeval, uxeval], I(Y/M) = [lyeval, uyeval], this routine returns:
+     *  0, if x = y
+     *  1, if x > y
+     * -1, if x < y
+     * @param x - pointer to the number in the RNS
+     * @param lxeval - pointer to the lower bound of the interval evaluation of x
+     * @param uxeval - pointer to the upper bound of the interval evaluation of x
+     * @param y - pointer to the number in the RNS
+     * @param lyeval - pointer to the lower bound of the interval evaluation of y
+     * @param uyeval - pointer to the upper bound of the interval evaluation of y
+     */
+    DEVICE_CUDA_FORCEINLINE int rns_cmp(int *x, er_float_ptr lxeval, er_float_ptr uxeval, int *y, er_float_ptr lyeval, er_float_ptr uyeval) {
+        if(cuda::er_ucmp(lxeval, uyeval) > 0){
+            return 1;
+        }
+        if(cuda::er_ucmp(lyeval, uxeval) > 0){
+            return -1;
+        }
+        bool equals = true;
+        for(int i = 0; i < RNS_MODULI_SIZE; i++){
+            if(x[i] != y[i]){
+                equals = false;
+                break;
+            }
+        }
+        return equals ? 0 : cuda::mrc_compare_rns(x, y);
+    }
+
+} //end of namespace
+
 
 #endif //MPRES_RNS_CUH
