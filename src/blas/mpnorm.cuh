@@ -1,8 +1,8 @@
 /*
- *  Multiple-precision ASUM function for GPU (BLAS Level-1)
- *  Sum of absolute values
+ *  Multiple-precision NORM function for GPU (BLAS Level-1)
+ *  Norm of a vector
  *
- *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
+ *  Copyright 2020 by Konstantin Isupov.
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -21,18 +21,19 @@
  */
 
 
-#ifndef MPASUM_CUH
-#define MPASUM_CUH
+#ifndef MPNORM_CUH
+#define MPNORM_CUH
 
-#include "../mparray.cuh"
+#include "mpasum.cuh"
+#include "../mblas_enum.cuh"
 
 namespace cuda {
 
     /*
-     * Kernel that calculates the sum of the absolute values of the elements of a multiple-precision vector
+     * Kernel that calculates the maximum absolute value of of the elements of a multiple-precision vector
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
-    __global__ static void mp_array_reduce_sum_abs_kernel1(const unsigned int n, mp_array_t input, int incx, mp_float_ptr result, const unsigned int nextPow2) {
+    __global__ static void mp_array_reduce_max_abs_kernel1(const unsigned int n, mp_array_t input, int incx, mp_float_ptr result, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
 
         // parameters
@@ -43,8 +44,10 @@ namespace cuda {
         unsigned int i = bid * bsize + tid;
 
         // do reduction in global mem
-        sdata[tid] = cuda::MP_ZERO;
+        sdata[tid] = cuda::MP_MIN;
         while (i < n) {
+
+
             cuda::mp_add_abs(&sdata[tid], &sdata[tid], input, i * incx);
             i += k;
         }
@@ -72,7 +75,7 @@ namespace cuda {
     * This kernel is exactly the same as the previous one, but takes mp_float_ptr instead of mp_array_t for the input vector
     * and mp_array_t instead of mp_float_ptr for the result
     */
-    __global__ static void mp_array_reduce_sum_abs_kernel2(const unsigned int n, mp_float_ptr input, int incx, mp_array_t result, const unsigned int nextPow2) {
+    __global__ static void mp_array_reduce_max_abs_kernel2(const unsigned int n, mp_float_ptr input, int incx, mp_array_t result, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
         const unsigned int tid = threadIdx.x;
         const unsigned int bid = blockIdx.x;
@@ -107,46 +110,53 @@ namespace cuda {
 
 
     /*!
-     * Computes the sum of magnitudes of the vector elements, r[0] = |x0| + |x1| + ... + |xn|
-     * @tparam gridDim1 - number of thread blocks for parallel summation
-     * @tparam blockDim1 - number of threads per block for parallel summation
+     * Computes the norm of a vector x depending on the value passed as the norm operator argument.
+     * @tparam gridDim1 - number of thread blocks for parallel reduction
+     * @tparam blockDim1 - number of threads per block for parallel reduction
+     * @param norm - type of norm to be computed
      * @param n - operation size (must be positive)
      * @param x - pointer to the vector in the global GPU memory
      * @param incx - storage spacing between elements of x (must be positive)
-     * @param r - pointer to the sum (vector of length one) in the GPU memory
+     * @param r - pointer to the result norm (vector of length one) in the GPU memory
      */
     template <int gridDim1, int blockDim1>
-    void mpasum(const int n, mp_array_t &x, const int incx, mp_array_t &r) {
+    void mpnorm(enum mblas_side_type norm, const int n, mp_array_t &x, const int incx, mp_array_t &r) {
 
-        // Only positive operation size and vector stride are permitted for ASUM
-        if(n <= 0 || incx <= 0){
+        if(norm == mblas_one_norm){ // one-norm
+            mpasum<gridDim1, blockDim1>(n, x, incx, r);
             return;
         }
-        mp_float_ptr d_buf; // device buffer
+        else{ // infinity-norm
+            // Only positive operation size and vector stride are permitted for NORM
+            if(n <= 0 || incx <= 0){
+                return;
+            }
+            mp_float_ptr d_buf; // device buffer
 
-        // Allocate memory buffers for the device results
-        cudaMalloc((void **) &d_buf, sizeof(mp_float_t) * gridDim1);
+            // Allocate memory buffers for the device results
+            cudaMalloc((void **) &d_buf, sizeof(mp_float_t) * gridDim1);
 
-        // Compute the size of shared memory allocated per block
-        size_t smemsize = blockDim1 * sizeof(mp_float_t);
+            // Compute the size of shared memory allocated per block
+            size_t smemsize = blockDim1 * sizeof(mp_float_t);
 
-        // Kernel memory configurations. We prefer shared memory
-        cudaFuncSetCacheConfig(mp_array_reduce_sum_abs_kernel1, cudaFuncCachePreferShared);
-        cudaFuncSetCacheConfig(mp_array_reduce_sum_abs_kernel2, cudaFuncCachePreferShared);
+            // Kernel memory configurations. We prefer shared memory
+            cudaFuncSetCacheConfig(mp_array_reduce_max_abs_kernel1, cudaFuncCachePreferShared);
+            cudaFuncSetCacheConfig(mp_array_reduce_max_abs_kernel2, cudaFuncCachePreferShared);
 
-        // Power of two that is greater that or equals to blockDim1
-        const unsigned int POW = nextPow2(blockDim1);
+            // Power of two that is greater that or equals to blockDim1
+            const unsigned int POW = nextPow2(blockDim1);
 
-        //Launch the 1st CUDA kernel to perform parallel summation on the GPU
-        mp_array_reduce_sum_abs_kernel1 <<< gridDim1, blockDim1, smemsize >>> (n, x, incx, d_buf, POW);
+            //Launch the 1st CUDA kernel to perform parallel summation on the GPU
+            mp_array_reduce_max_abs_kernel1 <<< gridDim1, blockDim1, smemsize >>> (n, x, incx, d_buf, POW);
 
-        //Launch the 2nd CUDA kernel to perform summation of the results of parallel blocks on the GPU
-        mp_array_reduce_sum_abs_kernel2 <<< 1, blockDim1, smemsize >>> (gridDim1, d_buf, 1, r, POW);
+            //Launch the 2nd CUDA kernel to perform summation of the results of parallel blocks on the GPU
+            mp_array_reduce_max_abs_kernel2 <<< 1, blockDim1, smemsize >>> (gridDim1, d_buf, 1, r, POW);
 
-        // Cleanup
-        cudaFree(d_buf);
+            // Cleanup
+            cudaFree(d_buf);
+        }
     }
 
 } //end of namespace
 
-#endif //MPASUM_CUH
+#endif //MPNORM_CUH

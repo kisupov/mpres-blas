@@ -33,6 +33,10 @@ enum mblas_side_type {
     mblas_right_side = 142
 };
 
+enum mblas_norm_type {
+    mblas_one_norm = 171,
+    mblas_inf_norm = 175
+};
 
 
 #endif //MPRES_BLAS_ENUM_CUH

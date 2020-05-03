@@ -23,6 +23,22 @@
 #define MPRES_TYPES_CUH
 
 #include "params.h"
+#include <limits.h>
+
+/*!
+ * Predefined constants
+ */
+
+/*
+* The largest exponent value in the mp_float_t type
+*/
+#define MP_EXP_MAX (INT_MAX/2)
+
+/*
+* The smallest exponent value in the mp_float_t type
+*/
+#define MP_EXP_MIN (INT_MIN/2)
+
 
 /*!
  * Extended-range floating-point representation

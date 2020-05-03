@@ -66,7 +66,7 @@ namespace cuda {
         mp_vector_round <<< gridDim1, blockDim1>>> (buffer, 1, n);
 
         //Two-pass summation
-        mp_array_reduce< gridDim3, blockDim3 >(n, buffer, r);
+        mp_array_reduce_sum< gridDim3, blockDim3 >(n, buffer, r);
 
     }
 

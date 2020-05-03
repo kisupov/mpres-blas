@@ -1,5 +1,5 @@
 /*
- *  Multiple-precision summation routines for GPU
+ *  Multiple-precision reduction routines for GPU (summation, max value)
  *
  *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
  *
@@ -31,7 +31,7 @@ namespace cuda {
      * Multiple-precision summation kernel
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
-    __global__ static void mp_array_reduce_kernel1(const unsigned int n, mp_array_t input, mp_float_ptr result, const unsigned int nextPow2) {
+    __global__ static void mp_array_reduce_sum_kernel1(const unsigned int n, mp_array_t input, mp_float_ptr result, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
 
         // parameters
@@ -73,7 +73,7 @@ namespace cuda {
      * Multiple-precision summation kernel.  This kernel is exactly the same as the previous one,
      * but takes mp_float_ptr instead of mp_array_t for the input vector and mp_array_t instead of mp_float_ptr for the result
      */
-    __global__ static void mp_array_reduce_kernel2(const unsigned int n, mp_float_ptr input, mp_array_t result, const unsigned int nextPow2) {
+    __global__ static void mp_array_reduce_sum_kernel2(const unsigned int n, mp_float_ptr input, mp_array_t result, const unsigned int nextPow2) {
         extern __shared__ mp_float_t sdata[];
         const unsigned int tid = threadIdx.x;
         const unsigned int bid = blockIdx.x;
@@ -115,7 +115,7 @@ namespace cuda {
      * @param result - pointer to the sum (vector of length one) in the GPU memory
      */
     template <int gridDim1, int blockDim1>
-    void mp_array_reduce(int n, mp_array_t x, mp_array_t result) {
+    void mp_array_reduce_sum(int n, mp_array_t x, mp_array_t result) {
         mp_float_ptr d_buf; // device buffer
 
         //Allocate memory buffers for the device results
@@ -125,17 +125,17 @@ namespace cuda {
         size_t smemsize = blockDim1 * sizeof(mp_float_t);
 
         // Kernel memory configurations. We prefer shared memory
-        cudaFuncSetCacheConfig(mp_array_reduce_kernel1, cudaFuncCachePreferShared);
-        cudaFuncSetCacheConfig(mp_array_reduce_kernel2, cudaFuncCachePreferShared);
+        cudaFuncSetCacheConfig(mp_array_reduce_sum_kernel1, cudaFuncCachePreferShared);
+        cudaFuncSetCacheConfig(mp_array_reduce_sum_kernel2, cudaFuncCachePreferShared);
 
         // Power of two that is greater that or equals to blockDim1
         const unsigned int POW = nextPow2(blockDim1);
 
         //Launch the 1st CUDA kernel to perform parallel summation on the GPU
-        mp_array_reduce_kernel1 <<< gridDim1, blockDim1, smemsize >>> (n, x, d_buf, POW);
+        mp_array_reduce_sum_kernel1 <<< gridDim1, blockDim1, smemsize >>> (n, x, d_buf, POW);
 
         //Launch the 2nd CUDA kernel to perform summation of the results of parallel blocks on the GPU
-        mp_array_reduce_kernel2 <<< 1, blockDim1, smemsize >>> (gridDim1, d_buf, result, POW);
+        mp_array_reduce_sum_kernel2 <<< 1, blockDim1, smemsize >>> (gridDim1, d_buf, result, POW);
 
         // Cleanup
         cudaFree(d_buf);
