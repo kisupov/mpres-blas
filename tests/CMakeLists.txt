@@ -146,3 +146,14 @@ target_link_libraries(test_mp_add_verify gmp mpfr)
 # Test for checking the correctness of the extended-range floating-point routines
 add_executable(test_extrange_verify arith/test_extrange_verify.cu)
 target_compile_options(test_extrange_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+
+# Test for measure the performance of the RNS magnitude comparison algorithms
+add_executable(test_rns_cmp_performance arith/test_rns_cmp_performance.cu)
+target_compile_options(test_rns_cmp_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_rns_cmp_performance gmp mpfr)
+
+# Test for validating the mp_cmp routines
+add_executable(test_mp_cmp_verify arith/test_mp_cmp_verify.cu)
+target_compile_options(test_mp_cmp_verify PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mp_cmp_verify gmp mpfr)
+
