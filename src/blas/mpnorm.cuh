@@ -29,86 +29,6 @@
 
 namespace cuda {
 
-    /*
-     * Kernel that calculates the maximum absolute value of of the elements of a multiple-precision vector
-     * @param nextPow2 - least power of two greater than or equal to blockDim.x
-     */
-    __global__ static void mp_array_reduce_max_abs_kernel1(const unsigned int n, mp_array_t input, int incx, mp_float_ptr result, const unsigned int nextPow2) {
-        extern __shared__ mp_float_t sdata[];
-
-        // parameters
-        const unsigned int tid = threadIdx.x;
-        const unsigned int bid = blockIdx.x;
-        const unsigned int bsize = blockDim.x;
-        const unsigned int k = gridDim.x * bsize;
-        unsigned int i = bid * bsize + tid;
-
-        // do reduction in global mem
-        sdata[tid] = cuda::MP_MIN;
-        while (i < n) {
-
-
-            cuda::mp_add_abs(&sdata[tid], &sdata[tid], input, i * incx);
-            i += k;
-        }
-        __syncthreads();
-
-        // do reduction in shared mem
-        i = nextPow2 >> 1; // half of nextPow2
-        while(i >= 1){
-            if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add_abs(&sdata[tid], &sdata[tid], &sdata[tid + i]);
-            }
-            i = i >> 1;
-            __syncthreads();
-        }
-
-        // write result for this block to global mem
-        if (tid == 0) {
-            result[bid] = sdata[tid];
-        };
-        __syncthreads();
-    }
-
-    /*
-    * Kernel that calculates the sum of the absolute values of the elements of a multiple-precision vector.
-    * This kernel is exactly the same as the previous one, but takes mp_float_ptr instead of mp_array_t for the input vector
-    * and mp_array_t instead of mp_float_ptr for the result
-    */
-    __global__ static void mp_array_reduce_max_abs_kernel2(const unsigned int n, mp_float_ptr input, int incx, mp_array_t result, const unsigned int nextPow2) {
-        extern __shared__ mp_float_t sdata[];
-        const unsigned int tid = threadIdx.x;
-        const unsigned int bid = blockIdx.x;
-        const unsigned int bsize = blockDim.x;
-        const unsigned int k = gridDim.x * bsize;
-        unsigned int i = bid * bsize + tid;
-        sdata[tid] = cuda::MP_ZERO;
-        while (i < n) {
-            cuda::mp_add_abs(&sdata[tid], &sdata[tid], &input[i*incx]);
-            i += k;
-        }
-        __syncthreads();
-        i = nextPow2 >> 1;
-        while(i >= 1){
-            if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add_abs(&sdata[tid], &sdata[tid], &sdata[tid + i]);
-            }
-            i = i >> 1;
-            __syncthreads();
-        }
-        if (tid == 0) {
-            result.sign[bid] = 0;
-            result.exp[bid] = sdata[tid].exp;
-            result.eval[bid] = sdata[tid].eval[0];
-            result.eval[bid + result.len[0]] = sdata[tid].eval[1];
-            for(int j = 0; j < RNS_MODULI_SIZE; j++){
-                result.digits[RNS_MODULI_SIZE * bid + j] = sdata[tid].digits[j];
-            }
-        }
-        //__syncthreads();
-    }
-
-
     /*!
      * Computes the norm of a vector x depending on the value passed as the norm operator argument.
      * @tparam gridDim1 - number of thread blocks for parallel reduction
@@ -120,13 +40,14 @@ namespace cuda {
      * @param r - pointer to the result norm (vector of length one) in the GPU memory
      */
     template <int gridDim1, int blockDim1>
-    void mpnorm(enum mblas_side_type norm, const int n, mp_array_t &x, const int incx, mp_array_t &r) {
+    void mpnorm(enum mblas_norm_type norm, const int n, mp_array_t &x, const int incx, mp_array_t &r) {
 
         if(norm == mblas_one_norm){ // one-norm
             mpasum<gridDim1, blockDim1>(n, x, incx, r);
             return;
         }
         else{ // infinity-norm
+
             // Only positive operation size and vector stride are permitted for NORM
             if(n <= 0 || incx <= 0){
                 return;
