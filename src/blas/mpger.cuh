@@ -32,12 +32,12 @@ namespace cuda
 {
 
     /*
-     * Calculating the Cartesian product of two vectors
+     * Calculating the product of a vector-column of size m by a vector-row of size n: x * y^T
      * The result is a matrix of size m * n (m rows, n columns)
      * Computing the signs, exponents, and interval evaluations
      */
-    __global__ static void cartesian_product_esi_kernel(mp_array_t result, mp_array_t x, const int incx, mp_array_t y, const int m, const int n) {
-        int lenx = x.len[0]; //actual length of x, it is equal to m when incx = 1
+    __global__ static void mp_cvec2rvec_mul_esi_kernel(mp_array_t result, mp_array_t x, const int incx, mp_array_t y, const int m, const int n) {
+        int lenx = x.len[0]; //actual length of x, equals to m when incx = 1
         int leny = y.len[0]; //actual length of y, it should be equal to n since it is assumed that incy = 1
         int colId = blockIdx.y; // The column index
 
@@ -89,11 +89,11 @@ namespace cuda
      }
 
     /*
-     * Calculating the Cartesian product of two vectors
+     * Calculating the product of a vector-column of size m by a vector-row of size n: x * y^T
      * The result is a matrix of size m * n (m rows, n columns)
      * Computing the digits in the RNS
      */
-    __global__ static void cartesian_product_digits_kernel(mp_array_t result, mp_array_t x, const int incx, mp_array_t y, const int m, const int n) {
+    __global__ static void mp_cvec2rvec_mul_digits_kernel(mp_array_t result, mp_array_t x, const int incx, mp_array_t y, const int m, const int n) {
         int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
         int colId = blockIdx.y; // The column index
 
@@ -191,13 +191,13 @@ namespace cuda
         //Rounding the intermediate result (buffer1)
         mp_vector_round<<< (n + 32 - 1) / 32, 32 >>> (buffer1, 1, n);
 
-        //Calculation of the Cartesian product: buffer2 = x * buffer1^T - Computing the signs, exponents, and interval evaluations
+        //Calculation buffer2 = x * buffer1^T - Computing the signs, exponents, and interval evaluations
         //The result is written to the intermediate buffer2, size m * n
-        cartesian_product_esi_kernel<<<grid1, blockDim1x * blockDim1y>>> (buffer2, x, incx, buffer1, m, n);
+        mp_cvec2rvec_mul_esi_kernel<<<grid1, blockDim1x * blockDim1y>>> (buffer2, x, incx, buffer1, m, n);
 
-        //Calculation of the Cartesian product: buffer2 = x * buffer1^T - Multiplying the digits in the RNS
+        //Calculation buffer2 = x * buffer1^T - Multiplying the digits in the RNS
         //The result is written to the intermediate buffer2, size m * n
-        cartesian_product_digits_kernel<<<grid2, numThreadsX>>> (buffer2, x, incx, buffer1, m, n);
+        mp_cvec2rvec_mul_digits_kernel<<<grid2, numThreadsX>>> (buffer2, x, incx, buffer1, m, n);
 
         //Rounding the intermediate result (buffer2)
         mp_vector_round<<< (n + 32 - 1) / 32, 32 >>>(buffer2, 1, m * n);
