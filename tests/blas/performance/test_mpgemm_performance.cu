@@ -19,9 +19,10 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#define EXCLUDE_XBLAS 1
 #define EXCLUDE_ARPREC 1
-#define EXCLUDE_GARPREC 1
 #define EXCLUDE_MPDECIMAL 1
+#define EXCLUDE_GARPREC 1
 
 #include "omp.h"
 #include "../../logger.cuh"
@@ -74,11 +75,11 @@ static void finalize(){
 
 static void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
     int width = rows * cols;
+    #pragma omp parallel for
     for( int i = 0; i < width; i++ ){
         mp_set_mpfr(&dest[i], source[i]);
     }
 }
-
 
 
 /********************* GEMM implementations and benchmarks *********************/
@@ -398,7 +399,7 @@ void mpres_test_straightforward(const int m, const int n, const int k, mpfr_t al
 
 /*
  * Test for non-transposed matrices
- * A is of size lda * л, where the value of lda must be at least max(1, m).
+ * A is of size lda * k, where the value of lda must be at least max(1, m).
  * B is of size ldb * n, where the value of ldb must be at least max(1, k).
  * C is of size ldc * n, where the value of lda must be at least max(1, m).
  */
@@ -415,8 +416,8 @@ void testNoTrans(){
     mpack_test(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
     mpres_test_notrans(M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
     mpres_test_straightforward(M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
-   //campary_gemm_test<CAMPARY_PRECISION>(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, INP_DIGITS, REPEAT_TEST);
-   //cump_gemm_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
+    campary_gemm_test<CAMPARY_PRECISION>(M, N, K, alpha[0], matrixA, LDA,  matrixB, LDB, beta[0], matrixC, LDC, INP_DIGITS, REPEAT_TEST);
+    cump_gemm_test(M, N, K, alpha[0], matrixA, LDA,  matrixB, LDB, beta[0], matrixC, LDC, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure

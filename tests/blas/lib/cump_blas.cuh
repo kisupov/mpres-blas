@@ -183,6 +183,28 @@ __global__ void cump_gemv_kernel(int m, int n, mpf_array_t alpha, mpf_array_t A,
 }
 
 /*
+* Computes a matrix-matrix product with general matrices.
+* C = alpha * A * B + beta * C
+* where alpha and beta are scalars, A, B, and C are matrices.
+* All the matrices should be stored in column-major order.
+ */
+__global__ void cump_gemm_kernel(int m, int n, int k, mpf_array_t alpha, mpf_array_t A, int lda, mpf_array_t B, int ldb, mpf_array_t beta, mpf_array_t C, int ldc, mpf_array_t buf1, mpf_array_t buf2) {
+    using namespace cump;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int indexC = row + col * ldc;
+    if(col < n && row < m){
+        for(int i = 0; i < k; i++){
+            mpf_mul(buf1[indexC], alpha[0], A[lda * i + row]);
+            mpf_mul(buf1[indexC], B[col * ldb + i], buf1[indexC]);
+            mpf_add(buf2[indexC], buf1[indexC], buf2[indexC]);
+        }
+        mpf_mul(C[indexC], beta[0], C[indexC]);
+        mpf_add(C[indexC], buf2[indexC], C[indexC]);
+    }
+}
+
+/*
  * Performs the matrix-vector operation  A := x*y^T + A,
  * x and y are vectors and A is an lda by n matrix
  */
@@ -975,6 +997,117 @@ void cump_ger_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mp
     cumpf_array_clear(dtemp);
 }
 
+
+/*
+ * GEMM test
+ */
+void cump_gemm_test(int m, int n, int k, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *B, int ldb, mpfr_t beta, mpfr_t *C, int ldc, int prec, int convert_prec, int repeats) {
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CUMP gemm");
+
+    //Set precision
+    mpf_set_default_prec(prec);
+    cumpf_set_default_prec(prec);
+
+    //Execution configuration
+    dim3 dimBlock(32, 16);
+    dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
+
+    //Host data
+    mpf_t halpha;
+    mpf_t hbeta;
+    mpf_t *hA = new mpf_t[lda * k];
+    mpf_t *hB = new mpf_t[ldb * n];
+    mpf_t *hC = new mpf_t[ldc * n];
+
+    //GPU data
+    cumpf_array_t dalpha;
+    cumpf_array_t dbeta;
+    cumpf_array_t dA;
+    cumpf_array_t dB;
+    cumpf_array_t dC;
+    cumpf_array_t dbuf1;
+    cumpf_array_t dbuf2;
+
+    cumpf_array_init2(dalpha, 1, prec);
+    cumpf_array_init2(dbeta, 1, prec);
+    cumpf_array_init2(dA, lda * k, prec);
+    cumpf_array_init2(dB, ldb * n, prec);
+    cumpf_array_init2(dC, ldc * n, prec);
+    cumpf_array_init2(dbuf1, m * n, prec);
+    cumpf_array_init2(dbuf2, m * n, prec);
+
+    //Convert from MPFR
+    #pragma omp parallel for
+    for (int i = 0; i < lda * k; i++) {
+        mpf_init2(hA[i], prec);
+        mpf_set_str(hA[i], convert_to_string_sci(A[i], convert_prec).c_str(), 10);
+    }
+    #pragma omp parallel for
+    for (int i = 0; i < ldb * n; i++) {
+        mpf_init2(hB[i], prec);
+        mpf_set_str(hB[i], convert_to_string_sci(B[i], convert_prec).c_str(), 10);
+    }
+    #pragma omp parallel for
+    for (int i = 0; i < ldc * n; i++) {
+        mpf_init2(hC[i], prec);
+        mpf_set_str(hC[i], convert_to_string_sci(C[i], convert_prec).c_str(), 10);
+    }
+
+    mpf_init2(halpha, prec);
+    mpf_set_str(halpha, convert_to_string_sci(alpha, convert_prec).c_str(), 10);
+    mpf_init2(hbeta, prec);
+    mpf_set_str(hbeta, convert_to_string_sci(beta, convert_prec).c_str(), 10);
+
+    //Copying to the GPU
+    cumpf_array_set_mpf(dalpha, &halpha, 1);
+    cumpf_array_set_mpf(dbeta, &hbeta, 1);
+    cumpf_array_set_mpf(dA, hA, lda * k);
+    cumpf_array_set_mpf(dB, hB, ldb * n);
+
+    //Launch
+    for (int i = 0; i < repeats; i++) {
+        cumpf_array_set_mpf(dC, hC, ldc * n);
+        cump_reset_array<<<1024, 64>>>(m *n, dbuf2);
+        StartCudaTimer();
+        cump_gemm_kernel <<<dimGrid, dimBlock>>> (m, n, k, dalpha, dA, lda, dB, ldb, dbeta, dC, ldc, dbuf1, dbuf2);
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+
+    //Copying to the host
+    mpf_array_set_cumpf(hC, dC, ldc * n);
+    for (int i = 1; i < ldc * n; i++) {
+        mpf_add(hC[0], hC[i], hC[0]);
+    }
+    gmp_printf("result: %.70Ff \n", hC[0]);
+
+    //Cleanup
+    mpf_clear(halpha);
+    mpf_clear(hbeta);
+    for (int i = 0; i < lda * k; i++) {
+        mpf_clear(hA[i]);
+    }
+    for (int i = 0; i < ldb * n; i++) {
+        mpf_clear(hB[i]);
+    }
+    for (int i = 0; i < ldc * n; i++) {
+        mpf_clear(hC[i]);
+    }
+
+    delete[] hA;
+    delete[] hB;
+    delete[] hC;
+    cumpf_array_clear(dalpha);
+    cumpf_array_clear(dbeta);
+    cumpf_array_clear(dA);
+    cumpf_array_clear(dB);
+    cumpf_array_clear(dC);
+    cumpf_array_clear(dbuf1);
+    cumpf_array_clear(dbuf2);
+}
+
 /*
  * GE_ADD test
  */
@@ -988,7 +1121,7 @@ void cump_ge_add_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t bet
     cumpf_set_default_prec(prec);
 
     //Execution configuration
-    dim3 dimBlock(64, 1);
+    dim3 dimBlock(32, 16);
     dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
 
     //Host data
@@ -1077,7 +1210,7 @@ void cump_ge_add_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t bet
 }
 
 /*
- * GE_ADD test
+ * GE_ACC test
  */
 void cump_ge_acc_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t beta, mpfr_t *B, int ldb, int prec, int convert_prec, int repeats) {
     Logger::printDash();
@@ -1089,7 +1222,7 @@ void cump_ge_acc_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t bet
     cumpf_set_default_prec(prec);
 
     //Execution configuration
-    dim3 dimBlock(64, 1);
+    dim3 dimBlock(32, 16);
     dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
 
     //Host data
