@@ -4,7 +4,7 @@
 
 The MPRES-BLAS library implements a number of linear algebra operations, like the BLAS (Basic Linear Algebra Subprograms) routines, with [multiple precision](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) on CUDA-enabled graphics processing units. The library uses a residue number system ([RNS](https://en.wikipedia.org/wiki/Residue_number_system)) to represent multiple-precision floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS a good tool for high-performance computing on many-core architectures such as GPUs.
 
-The current version of MPRES-BLAS supports the following operations with multiple-precision:
+The current version of MPRES-BLAS supports the following operations with multiple precision:
 
 * ASUM --- Sum of absolute values (`mpasum`)
 * DOT --- Dot product of two vectors (`mpdot`)
