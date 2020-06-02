@@ -81,7 +81,7 @@ namespace cuda
 
         mp_mat2vec_left_scal_digits_kernel<<<grid2, numThreadsL>>> (A, lda, A, lda, DL, incdl, m, n);
 
-        mp_matrix_round<<<grid3, block3>>> (A, lda, m, n);
+        mp_matrix_round_kernel<<<grid3, block3>>> (A, lda, m, n);
 
         //A = A * DR
 
@@ -89,7 +89,7 @@ namespace cuda
 
         mp_mat2vec_right_scal_digits_kernel<<<grid2, numThreadsR>>> (A, lda, A, lda, DR, incdr, m, n);
 
-        mp_matrix_round<<<grid3, block3>>> (A, lda, m, n);
+        mp_matrix_round_kernel<<<grid3, block3>>> (A, lda, m, n);
     }
 
 } // namespace cuda

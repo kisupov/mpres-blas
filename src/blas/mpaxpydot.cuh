@@ -69,7 +69,7 @@ namespace cuda {
         mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsV >>> (buffer, 1, v, incv, alpha, n);
 
         //Rounding the intermediate result (buffer)
-        mp_vector_round<<< gridDim1, blockDim1 >>> (buffer, 1, n);
+        mp_vector_round_kernel<<< gridDim1, blockDim1 >>> (buffer, 1, n);
 
         //Subtraction  w = w - buffer - Computing the signs, exponents, and interval evaluations
         mp_vector_sub_esi_kernel<<< gridDim1, blockDim1 >>> (w, incw, w, incw, buffer, 1, n);
@@ -79,7 +79,7 @@ namespace cuda {
         mp_vector_add_digits_kernel<<< gridDim2, numThreadsW >>> (w, incw, w, incw, buffer, 1, n);
 
         //Rounding the vector w
-        mp_vector_round<<< gridDim1, blockDim1 >>> (w, incw, n);
+        mp_vector_round_kernel<<< gridDim1, blockDim1 >>> (w, incw, n);
 
         //Call dot to compute r
         cuda::mpdot< gridDim1, blockDim1, gridDim2, gridDim3, blockDim3 >(n, u, incu, w, incw, r, buffer);

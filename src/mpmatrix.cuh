@@ -409,7 +409,7 @@ namespace cuda {
      * @param m - specifies the number of rows of the matrix A
      * @param n - specifies the number of columns of the matrix A
      */
-    __global__ void mp_matrix_round(mp_array_t A, const int lda, const int m, const int n) {
+    __global__ void mp_matrix_round_kernel(mp_array_t A, const int lda, const int m, const int n) {
         unsigned int lena = A.len[0]; // Actual matrix length
         unsigned int ix = blockIdx.x * blockDim.x + threadIdx.x;
         unsigned int iy = blockIdx.y * blockDim.y + threadIdx.y;

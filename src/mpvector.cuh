@@ -674,7 +674,7 @@ namespace cuda {
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param n - operation size
      */
-    __global__ void mp_vector_round(mp_array_t result, const int incr, int n) {
+    __global__ void mp_vector_round_kernel(mp_array_t result, const int incr, int n) {
         int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
         // Actual vector length (may differ from the operation size, n)
         int lenr = result.len[0];

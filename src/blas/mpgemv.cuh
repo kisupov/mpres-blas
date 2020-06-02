@@ -177,7 +177,7 @@ namespace cuda
             mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsX >>> (buffer1, 1, x, incx, alpha, n);
 
             //Rounding the intermediate result (buffer1)
-            mp_vector_round<<< gridDim1, blockDim1 >>> (buffer1, 1, n);
+            mp_vector_round_kernel<<< gridDim1, blockDim1 >>> (buffer1, 1, n);
 
             //Multiplication y = beta * y - Computing the signs, exponents, and interval evaluations
             mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (y, incy, y, incy, beta, m);
@@ -186,7 +186,7 @@ namespace cuda
             mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsY >>> (y, incy, y, incy, beta, m);
 
             //Rounding y
-            mp_vector_round<<< gridDim1, blockDim1 >>> (y, incy, m);
+            mp_vector_round_kernel<<< gridDim1, blockDim1 >>> (y, incy, m);
 
             //We consider the vector buffer1 (contains alpha * x)  as a diagonal n-by-n matrix and perform the right diagonal scaling, buffer2 = A * buffer1
             //Each column of the matrix is multiplied by one element of the vector.
@@ -201,7 +201,7 @@ namespace cuda
             mp_mat2vec_right_scal_digits_kernel<<<grid2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, 1, m, n);
 
             //Rounding the intermediate result (buffer2)
-            mp_vector_round<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
+            mp_vector_round_kernel<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
 
             //The following is tne reduction of the intermediate matrix (buffer 2).
             //Here, the sum of the elements in each row is calculated, and then y is added to the calculated sum
@@ -225,7 +225,7 @@ namespace cuda
             mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsX >>> (buffer1, 1, x, incx, alpha, m);
 
             //Rounding the intermediate result (buffer1)
-            mp_vector_round<<< gridDim1, blockDim1 >>> (buffer1, 1, m);
+            mp_vector_round_kernel<<< gridDim1, blockDim1 >>> (buffer1, 1, m);
 
             //Multiplication y = beta * y - Computing the signs, exponents, and interval evaluations
             mp_vec2scal_mul_esi_kernel<<< gridDim1, blockDim1 >>> (y, incy, y, incy, beta, n);
@@ -234,7 +234,7 @@ namespace cuda
             mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsY >>> (y, incy, y, incy, beta, n);
 
             //Rounding y
-            mp_vector_round<<< gridDim1, blockDim1 >>> (y, incy, n);
+            mp_vector_round_kernel<<< gridDim1, blockDim1 >>> (y, incy, n);
 
             //We consider the vector buffer1 (contains alpha * x)  as a diagonal m-by-m matrix and perform the left diagonal scaling, buffer2 = buffer1 * A
             //Each column of the matrix is multiplied by the vector.
@@ -249,7 +249,7 @@ namespace cuda
             mp_mat2vec_left_scal_digits_kernel<<<grid2, BLOCK_SIZE_FOR_RESIDUES>>> (buffer2, m, A, lda, buffer1, 1, m, n);
 
             //Rounding the intermediate result (buffer2)
-            mp_vector_round<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
+            mp_vector_round_kernel<<<gridDim1, blockDim1>>>(buffer2, 1, m * n);
 
             //The following is tne reduction of the intermediate matrix (buffer 2).
             //Here, the sum of the elements in each column is calculated, and then y is added to the calculated sum

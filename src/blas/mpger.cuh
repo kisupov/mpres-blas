@@ -189,7 +189,7 @@ namespace cuda
         mp_vec2scal_mul_digits_kernel<<< gridDim2x, numThreadsY >>> (buffer1, 1, y, incy, alpha, n);
 
         //Rounding the intermediate result (buffer1)
-        mp_vector_round<<< (n + 32 - 1) / 32, 32 >>> (buffer1, 1, n);
+        mp_vector_round_kernel<<< (n + 32 - 1) / 32, 32 >>> (buffer1, 1, n);
 
         //Calculation buffer2 = x * buffer1^T - Computing the signs, exponents, and interval evaluations
         //The result is written to the intermediate buffer2, size m * n
@@ -200,7 +200,7 @@ namespace cuda
         mp_cvec2rvec_mul_digits_kernel<<<grid2, numThreadsX>>> (buffer2, x, incx, buffer1, m, n);
 
         //Rounding the intermediate result (buffer2)
-        mp_vector_round<<< (n + 32 - 1) / 32, 32 >>>(buffer2, 1, m * n);
+        mp_vector_round_kernel<<< (n + 32 - 1) / 32, 32 >>>(buffer2, 1, m * n);
 
         /*
          * Addition of two matrices
@@ -213,7 +213,7 @@ namespace cuda
         mp_matrix_add_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (A, lda, A, lda, buffer2, m, m, n);
 
         //Final rounding
-        mp_matrix_round<<< grid3, block3 >>> (A, lda, m, n);
+        mp_matrix_round_kernel<<< grid3, block3 >>> (A, lda, m, n);
 
     }
 

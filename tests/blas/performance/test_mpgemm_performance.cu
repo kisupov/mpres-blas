@@ -310,7 +310,7 @@ void mpgemm_straightforward(const int m, const int n, const int k, mp_array_t &a
     cuda::mp_mat2scal_mul_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (C, ldc, C, ldc, beta, m, n);
 
     //Multiplication C = beta * C  - Rounding the result
-    cuda::mp_matrix_round<<< grid3, block3 >>> (C, ldc, m, n);
+    cuda::mp_matrix_round_kernel<<< grid3, block3 >>> (C, ldc, m, n);
 
     //Execution configuration for C = alpha * A * B + C
     dim3 block(blockDim3, blockDim3);

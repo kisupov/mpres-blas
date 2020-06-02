@@ -57,7 +57,7 @@ namespace cuda {
         mp_vec2scal_mul_digits_kernel<<< gridDim2, numThreadsX >>> (x, incx, x, incx, alpha, n);
 
         //Rounding the result
-        mp_vector_round<<< gridDim1, blockDim1 >>> (x, incx, n);
+        mp_vector_round_kernel<<< gridDim1, blockDim1 >>> (x, incx, n);
     }
 
 } //end of namespace

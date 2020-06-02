@@ -86,7 +86,7 @@ namespace cuda
         mp_mat2scal_mul_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, m, A, lda, alpha, m, n);
 
         //Multiplication buffer = alpha * A  - Rounding the result
-        mp_matrix_round<<< grid3, block3 >>> (buffer, m, m, n);
+        mp_matrix_round_kernel<<< grid3, block3 >>> (buffer, m, m, n);
 
         //Multiplication B =  beta * B - Computing the signs, exponents, and interval evaluations
         mp_mat2scal_mul_esi_kernel<<< grid1, block1 >>> (B, ldb, B, ldb, beta, m, n);
@@ -95,7 +95,7 @@ namespace cuda
         mp_mat2scal_mul_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (B, ldb, B, ldb, beta, m, n);
 
         //Multiplication B =  beta * B - Rounding the result
-        mp_matrix_round<<< grid3, block3 >>> (B, ldb, m, n);
+        mp_matrix_round_kernel<<< grid3, block3 >>> (B, ldb, m, n);
 
         /*
          * Addition of two matrices
@@ -108,7 +108,7 @@ namespace cuda
         mp_matrix_add_digits_kernel<<< grid2, BLOCK_SIZE_FOR_RESIDUES >>> (B, ldb, B, ldb, buffer, m, m, n);
 
         //Final rounding
-        mp_matrix_round<<< grid3, block3 >>> (B, ldb, m, n);
+        mp_matrix_round_kernel<<< grid3, block3 >>> (B, ldb, m, n);
 
     }
 
