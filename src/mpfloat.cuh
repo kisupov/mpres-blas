@@ -1029,7 +1029,7 @@ namespace cuda {
 
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             result.digits[RNS_MODULI_SIZE * idr + i] = cuda::mod_axby(
-                    x.digits[RNS_MODULI_SIZE * idx + i],
+                    x.digits[RNS_MODULI_SIZE * idx + i] * nzx,
                     cuda::RNS_POW2[gamma][i],
                     y->digits[i] * nzy,
                     cuda::RNS_POW2[theta][i],
