@@ -301,15 +301,14 @@ namespace cuda {
                 cuda::er_add_rd(&result.eval[numberIdx], &eval_x[sign_x], &eval_y[sign_y]);
                 cuda::er_add_ru(&result.eval[numberIdx + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
 
-                //Calculation of the exponent and preliminary calculation of the sign (the sign will be changed if restoring is required)
-                result.sign[numberIdx] = 0;
+                //Calculation of the exponent
                 result.exp[numberIdx] = (exp_x == 0) ? exp_y : exp_x;
 
                 //Restoring the negative result
                 //int plus  = result.eval[numberIdx].frac >= 0 && result.eval[numberIdx + lenr].frac >= 0;
                 int minus = result.eval[numberIdx].frac < 0 && result.eval[numberIdx + lenr].frac < 0;
+                result.sign[numberIdx] = minus;
                 if(minus){
-                    result.sign[numberIdx] = 1;
                     er_float_t tmp = result.eval[numberIdx];
                     result.eval[numberIdx].frac = -result.eval[numberIdx + lenr].frac;
                     result.eval[numberIdx].exp  = result.eval[numberIdx + lenr].exp;
@@ -377,13 +376,12 @@ namespace cuda {
                 cuda::er_add_rd(&result.eval[ir], &eval_x[sign_x], &eval_y[sign_y]);
                 cuda::er_add_ru(&result.eval[ir + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
 
-                result.sign[ir] = 0;
                 result.exp[ir] = (exp_x == 0) ? exp_y : exp_x;
 
                 //int plus  = result.eval[ir].frac >= 0 && result.eval[ir + lenr].frac >= 0;
                 int minus = result.eval[ir].frac < 0 && result.eval[ir + lenr].frac < 0;
+                result.sign[ir] = minus;
                 if(minus){
-                    result.sign[ir] = 1;
                     er_float_t tmp = result.eval[ir];
                     result.eval[ir].frac = -result.eval[ir+lenr].frac;
                     result.eval[ir].exp  = result.eval[ir+lenr].exp;
@@ -557,15 +555,14 @@ namespace cuda {
                 cuda::er_add_rd(&result.eval[numberIdx], &eval_x[sign_x], &eval_y[sign_y]);
                 cuda::er_add_ru(&result.eval[numberIdx + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
 
-                //Calculation of the exponent and preliminary calculation of the sign (the sign will be changed if restoring is required)
-                result.sign[numberIdx] = 0;
+                //Calculation of the exponent
                 result.exp[numberIdx] = (exp_x == 0) ? exp_y : exp_x;
 
                 //Restoring the negative result
                 //int plus  = result.eval[numberIdx].frac >= 0 && result.eval[numberIdx + lenr].frac >= 0;
                 int minus = result.eval[numberIdx].frac < 0 && result.eval[numberIdx + lenr].frac < 0;
+                result.sign[numberIdx] = minus;
                 if(minus){
-                    result.sign[numberIdx] = 1;
                     er_float_t tmp = result.eval[numberIdx];
                     result.eval[numberIdx].frac = -result.eval[numberIdx + lenr].frac;
                     result.eval[numberIdx].exp  = result.eval[numberIdx + lenr].exp;
@@ -633,13 +630,12 @@ namespace cuda {
                 cuda::er_add_rd(&result.eval[ir], &eval_x[sign_x], &eval_y[sign_y]);
                 cuda::er_add_ru(&result.eval[ir + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
 
-                result.sign[ir] = 0;
                 result.exp[ir] = (exp_x == 0) ? exp_y : exp_x;
 
                 //int plus  = result.eval[ir].frac >= 0 && result.eval[ir + lenr].frac >= 0;
                 int minus = result.eval[ir].frac < 0 && result.eval[ir + lenr].frac < 0;
+                result.sign[ir] = minus;
                 if(minus){
-                    result.sign[ir] = 1;
                     er_float_t tmp = result.eval[ir];
                     result.eval[ir].frac = -result.eval[ir+lenr].frac;
                     result.eval[ir].exp  = result.eval[ir+lenr].exp;

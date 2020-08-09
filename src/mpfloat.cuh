@@ -362,29 +362,24 @@ GCC_FORCEINLINE void mp_add(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y)
     eval_y[1].frac *=  factor_y;
 
     //Interval addition
-    round_down_mode();
-    er_add(&result->eval[0], &eval_x[sign_x], &eval_y[sign_y]);
-    round_up_mode();
-    er_add(&result->eval[1], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
-    round_nearest_mode();
-
-    //Calculation of the exponent and preliminary calculation of the sign (the sign will be changed if restoring is required)
-    result->sign = 0;
-    result->exp = (exp_x == 0) ? exp_y : exp_x;
+    er_add_rd(&result->eval[0], &eval_x[sign_x], &eval_y[sign_y]);
+    er_add_ru(&result->eval[1], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
 
     //Addition of the RNS significands with multiplication by a power of two
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
         int residue = mod_axby(x->digits[i], RNS_POW2[gamma][i] * factor_x, y->digits[i], RNS_POW2[theta][i] * factor_y, RNS_MODULI[i]);
         result->digits[i] = residue < 0 ? residue + RNS_MODULI[i] : residue;
     }
+    //Calculation of the exponent
+    result->exp = (exp_x == 0) ? exp_y : exp_x;
 
     //Restoring the negative result
-    //int plus  = result->eval[0].frac >= 0 && result->eval[1].frac >= 0;
-    int minus = result->eval[0].frac < 0 && result->eval[1].frac < 0;
     //One observation (should be proven in the future):
     //when both plus and minus are equal to zero, the actual result is always non-negative.
+    //int plus  = result->eval[0].frac >= 0 && result->eval[1].frac >= 0;
+    int minus = result->eval[0].frac < 0 && result->eval[1].frac < 0;
+    result->sign = minus;
     if(minus){
-        result->sign = 1;
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             result->digits[i] = (RNS_MODULI[i] - result->digits[i]) % RNS_MODULI[i];
         }
@@ -439,11 +434,8 @@ GCC_FORCEINLINE void mp_add_abs(mp_float_ptr result, mp_float_ptr x, mp_float_pt
     exp_x = (exp_x - gamma) * nzx;
     exp_y = (exp_y - theta) * nzy;
 
-    round_down_mode();
-    er_add(&result->eval[0], &eval_x[0], &eval_y[0]);
-    round_up_mode();
-    er_add(&result->eval[1], &eval_x[1], &eval_y[1]);
-    round_nearest_mode();
+    er_add_rd(&result->eval[0], &eval_x[0], &eval_y[0]);
+    er_add_ru(&result->eval[1], &eval_x[1], &eval_y[1]);
 
     result->sign = 0;
     result->exp = (exp_x == 0) ? exp_y : exp_x;
@@ -659,9 +651,6 @@ namespace cuda {
         cuda::er_add_rd(&result->eval[0], &eval_x[sign_x], &eval_y[sign_y]);
         cuda::er_add_ru(&result->eval[1], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
 
-        result->sign = 0;
-        result->exp = (exp_x == 0) ? exp_y : exp_x;
-
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             int residue = cuda::mod_axby(
                     x->digits[i], cuda::RNS_POW2[gamma][i] * factor_x,
@@ -670,10 +659,11 @@ namespace cuda {
                     cuda::RNS_MODULI_RECIPROCAL[i]);
             result->digits[i] = residue < 0 ? residue + cuda::RNS_MODULI[i] : residue;
         }
+        result->exp = (exp_x == 0) ? exp_y : exp_x;
         //int plus  = result->eval[0].frac >= 0 && result->eval[1].frac >= 0; // see mp_add for CPU
         int minus = result->eval[0].frac < 0 && result->eval[1].frac < 0;
+        result->sign = minus;
         if(minus){
-            result->sign = 1;
             for (int i = 0; i < RNS_MODULI_SIZE; i++) {
                 result->digits[i] = (cuda::RNS_MODULI[i] - result->digits[i]) % cuda::RNS_MODULI[i];
             }
@@ -738,9 +728,6 @@ namespace cuda {
         cuda::er_add_rd(&result->eval[0], &eval_x[sign_x], &eval_y[sign_y]);
         cuda::er_add_ru(&result->eval[1], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
 
-        result->sign = 0;
-        result->exp = (exp_x == 0) ? exp_y : exp_x;
-
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             int residue = cuda::mod_axby(
                     x->digits[i],
@@ -751,10 +738,11 @@ namespace cuda {
                     cuda::RNS_MODULI_RECIPROCAL[i]);
             result->digits[i] = residue < 0 ? residue + cuda::RNS_MODULI[i] : residue;
         }
+        result->exp = (exp_x == 0) ? exp_y : exp_x;
         //int plus  = result->eval[0].frac >= 0 && result->eval[1].frac >= 0; // see mp_add for CPU
         int minus = result->eval[0].frac < 0 && result->eval[1].frac < 0;
+        result->sign = minus;
         if(minus){
-            result->sign = 1;
             for (int i = 0; i < RNS_MODULI_SIZE; i++) {
                 result->digits[i] = (cuda::RNS_MODULI[i] - result->digits[i]) % cuda::RNS_MODULI[i];
             }
@@ -821,9 +809,6 @@ namespace cuda {
         cuda::er_add_rd(&result.eval[idr], &eval_x[sign_x], &eval_y[sign_y]);
         cuda::er_add_ru(&result.eval[idr + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
 
-        result.sign[idr] = 0;
-        result.exp[idr] = (exp_x == 0) ? exp_y : exp_x;
-
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             int residue = cuda::mod_axby(
                     x.digits[RNS_MODULI_SIZE * idx + i],
@@ -834,10 +819,11 @@ namespace cuda {
                     cuda::RNS_MODULI_RECIPROCAL[i]);
             result.digits[RNS_MODULI_SIZE * idr + i] = residue < 0 ? residue + cuda::RNS_MODULI[i] : residue;
         }
+        result.exp[idr] = (exp_x == 0) ? exp_y : exp_x;
         //int plus  = result.eval[idr].frac >= 0 && result.eval[idr + lenr].frac >= 0; // see mp_add for CPU
         int minus = result.eval[idr].frac < 0 && result.eval[idr + lenr].frac < 0;
+        result.sign[idr] = minus;
         if(minus){
-            result.sign[idr] = 1;
             for (int i = 0; i < RNS_MODULI_SIZE; i++) {
                 result.digits[RNS_MODULI_SIZE * idr + i] = (cuda::RNS_MODULI[i] - result.digits[RNS_MODULI_SIZE * idr + i]) % cuda::RNS_MODULI[i];
             }

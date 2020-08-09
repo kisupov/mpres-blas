@@ -104,13 +104,12 @@ namespace cuda {
                 //Interval addition
                 cuda::er_add_rd(&R.eval[idr], &evalA[signA], &evalB[signB]);
                 cuda::er_add_ru(&R.eval[idr + lenR], &evalA[1 - signA], &evalB[1 - signB]);
-                //Calculation of the exponent and preliminary calculation of the sign (the sign will be changed if restoring is required)
-                R.sign[idr] = 0;
+                //Calculation of the exponent
                 R.exp[idr] = (expA == 0) ? expB : expA;
                 //Restoring the negative result
                 int minus = R.eval[idr].frac < 0 && R.eval[idr + lenR].frac < 0;
-                if(minus){
-                    R.sign[idr] = 1;
+                R.sign[idr] = minus;
+            if(minus){
                     er_float_t tmp = R.eval[idr];
                     R.eval[idr].frac = -R.eval[idr + lenR].frac;
                     R.eval[idr].exp  = R.eval[idr + lenR].exp;
