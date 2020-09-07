@@ -87,7 +87,7 @@ void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
 /////////
 // MPRES-BLAS (structure of arrays)
 /////////
-void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t *y, int incy){
+void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, mp_float_t *A, int lda, mpfr_t *x, int incx, mpfr_t *y, int incy){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS gemv");
@@ -95,7 +95,7 @@ void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, m
     // Host data
     mp_float_ptr hx = new mp_float_t[lenx];
     mp_float_ptr hy = new mp_float_t[leny];
-    mp_float_ptr hA = new mp_float_t[lda * n];
+    mp_float_ptr hA = A;
 
     //GPU data
     mp_array_t dx;
@@ -114,7 +114,7 @@ void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, m
     // Convert from MPFR
     convert_vector(hx, x, lenx);
     convert_vector(hy, y, leny);
-    convert_matrix(hA, A, lda, n);
+    //convert_matrix(hA, A, lda, n);
 
     //Copying to the GPU
     cuda::mp_array_host2device(dx, hx, lenx);
@@ -184,43 +184,39 @@ double *read_mtx_file(char filename[]){
     return matrix;
 }
 
-int * create_ellpack_matrices(char filename[]){
+void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, int &m, int &n){
 
     std::ifstream file(filename);
-    int num_row = 0, num_col = 0, num_lines = 0;
+    int num_lines = 0;
 
 // Ignore comments headers
     while (file.peek() == '%') file.ignore(2048, '\n');
 
 // Read number of rows and columns
-    file >> num_row >> num_col >> num_lines;
+    file >> m >> n >> num_lines;
 
 // Create 2D array and fill with zeros
     int *nonZeros;
-    nonZeros = new int[num_row]();
-
-    double *matrix;
-    matrix = new double[num_row * num_col]();
+    nonZeros = new int[m]();
 
 // fill the matrix with data
     for (int l = 0; l < num_lines; l++){
-        double data = 0.0;
+        double fileData = 0.0;
         int row = 0, col = 0;
-        file >> row >> col >> data;
+        file >> row >> col >> fileData;
         nonZeros[(row-1)] = nonZeros[(row-1)] + 1;
-        matrix[(row -1) + (col -1) * num_row] = data;
     }
 
 
-    for (int i = 0; i < num_row; i++){
+    for (int i = 0; i < m; i++){
         std::cout << nonZeros[i] << " ";
     }
     std::cout << std::endl;
 
-    int * max = std::max_element(nonZeros, nonZeros+num_row);
+    int * max = std::max_element(nonZeros, nonZeros+m);
 
-    double * ellpackData = new double[num_row * (*max)]();
-    int * ellpackIndices = new int[num_row * (*max)]();
+    data = new mp_float_t[m * (*max)];
+    indices = new int[m * (*max)]();
 
     //курсор в начало
     file.seekg(0, ios::beg);
@@ -229,40 +225,38 @@ int * create_ellpack_matrices(char filename[]){
     while (file.peek() == '%') file.ignore(2048, '\n');
 
     // Read number of rows and columns
-    file >> num_row >> num_col >> num_lines;
+    file >> m >> n >> num_lines;
 
-    int * colNum = new int[num_row]();
+    int * colNum = new int[m]();
 
     //разобраться как заново считывать файл
     for (int l = 0; l < num_lines; l++){
-        double data = 0.0;
+        double fileData = 0.0;
         int row = 0, col = 0;
-        file >> row >> col >> data;
-        ellpackData[(row-1) * (*max) + colNum[(row-1)]] = data;
-        ellpackIndices[(row-1) * (*max) + colNum[(row-1)]] = col;
+        file >> row >> col >> fileData;
+        mp_set_d(&data[(row-1) * (*max) + colNum[(row-1)]], fileData);
+        indices[(row-1) * (*max) + colNum[(row-1)]] = col;
         colNum[row-1]++;
     }
 
     file.close();
 
     std::cout << "data" << std::endl;
-    for (int j = 0; j < num_row; ++j) {
+    for (int j = 0; j < m; ++j) {
         for (int i = 0; i < (*max); ++i) {
-            std::cout << ellpackData[j * (*max) + i] << " ";
+            std::cout << mp_get_d(&data[j * (*max) + i]) << " ";
         }
         std::cout << std::endl;
     }
 
     std::cout << std::endl;
     std::cout << "indices" << std::endl;
-    for (int j = 0; j < num_row; ++j) {
+    for (int j = 0; j < m; ++j) {
         for (int i = 0; i < (*max); ++i) {
-            std::cout << ellpackIndices[j * (*max) + i] << " ";
+            std::cout << indices[j * (*max) + i] << " ";
         }
         std::cout << std::endl;
     }
-
-    return nonZeros;
 }
 /********************* Main test *********************/
 
@@ -277,12 +271,14 @@ void testNoTrans(){
     int lenx = (1 + (N - 1) * abs(INCX));
     int leny = (1 + (M - 1) * abs(INCY));
 
-    int *nonZeros = create_ellpack_matrices("/home/ivan/Загрузки/matrixes/5x5 16-not-null.mtx");
+    int m = 0, n = 0;
+    mp_float_t *matrixA = new mp_float_t;
+    int *indices = new int;
+    create_ellpack_matrices("/home/ivan/Загрузки/matrixes/5x5 16-not-null.mtx", matrixA, indices, m, n);
    // double *matrix = read_mtx_file("/home/ivan/Загрузки/matrixes/5x5 16-not-null.mtx");
     //Inputs
     mpfr_t *vectorX = create_random_array(lenx, INP_BITS);
     mpfr_t *vectorY = create_random_array(leny, INP_BITS);
-    mpfr_t *matrixA = create_random_array(LDA * N, INP_BITS);
 
     //Launch tests
 
@@ -293,7 +289,7 @@ void testNoTrans(){
 
     //Cleanup
     for(int i = 0; i < LDA * N; i++){
-        mpfr_clear(matrixA[i]);
+        //mpfr_clear(matrixA[i]);
     }
     for(int i = 0; i < lenx; i++){
         mpfr_clear(vectorX[i]);
