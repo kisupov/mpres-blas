@@ -114,9 +114,9 @@ target_compile_options(test_mpgenorm_performance PRIVATE  $<${cuda_lang}:$<BUILD
 target_link_libraries(test_mpgenorm_performance gmp mpfr OpenMP::OpenMP_CXX)
 
 # Performance test for SPMV
-add_executable(test_spmv_performance blas/performance/test_spmv_performance.cu)
-target_compile_options(test_spmv_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_spmv_performance gmp mpfr arprec openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas cump)
+add_executable(test_mpspmvell_performance sparse/performance/test_mpspmvell_performance.cu)
+target_compile_options(test_mpspmvell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpspmvell_performance gmp mpfr arprec openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas cump)
 
 
 #########################

@@ -23,8 +23,8 @@
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
-#include "../../../src/blas/spmv.cuh"
-#include "3rdparty.cuh"
+#include "../../../src/sparse/mpspmvell.cuh"
+#include "../../blas/performance/3rdparty.cuh"
 
 
 #define M 300  // Number of matrix rows and the vector Y dimension
@@ -33,7 +33,7 @@
 #define TRANS "N" // Specifies the operation: if trans = 'N' or 'n', then y := alpha*A*x + beta*y; if trans = 'T' or 't' or 'C' or 'c' then y = alpha*A**T*x + beta*y (transposed matrix).
 #define INCX 1 // Specifies the increment for the elements of x.
 #define INCY 1 // Specifies the increment for the elements of y.
-#define REPEAT_TEST 10 //Number of repeats
+#define REPEAT_TEST 1 //Number of repeats
 
 //Execution configuration for mpgemv
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND 256
@@ -47,13 +47,13 @@ int MP_PRECISION_DEC; //in decimal digits
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
 
-void setPrecisions(){
-    MP_PRECISION_DEC = (int)(MP_PRECISION / 3.32 + 1);
-    INP_BITS = (int)(MP_PRECISION / 4);
-    INP_DIGITS = (int)(INP_BITS / 3.32 + 1);
+void setPrecisions() {
+    MP_PRECISION_DEC = (int) (MP_PRECISION / 3.32 + 1);
+    INP_BITS = (int) (MP_PRECISION / 4);
+    INP_DIGITS = (int) (INP_BITS / 3.32 + 1);
 }
 
-void initialize(){
+void initialize() {
     cudaDeviceReset();
     rns_const_init();
     mp_const_init();
@@ -63,19 +63,19 @@ void initialize(){
     cudaCheckErrors();
 }
 
-void finalize(){
+void finalize() {
     mp_real::mp_finalize();
 }
 
-void convert_vector(mp_float_ptr dest, mpfr_t *source, int width){
-    for( int i = 0; i < width; i++ ){
+void convert_vector(mp_float_ptr dest, mpfr_t *source, int width) {
+    for (int i = 0; i < width; i++) {
         mp_set_mpfr(&dest[i], source[i]);
     }
 }
 
-void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
+void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols) {
     int width = rows * cols;
-    for( int i = 0; i < width; i++ ){
+    for (int i = 0; i < width; i++) {
         mp_set_mpfr(&dest[i], source[i]);
     }
 }
@@ -87,14 +87,15 @@ void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
 /////////
 // MPRES-BLAS (structure of arrays)
 /////////
-void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, mp_float_t *A, int lda, mpfr_t *x, int incx, mpfr_t *y, int incy){
+void mpres_test(enum mblas_trans_type trans, int m, int n, int maxNonZeros, int lenx, int leny, mp_float_t *A, int *indices,
+                mp_float_t *x, mp_float_t *y) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS gemv");
 
     // Host data
-    mp_float_ptr hx = new mp_float_t[lenx];
-    mp_float_ptr hy = new mp_float_t[leny];
+    mp_float_ptr hx = x;
+    mp_float_ptr hy = y;
     mp_float_ptr hA = A;
 
     //GPU data
@@ -102,37 +103,33 @@ void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, m
     mp_array_t dy;
     mp_array_t dA;
     mp_array_t dbuf1;
-    mp_array_t dbuf2;
+    int *dindices;
 
     //Init data
     cuda::mp_array_init(dx, lenx);
     cuda::mp_array_init(dy, leny);
-    cuda::mp_array_init(dA, lda * n);
-    cuda::mp_array_init(dbuf1, (trans == mblas_no_trans) ? n : m);
-    cuda::mp_array_init(dbuf2, m * n);
+    cuda::mp_array_init(dA, m * maxNonZeros);
+    cuda::mp_array_init(dbuf1, m * n);
 
-    // Convert from MPFR
-    convert_vector(hx, x, lenx);
-    convert_vector(hy, y, leny);
-    //convert_matrix(hA, A, lda, n);
+    cudaMalloc(&dindices, sizeof(int) * m * maxNonZeros);
 
     //Copying to the GPU
     cuda::mp_array_host2device(dx, hx, lenx);
-    cuda::mp_array_host2device(dA, hA, lda * n);
+    cuda::mp_array_host2device(dA, hA, m * maxNonZeros);
+    cudaMemcpy(dindices, indices, sizeof(int) * m * maxNonZeros, cudaMemcpyHostToDevice);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
     //Launch
     for (int i = 0; i < REPEAT_TEST; i++) {
-        cuda::mp_array_host2device(dy, hy, leny);
-        StartCudaTimer();
+        cuda::mp_array_host2device(dy, hy, leny);StartCudaTimer();
 
         cuda::spmv<
                 MPRES_CUDA_BLOCKS_FIELDS_ROUND,
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
                 MPRES_CUDA_BLOCKS_RESIDUES,
                 MPRES_CUDA_THREADS_REDUCE>
-                (trans, m, n, dA, lda, dx, incx, dy, incy, dbuf1, dbuf2);
+                (trans, m, n, maxNonZeros, dA, dindices, dx, dy, dbuf1);
         EndCudaTimer();
     }
     PrintCudaTimer("took");
@@ -144,47 +141,17 @@ void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, m
     print_mp_sum(hy, leny);
 
     //Cleanup
-    delete [] hx;
-    delete [] hy;
-    delete [] hA;
+    delete[] hx;
+    delete[] hy;
+    delete[] hA;
     cuda::mp_array_clear(dx);
     cuda::mp_array_clear(dy);
     cuda::mp_array_clear(dA);
     cuda::mp_array_clear(dbuf1);
-    cuda::mp_array_clear(dbuf2);
+    cudaFree(dindices);
 }
 
-//get double matrix from .mtx file
-double *read_mtx_file(char filename[]){
-
-    std::ifstream file(filename);
-    int num_row = 0, num_col = 0, num_lines = 0;
-
-// Ignore comments headers
-    while (file.peek() == '%') file.ignore(2048, '\n');
-
-// Read number of rows and columns
-    file >> num_row>> num_col >> num_lines;
-
-// Create 2D array and fill with zeros
-    double* matrix;
-    matrix = new double[num_row * num_col];
-    std::fill(matrix, matrix + num_row * num_col, 0);
-
-// fill the matrix with data
-    for (int l = 0; l < num_lines; l++)
-    {
-        double data = 0.0;
-        int row = 0, col = 0;
-        file >> row >> col >> data;
-        matrix[(row -1) + (col -1) * num_row] = data;
-    }
-
-    file.close();
-    return matrix;
-}
-
-void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, int &m, int &n){
+void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, int &m, int &n, int &maxNonZeros) {
 
     std::ifstream file(filename);
     int num_lines = 0;
@@ -200,23 +167,23 @@ void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, 
     nonZeros = new int[m]();
 
 // fill the matrix with data
-    for (int l = 0; l < num_lines; l++){
+    for (int l = 0; l < num_lines; l++) {
         double fileData = 0.0;
         int row = 0, col = 0;
         file >> row >> col >> fileData;
-        nonZeros[(row-1)] = nonZeros[(row-1)] + 1;
+        nonZeros[(row - 1)] = nonZeros[(row - 1)] + 1;
     }
 
 
-    for (int i = 0; i < m; i++){
+    for (int i = 0; i < m; i++) {
         std::cout << nonZeros[i] << " ";
     }
     std::cout << std::endl;
 
-    int * max = std::max_element(nonZeros, nonZeros+m);
+    maxNonZeros = *std::max_element(nonZeros, nonZeros + m);
 
-    data = new mp_float_t[m * (*max)];
-    indices = new int[m * (*max)]();
+    data = new mp_float_t[m * (maxNonZeros)];
+    indices = new int[m * (maxNonZeros)]();
 
     //курсор в начало
     file.seekg(0, ios::beg);
@@ -230,33 +197,45 @@ void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, 
     int * colNum = new int[m]();
 
     //разобраться как заново считывать файл
-    for (int l = 0; l < num_lines; l++){
+    for (int l = 0; l < num_lines; l++) {
         double fileData = 0.0;
         int row = 0, col = 0;
         file >> row >> col >> fileData;
-        mp_set_d(&data[(row-1) * (*max) + colNum[(row-1)]], fileData);
-        indices[(row-1) * (*max) + colNum[(row-1)]] = col;
-        colNum[row-1]++;
+        mp_set_d(&data[colNum[(row - 1)] * m + (row - 1)], fileData);
+        indices[colNum[(row - 1)] * m + (row - 1)] = (col-1);
+        colNum[row - 1]++;
     }
 
     file.close();
 
     std::cout << "data" << std::endl;
     for (int j = 0; j < m; ++j) {
-        for (int i = 0; i < (*max); ++i) {
-            std::cout << mp_get_d(&data[j * (*max) + i]) << " ";
+        for (int i = 0; i < maxNonZeros; ++i) {
+            std::cout << mp_get_d(&data[j + m * i]) << " ";
         }
         std::cout << std::endl;
     }
 
+/*
+    std::cout << "data inline" << std::endl;
+    for (int i = 0; i < m * maxNonZeros; ++i) {
+        std::cout << i << " = " << mp_get_d(&data[i]) << std::endl;
+    }
+*/
+
     std::cout << std::endl;
     std::cout << "indices" << std::endl;
     for (int j = 0; j < m; ++j) {
-        for (int i = 0; i < (*max); ++i) {
-            std::cout << indices[j * (*max) + i] << " ";
+        for (int i = 0; i < (maxNonZeros); ++i) {
+            std::cout << indices[j + m * i] << " ";
         }
         std::cout << std::endl;
     }
+
+/*    std::cout << "indices inline" << std::endl;
+    for (int i = 0; i < m * maxNonZeros; ++i) {
+        std::cout << i << " = " << indices[i] << std::endl;
+    }*/
 }
 /********************* Main test *********************/
 
@@ -266,47 +245,42 @@ void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, 
  * y is of size m
  * a is of size lda * n, where the value of lda must be at least max(1, m).
  */
-void testNoTrans(){
+void testNoTrans() {
     //Actual length of the vectors
-    int lenx = (1 + (N - 1) * abs(INCX));
-    int leny = (1 + (M - 1) * abs(INCY));
 
-    int m = 0, n = 0;
-    mp_float_t *matrixA = new mp_float_t;
+    int m = 0, n = 0, maxNonZeros = 0;
+    mp_float_t *matrixA;
     int *indices = new int;
-    create_ellpack_matrices("/home/ivan/Загрузки/matrixes/5x5 16-not-null.mtx", matrixA, indices, m, n);
-   // double *matrix = read_mtx_file("/home/ivan/Загрузки/matrixes/5x5 16-not-null.mtx");
+
+    create_ellpack_matrices("/home/ivan/Загрузки/matrixes/5x5 16-not-null.mtx", matrixA, indices, m, n, maxNonZeros);
+
+    int lenx = (1 + (n - 1) * abs(INCX));
+    int leny = (1 + (m - 1) * abs(INCY));
+
     //Inputs
-    mpfr_t *vectorX = create_random_array(lenx, INP_BITS);
-    mpfr_t *vectorY = create_random_array(leny, INP_BITS);
+    mp_float_t *vectorX = new mp_float_t[lenx];
+    mp_float_t *vectorY = new mp_float_t[leny]();
+
+    for (int i = 0; i < lenx; ++i) {
+        mp_set_d(&vectorX[i], (i + 1));
+    }
 
     //Launch tests
 
-    mpres_test(mblas_no_trans, M, N, lenx, leny, matrixA, LDA, vectorX, INCX, vectorY, INCY);
+    mpres_test(mblas_no_trans, m, n, maxNonZeros, lenx, leny, matrixA, indices, vectorX, vectorY);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
     //Cleanup
-    for(int i = 0; i < LDA * N; i++){
-        //mpfr_clear(matrixA[i]);
-    }
-    for(int i = 0; i < lenx; i++){
-        mpfr_clear(vectorX[i]);
-    }
-    for(int i = 0; i < leny; i++){
-        mpfr_clear(vectorY[i]);
-    }
+    delete[] vectorX;
+    delete[] vectorY;
+    //delete[] matrixA;
 
-    delete [] matrixA;
-    delete [] vectorX;
-    delete [] vectorY;
-
-    //delete [] matrix;
     cudaDeviceReset();
 }
 
-int main(){
+int main() {
 
     initialize();
 
