@@ -152,19 +152,19 @@ namespace cuda {
         //  To compute digits (residues) in the vector operations
 
 
-        //Multiplication buffer2 = A * buffer1 - Computing the signs, exponents, and interval evaluations
+        //Multiplication buffer1 = A * x - Computing the signs, exponents, and interval evaluations
         mp_mat2vec_ellpack_right_scal_esi_kernel << < grid1, blockDim1 >> >
                                                              (buffer1, A, indices, x, m, n, maxNonZeros);
 
-        //Multiplication buffer2 = A * buffer1 - Multiplying the digits in the RNS
+        //Multiplication buffer1 = A * x - Multiplying the digits in the RNS
         mp_mat2vec_ellpack_right_scal_digits_kernel << < grid2, BLOCK_SIZE_FOR_RESIDUES >> >
                                                                 (buffer1, A, indices, x, m, n, maxNonZeros);
 
-        //Rounding the intermediate result (buffer2)
+        //Rounding the intermediate result (buffer1)
         mp_vector_round_kernel << < gridDim1, blockDim1 >> > (buffer1, 1, m * maxNonZeros);
 
         show_matrix(buffer1, m, maxNonZeros);
-        //The following is tne reduction of the intermediate matrix (buffer 2).
+        //The following is tne reduction of the intermediate matrix (buffer 1).
         //Here, the sum of the elements in each row is calculated, and then y is added to the calculated sum
         //The result is a vector of size m
 
@@ -174,7 +174,7 @@ namespace cuda {
         // Power of two that is greater that or equals to blockDim3
         const unsigned int POW = nextPow2(blockDim3);
 
-        // Compute row sums
+        //TODO переделать метод так, чтобы он не суммировал к y, а менял его значение
         matrix_row_sum_kernel << < m, blockDim3, sizeof(mp_float_t) * blockDim3 >> >
                                                  (m, maxNonZeros, buffer1, y, 1, POW);
     }
