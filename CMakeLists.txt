@@ -32,13 +32,12 @@ set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc") # Path to nvcc
 # CUDA
 #####################################
 set(cuda_lang "$<COMPILE_LANGUAGE:CUDA>")
-set(CMAKE_CUDA_STANDARD 14) # Default value for CUDA_STANDARD property of targets
 
 #####################################
 # Compile options
 #####################################
 #
-set(GLOBAL_COMPILE_OPTIONS ${GLOBAL_COMPILE_OPTIONS} -Xcompiler=-O3,-fopenmp,-ffast-math -use_fast_math)
+set(GLOBAL_COMPILE_OPTIONS ${GLOBAL_COMPILE_OPTIONS} -Xcompiler=-fopenmp)
 
 #####################################
 # Directories
