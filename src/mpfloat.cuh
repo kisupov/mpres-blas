@@ -98,13 +98,13 @@ void mp_const_print(){
 /********************* Assignment, conversion and formatted output functions *********************/
 
 /*!
- * Set the value of result from x
+ * Assign the value of x to result
  */
 GCC_FORCEINLINE void mp_set(mp_float_ptr result, mp_float_ptr x) {
     rns_set(result->digits, x->digits);
     result->sign = x->sign;
     result->exp = x->exp;
-    result->eval[0] = x->eval[1];
+    result->eval[0] = x->eval[0];
     result->eval[1] = x->eval[1];
 }
 
@@ -122,7 +122,7 @@ GCC_FORCEINLINE void mp_set(mp_float_ptr result, long significand, int exp, int 
 }
 
 /*!
- * Set the value of result from double-precision x
+ * Assign the value of a double precision variable x to result
  */
 GCC_FORCEINLINE void mp_set_d(mp_float_ptr result, const double x) {
     int sign;
@@ -151,7 +151,7 @@ GCC_FORCEINLINE void mp_set_d(mp_float_ptr result, const double x) {
 }
 
 /*!
- * Set the value of result from the mpfr number x
+ * Assign the value of a multiple-precision (mpfr) variable x to result
  */
 GCC_FORCEINLINE void mp_set_mpfr(mp_float_ptr result, mpfr_srcptr x) {
     mpz_t mpz_mant;
@@ -560,6 +560,34 @@ GCC_FORCEINLINE int mp_cmp_abs(mp_float_ptr x, mp_float_ptr y) {
  * GPU functions
  */
 namespace cuda {
+
+    /*!
+     * Assign the value of x to result
+     */
+    DEVICE_CUDA_FORCEINLINE void mp_set(mp_float_ptr result, mp_float_ptr x) {
+        for(int i = 0; i < RNS_MODULI_SIZE; i++){
+            result->digits[i] = x->digits[i];
+        }
+        result->sign = x->sign;
+        result->exp = x->exp;
+        result->eval[0] = x->eval[0];
+        result->eval[1] = x->eval[1];
+    }
+
+    /*!
+     * Assign the value of x to result[idr]
+     * @param idr - index in the result vector to write the value of x
+     * @param result - pointer to the mp_array_t vector with result[idr] = x
+     */
+    DEVICE_CUDA_FORCEINLINE void mp_set(mp_array_t result, int idr, mp_float_ptr x) {
+        for(int i = 0; i < RNS_MODULI_SIZE; i++){
+            result.digits[RNS_MODULI_SIZE * idr + i] = x->digits[i];
+        }
+        result.sign[idr] = x->sign;
+        result.exp[idr] = x->exp;
+        result.eval[idr] = x->eval[0];
+        result.eval[idr + result.len[0]] = x->eval[1];
+    }
 
     /*
      * Returns the number of rounding bits for x
