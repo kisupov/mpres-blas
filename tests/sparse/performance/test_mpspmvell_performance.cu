@@ -33,7 +33,7 @@
 #define TRANS "N" // Specifies the operation: if trans = 'N' or 'n', then y := alpha*A*x + beta*y; if trans = 'T' or 't' or 'C' or 'c' then y = alpha*A**T*x + beta*y (transposed matrix).
 #define INCX 1 // Specifies the increment for the elements of x.
 #define INCY 1 // Specifies the increment for the elements of y.
-#define REPEAT_TEST 1 //Number of repeats
+#define REPEAT_TEST 5 //Number of repeats
 
 //Execution configuration for mpgemv
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND 256
@@ -73,13 +73,8 @@ void convert_vector(double *&dest, mp_float_t *source, int width) {
     }
 }
 
-void convert_matrix(double *&dest, mp_float_t *source, int rows, int cols) {
-    int width = rows * cols;
-    for (int i = 0; i < width; i++) {
-        dest[i] = mp_get_d(&source[i]);
-    }
-}
 
+//TODO придумать как убрать сложение с Y
 __global__ static void double_ellpack_spmv(double *data, double *x, double *y, int *indices, int m, int maxNonZeros) {
     double sum = 0;
     int indice = 0;
@@ -132,7 +127,7 @@ void spmv_ellpack_double_test(int m, int n, int maxNonZeros, int lenx, int leny,
     double *dx = new double[lenx];
     double *dy = new double[leny];
 
-    convert_matrix(hdata, data, m, maxNonZeros);
+    convert_vector(hdata, data, m * maxNonZeros);
     convert_vector(hx, x, lenx);
     convert_vector(hy, y, m);
 
@@ -145,7 +140,6 @@ void spmv_ellpack_double_test(int m, int n, int maxNonZeros, int lenx, int leny,
     cudaMemcpy(dindices, hindices, sizeof(int) * m * maxNonZeros, cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(double) * lenx, cudaMemcpyHostToDevice);
 
-    print_matrix(ddata, m*maxNonZeros);
     for(int i = 0; i < REPEAT_TEST; i ++) {
         cudaMemcpy(dy, hy, sizeof(double) * leny, cudaMemcpyHostToDevice);
         StartCudaTimer();
@@ -171,49 +165,45 @@ void spmv_ellpack_double_test(int m, int n, int maxNonZeros, int lenx, int leny,
 /////////
 // SpMV-ELLPACK (structure of arrays)
 /////////
-void spmv_ellpack_test(enum mblas_trans_type trans, int m, int n, int maxNonZeros, int lenx, int leny, mp_float_t *A, int *indices,
-                mp_float_t *x, mp_float_t *y) {
+void spmv_ellpack_test(enum mblas_trans_type trans, int m, int n, int maxNonZeros, int lenx, int leny, mp_float_ptr data, int *indices,
+                       mp_float_ptr x, mp_float_ptr y) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] ELLPACK SpMV");
 
-    // Host data
-    mp_float_ptr hx = x;
-    mp_float_ptr hy = y;
-    mp_float_ptr hA = A;
-    int *hindices = indices;
 
     //GPU data
     mp_array_t dx;
     mp_array_t dy;
-    mp_array_t dA;
+    mp_array_t ddata;
     mp_array_t dbuf1;
     int *dindices;
 
     //Init data
     cuda::mp_array_init(dx, lenx);
     cuda::mp_array_init(dy, leny);
-    cuda::mp_array_init(dA, m * maxNonZeros);
-    cuda::mp_array_init(dbuf1, m * n);
+    cuda::mp_array_init(ddata, m * maxNonZeros);
+    cuda::mp_array_init(dbuf1, m * maxNonZeros);
     cudaMalloc(&dindices, sizeof(int) * m * maxNonZeros);
 
     //Copying to the GPU
-    cuda::mp_array_host2device(dx, hx, lenx);
-    cuda::mp_array_host2device(dA, hA, m * maxNonZeros);
-    cudaMemcpy(dindices, hindices, sizeof(int) * m * maxNonZeros, cudaMemcpyHostToDevice);
+    cuda::mp_array_host2device(dx, x, lenx);
+    cuda::mp_array_host2device(ddata, data, m * maxNonZeros);
+    cudaMemcpy(dindices, indices, sizeof(int) * m * maxNonZeros, cudaMemcpyHostToDevice);
+    cuda::mp_array_host2device(dy, y, leny);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
+
     //Launch
     for (int i = 0; i < REPEAT_TEST; i++) {
-        cuda::mp_array_host2device(dy, hy, leny);StartCudaTimer();
-
+        StartCudaTimer();
         cuda::spmv<
                 MPRES_CUDA_BLOCKS_FIELDS_ROUND,
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
                 MPRES_CUDA_BLOCKS_RESIDUES,
                 MPRES_CUDA_THREADS_REDUCE>
-                (trans, m, n, maxNonZeros, dA, dindices, dx, dy, dbuf1);
+                (trans, m, n, maxNonZeros, ddata, dindices, dx, dy, dbuf1);
         EndCudaTimer();
     }
     PrintCudaTimer("took");
@@ -221,17 +211,13 @@ void spmv_ellpack_test(enum mblas_trans_type trans, int m, int n, int maxNonZero
     cudaCheckErrors();
 
     //Copying to the host
-    cuda::mp_array_device2host(hy, dy, leny);
-    print_mp_sum(hy, leny);
+    cuda::mp_array_device2host(y, dy, leny);
+    print_mp_sum(y, leny);
 
     //Cleanup
-    delete[] hx;
-    delete[] hy;
-    delete[] hA;
-    delete[] hindices;
     cuda::mp_array_clear(dx);
     cuda::mp_array_clear(dy);
-    cuda::mp_array_clear(dA);
+    cuda::mp_array_clear(ddata);
     cuda::mp_array_clear(dbuf1);
     cudaFree(dindices);
 }
@@ -259,16 +245,14 @@ void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, 
         nonZeros[(row - 1)] = nonZeros[(row - 1)] + 1;
     }
 
-
-    for (int i = 0; i < m; i++) {
-        std::cout << nonZeros[i] << " ";
-    }
-    std::cout << std::endl;
-
     maxNonZeros = *std::max_element(nonZeros, nonZeros + m);
 
     data = new mp_float_t[m * (maxNonZeros)];
     indices = new int[m * (maxNonZeros)]();
+
+    for (int i = 0; i < m * maxNonZeros; ++i) {
+        mp_set_d(&data[i], 0);
+    }
 
     //курсор в начало
     file.seekg(0, ios::beg);
@@ -293,7 +277,7 @@ void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, 
 
     file.close();
 
-    std::cout << "data" << std::endl;
+/*    std::cout << "data" << std::endl;
     for (int j = 0; j < m; ++j) {
         for (int i = 0; i < maxNonZeros; ++i) {
             std::cout << mp_get_d(&data[j + m * i]) << " ";
@@ -308,7 +292,7 @@ void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, 
             std::cout << indices[j + m * i] << " ";
         }
         std::cout << std::endl;
-    }
+    }*/
 }
 /********************* Main test *********************/
 
@@ -346,7 +330,11 @@ void testNoTrans() {
 
     //Launch tests
     spmv_ellpack_test(mblas_no_trans, m, n, maxNonZeros, lenx, leny, data, indices, vectorX, vectorY);
-    //TODO последовательно тесты падают
+    //TODO убрать после решение проблемы в алгоритме double
+    //зануляем вектор Y (по идее этого не надо делать)
+    for (int i = 0; i < leny; ++i) {
+        mp_set_d(&vectorY[i], 0);
+    }
     spmv_ellpack_double_test(m, n, maxNonZeros, lenx, leny, data, indices, vectorX, vectorY);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -355,7 +343,8 @@ void testNoTrans() {
     //Cleanup
     delete[] vectorX;
     delete[] vectorY;
-
+    delete[] data;
+    delete[] indices;
     cudaDeviceReset();
 }
 

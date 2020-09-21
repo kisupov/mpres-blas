@@ -119,7 +119,7 @@ namespace cuda {
         // write result for this block to global mem
         if (tid == 0) {
             int iy = incy > 0 ? bid * incy : (-m + bid + 1) * incy;
-            cuda::mp_add(y, iy, y, iy, &sdata[tid]);
+            cuda::mp_set(y, iy, &sdata[tid]);
         }
         //__syncthreads();
     }
@@ -163,7 +163,8 @@ namespace cuda {
         //Rounding the intermediate result (buffer1)
         mp_vector_round_kernel << < gridDim1, blockDim1 >> > (buffer1, 1, m * maxNonZeros);
 
-        show_matrix(buffer1, m, maxNonZeros);
+        //show_matrix(buffer1, m, maxNonZeros);
+
         //The following is tne reduction of the intermediate matrix (buffer 1).
         //Here, the sum of the elements in each row is calculated, and then y is added to the calculated sum
         //The result is a vector of size m
