@@ -74,7 +74,7 @@ void convert_vector(double *&dest, mp_float_t *source, int width) {
 }
 
 
-//TODO придумать как убрать сложение с Y
+//TODO придумать как убрать сложение с Y просчитать сразу строку
 __global__ static void double_ellpack_spmv(double *data, double *x, double *y, int *indices, int m, int maxNonZeros) {
     double sum = 0;
     int indice = 0;
@@ -171,6 +171,8 @@ void spmv_ellpack_test(enum mblas_trans_type trans, int m, int n, int maxNonZero
     InitCudaTimer();
     PrintTimerName("[GPU] ELLPACK SpMV");
 
+    //Host data
+    mp_float_ptr hy = new mp_float_t[leny];
 
     //GPU data
     mp_array_t dx;
@@ -211,10 +213,11 @@ void spmv_ellpack_test(enum mblas_trans_type trans, int m, int n, int maxNonZero
     cudaCheckErrors();
 
     //Copying to the host
-    cuda::mp_array_device2host(y, dy, leny);
-    print_mp_sum(y, leny);
+    cuda::mp_array_device2host(hy, dy, leny);
+    print_mp_sum(hy, leny);
 
     //Cleanup
+    delete [] hy;
     cuda::mp_array_clear(dx);
     cuda::mp_array_clear(dy);
     cuda::mp_array_clear(ddata);
@@ -330,11 +333,6 @@ void testNoTrans() {
 
     //Launch tests
     spmv_ellpack_test(mblas_no_trans, m, n, maxNonZeros, lenx, leny, data, indices, vectorX, vectorY);
-    //TODO убрать после решение проблемы в алгоритме double
-    //зануляем вектор Y (по идее этого не надо делать)
-    for (int i = 0; i < leny; ++i) {
-        mp_set_d(&vectorY[i], 0);
-    }
     spmv_ellpack_double_test(m, n, maxNonZeros, lenx, leny, data, indices, vectorX, vectorY);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
