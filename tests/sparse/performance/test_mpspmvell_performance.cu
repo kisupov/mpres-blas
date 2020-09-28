@@ -19,12 +19,13 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <fstream>
 #include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/sparse/mpspmvell.cuh"
-#include "../../blas/performance/3rdparty.cuh"
+#include "../../sparse/performance/3rdparty.cuh"
 
 
 #define M 300  // Number of matrix rows and the vector Y dimension
@@ -312,7 +313,7 @@ void testNoTrans() {
     mp_float_t *data;
     int *indices;
 
-    create_ellpack_matrices("/home/ivan/Загрузки/matrixes/5x5 16-not-null.mtx", data, indices, m, n, maxNonZeros);
+    create_ellpack_matrices("/home/ivan/Загрузки/matrixes/Trefethen_20b.mtx", data, indices, m, n, maxNonZeros);
 
     int lenx = (1 + (n - 1) * abs(INCX));
     int leny = (1 + (m - 1) * abs(INCY));
@@ -333,6 +334,11 @@ void testNoTrans() {
 
     //Launch tests
     spmv_ellpack_test(mblas_no_trans, m, n, maxNonZeros, lenx, leny, data, indices, vectorX, vectorY);
+    campary_spmv_ellpack_test<CAMPARY_PRECISION>(m, n, maxNonZeros, lenx, leny, data, indices, vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
+    //инициализируем вектор Y
+    for (int i = 0; i < leny; ++i) {
+        mp_set_d(&vectorY[i], 0);
+    }
     spmv_ellpack_double_test(m, n, maxNonZeros, lenx, leny, data, indices, vectorX, vectorY);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());

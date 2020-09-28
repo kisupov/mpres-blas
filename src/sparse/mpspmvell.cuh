@@ -175,7 +175,6 @@ namespace cuda {
         // Power of two that is greater that or equals to blockDim3
         const unsigned int POW = nextPow2(blockDim3);
 
-        //TODO переделать метод так, чтобы он не суммировал к y, а менял его значение
         matrix_row_sum_kernel << < m, blockDim3, sizeof(mp_float_t) * blockDim3 >> >
                                                  (m, maxNonZeros, buffer1, y, 1, POW);
     }
