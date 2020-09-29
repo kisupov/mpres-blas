@@ -26,7 +26,7 @@
 
 #include "../mpvector.cuh"
 #include "../mpmatrix.cuh"
-#include "../mpreduct.cuh"
+#include "../mpreduct_rowcol.cuh"
 #include "../kernel_config.cuh"
 #include "../mblas_enum.cuh"
 
