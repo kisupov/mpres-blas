@@ -29,7 +29,7 @@ namespace cuda {
 
     /********************* Computing the sum of the elements of a multiple-precision vector *********************/
 
-    /*
+    /*!
      * Multiple-precision summation kernel
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
@@ -71,7 +71,7 @@ namespace cuda {
         __syncthreads();
     }
 
-    /*
+    /*!
      * Multiple-precision summation kernel.  This kernel is exactly the same as the previous one,
      * but takes mp_float_ptr instead of mp_array_t for the input vector and mp_array_t instead of mp_float_ptr for the result
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
@@ -111,7 +111,7 @@ namespace cuda {
 
     /********************* Computing the sum of the absolute values of the elements of a multiple-precision vector *********************/
 
-    /*
+    /*!
      * Kernel that calculates the sum of magnitudes of the vector elements
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
@@ -150,7 +150,7 @@ namespace cuda {
         __syncthreads();
     }
 
-    /*
+    /*!
      * Kernel that calculates the sum of magnitudes of the vector elements.
      * This kernel is exactly the same as the previous one, but takes mp_float_ptr instead of mp_array_t for the input vector
      * and mp_array_t instead of mp_float_ptr for the result
@@ -190,7 +190,7 @@ namespace cuda {
 
     /********************* Computing the maximum of the absolute values of the elements of a multiple-precision vector *********************/
 
-    /*
+    /*!
       * Kernel that calculates the maximum absolute value of the elements of a multiple-precision vector
       * @param nextPow2 - least power of two greater than or equal to blockDim.x
       */
@@ -240,7 +240,7 @@ namespace cuda {
         __syncthreads();
     }
 
-    /*
+    /*!
     * Kernel that calculates the maximum absolute value of the elements of a multiple-precision vector.
     * This kernel is exactly the same as the previous one, but takes mp_float_ptr instead of mp_array_t for the input vector
     * and mp_array_t instead of mp_float_ptr for the result
@@ -282,6 +282,183 @@ namespace cuda {
             }
         }
     }
+
+    /********************* Computing the sum of all the elements in each row or in each column of a multiple-precision matrix *********************/
+
+    /*!
+     * Kernel that calculates the sum of all the elements in each row of an m-by-n multiple-precision matrix
+     * The result (a vector of size m) is then added to the vector y
+     * @note Each block is associated with its own element of y, so this kernel must be run on an one-dimensional grid of m one-dimensional blocks
+     * @note Shared memory of size sizeof(mp_float_t) * nThreads must be allocated, where nThreads is the number of threads per block
+     * @param A - matrix of m rows and n columns
+     * @param y - vector of size m
+     * @param incy - storage spacing between elements of y
+     * @param nextPow2 - least power of two greater than or equal to blockDim.x
+     */
+    __global__ static void matrix_row_sum_add_kernel(const unsigned int m, const unsigned int n, mp_array_t A, mp_array_t y, int incy, const unsigned int nextPow2) {
+        extern __shared__ mp_float_t sdata[];
+
+        // parameters
+        const unsigned int tid = threadIdx.x;
+        const unsigned int bid = blockIdx.x;
+        const unsigned int bsize = blockDim.x;
+        unsigned int i = threadIdx.x;
+
+        // do reduction in global mem
+        sdata[tid] = cuda::MP_ZERO;
+        while (i < n) {
+            cuda::mp_add(&sdata[tid], &sdata[tid], A, i * m + bid);
+            i += bsize;
+        }
+        __syncthreads();
+
+        // do reduction in shared mem
+        i = nextPow2 >> 1; // half of nextPow2
+        while(i >= 1){
+            if ((tid < i) && (tid + i < bsize)) {
+                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+            }
+            i = i >> 1;
+            __syncthreads();
+        }
+
+        // write result for this block to global mem
+        if (tid == 0) {
+            int iy = incy > 0 ? bid * incy : (-m + bid + 1)*incy;
+            cuda::mp_add(y, iy, y, iy, &sdata[tid]);
+        }
+    }
+
+    /*!
+     * Kernel that calculates the sum of all the elements in each column of an m-by-n multiple-precision matrix
+     * The result (a vector of size n) is then added to the vector y
+     * @note Each block is associated with its own element of y, so this kernel must be run on an one-dimensional grid of n one-dimensional blocks
+     * @note Shared memory of size sizeof(mp_float_t) * nThreads must be allocated, where nThreads is the number of threads per block
+     * @param A - matrix of m rows and n columns
+     * @param y - vector of size n
+     * @param incy - storage spacing between elements of y
+     * @param nextPow2 - least power of two greater than or equal to blockDim.x
+     */
+    __global__ static void matrix_col_sum_add_kernel(const unsigned int m, const unsigned int n, mp_array_t A, mp_array_t y, int incy, const unsigned int nextPow2) {
+        extern __shared__ mp_float_t sdata[];
+
+        // parameters
+        const unsigned int tid = threadIdx.x;
+        const unsigned int bid = blockIdx.x;
+        const unsigned int bsize = blockDim.x;
+        unsigned int i = tid;
+
+        // do reduction in global mem
+        sdata[tid] = cuda::MP_ZERO;
+        while (i < m) {
+            cuda::mp_add(&sdata[tid], &sdata[tid], A, bid * m + i);
+            i += bsize;
+        }
+        __syncthreads();
+
+        // do reduction in shared mem
+        i = nextPow2 >> 1; // half of nextPow2
+        while(i >= 1){
+            if ((tid < i) && (tid + i < bsize)) {
+                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+            }
+            i = i >> 1;
+            __syncthreads();
+        }
+
+        // write result for this block to global mem
+        if (tid == 0) {
+            int iy = incy > 0 ? bid * incy : (-n + bid + 1)*incy;
+            cuda::mp_add(y, iy, y, iy, &sdata[tid]);
+        }
+    }
+
+    /*!
+     * Kernel that calculates the sum of all the elements in each row of an m-by-n multiple-precision matrix and stores it in y (without adding y)
+     * @note Each block is associated with its own element of y, so this kernel must be run on an one-dimensional grid of m one-dimensional blocks
+     * @note Shared memory of size sizeof(mp_float_t) * nThreads must be allocated, where nThreads is the number of threads per block
+     * @param A - matrix of m rows and n columns
+     * @param y - vector of size m
+     * @param incy - storage spacing between elements of y
+     * @param nextPow2 - least power of two greater than or equal to blockDim.x
+     */
+    __global__ static void matrix_row_sum_kernel(const unsigned int m, const unsigned int n, mp_array_t A, mp_array_t y, int incy, const unsigned int nextPow2) {
+        extern __shared__ mp_float_t sdata[];
+
+        // parameters
+        const unsigned int tid = threadIdx.x;
+        const unsigned int bid = blockIdx.x;
+        const unsigned int bsize = blockDim.x;
+        unsigned int i = threadIdx.x;
+
+        // do reduction in global mem
+        sdata[tid] = cuda::MP_ZERO;
+        while (i < n) {
+            cuda::mp_add(&sdata[tid], &sdata[tid], A, i * m + bid);
+            i += bsize;
+        }
+        __syncthreads();
+
+        // do reduction in shared mem
+        i = nextPow2 >> 1; // half of nextPow2
+        while(i >= 1){
+            if ((tid < i) && (tid + i < bsize)) {
+                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+            }
+            i = i >> 1;
+            __syncthreads();
+        }
+
+        // write result for this block to global mem
+        if (tid == 0) {
+            int iy = incy > 0 ? bid * incy : (-m + bid + 1)*incy;
+            cuda::mp_set(y, iy, &sdata[tid]);
+        }
+    }
+
+    /*!
+     * Kernel that calculates the sum of all the elements in each column of an m-by-n multiple-precision matrix and stores it in y (without adding y)
+     * @note Each block is associated with its own element of y, so this kernel must be run on an one-dimensional grid of n one-dimensional blocks
+     * @note Shared memory of size sizeof(mp_float_t) * nThreads must be allocated, where nThreads is the number of threads per block
+     * @param A - matrix of m rows and n columns
+     * @param y - vector of size n
+     * @param incy - storage spacing between elements of y
+     * @param nextPow2 - least power of two greater than or equal to blockDim.x
+     */
+    __global__ static void matrix_col_sum_kernel(const unsigned int m, const unsigned int n, mp_array_t A, mp_array_t y, int incy, const unsigned int nextPow2) {
+        extern __shared__ mp_float_t sdata[];
+
+        // parameters
+        const unsigned int tid = threadIdx.x;
+        const unsigned int bid = blockIdx.x;
+        const unsigned int bsize = blockDim.x;
+        unsigned int i = tid;
+
+        // do reduction in global mem
+        sdata[tid] = cuda::MP_ZERO;
+        while (i < m) {
+            cuda::mp_add(&sdata[tid], &sdata[tid], A, bid * m + i);
+            i += bsize;
+        }
+        __syncthreads();
+
+        // do reduction in shared mem
+        i = nextPow2 >> 1; // half of nextPow2
+        while(i >= 1){
+            if ((tid < i) && (tid + i < bsize)) {
+                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+            }
+            i = i >> 1;
+            __syncthreads();
+        }
+
+        // write result for this block to global mem
+        if (tid == 0) {
+            int iy = incy > 0 ? bid * incy : (-n + bid + 1)*incy;
+            cuda::mp_set(y, iy, &sdata[tid]);
+        }
+    }
+
 
 } //end of namespace
 

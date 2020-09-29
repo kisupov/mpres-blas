@@ -1,8 +1,8 @@
 /*
  *  Global parameters of MPRES-BLAS.
- *  32 moduli of the RNS system, each of 32 bits
- *  962-bit dynamic range of the RNS
- *  480 bits of precision
+ *  8 moduli of the RNS system, each of 32 bits
+ *  242-bit dynamic range of the RNS
+ *  120 bits of precision
  *
  *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
  *
@@ -25,23 +25,41 @@
 #ifndef MPRES_PARAMS_H
 #define MPRES_PARAMS_H
 
-#define RNS_MODULI_SIZE (32)
+/*
+ * Size of the RNS moduli set
+ */
+#define RNS_MODULI_SIZE (8)
 
-#define RNS_PARALLEL_REDUCTION_IDX (16)
+/*
+ * Initial index for parallel reduction in loops over the RNS moduli.
+ * The largest power of two which strictly less than RNS_MODULI_SIZE
+ */
+#define RNS_PARALLEL_REDUCTION_IDX (4)
 
-#define RNS_MODULI_PRODUCT_LOG2 (962)
+/*
+ * Binary logarithm of the full RNS moduli product
+ */
+#define RNS_MODULI_PRODUCT_LOG2 (242)
 
+/*
+ * Maximal power-of-two for one scaling step in the RNS system.
+ * It should be such that operations modulo 2^RNS_P2_SCALING_THRESHOLD are performed efficiently.
+ */
 #define RNS_P2_SCALING_THRESHOLD (30)
 
+/*
+ * Upper bound for the relative forward error of an RNS interval evaluation
+ */
 #define RNS_EVAL_RELATIVE_ERROR (0.0000001)
 
-const int RNS_MODULI[] = {
-        1122512117,1122512119,1122512121,1122512123,1122512125,1122512129,1122512131,1122512137,
-        1122512141,1122512143,1122512147,1122512149,1122512161,1122512173,1122512177,1122512179,
-        1122512189,1122512191,1122512197,1122512201,1122512203,1122512207,1122512213,1122512219,
-        1122512221,1122512231,1122512233,1122512239,1122512243,1122512249,1122512257,1122512269
-};
+/*
+ * The set of RNS moduli
+ */
+const int RNS_MODULI[] = {1283742825,1283742827,1283742829,1283742833,1283742839,1283742841,1283742847,1283742851};
 
+/*
+ * Specifies whether to use std::fma to compute (x * y) + z
+ */
 #define EMPLOY_STD_FMA false
 
 #endif  //MPRES_PARAMS_H
