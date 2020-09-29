@@ -21,8 +21,8 @@
  */
 
 
-#ifndef MPRES_MPREDUCT_CUH
-#define MPRES_MPREDUCT_CUH
+#ifndef MPRES_MPREDUCT_ROWCOL_CUH
+#define MPRES_MPREDUCT_ROWCOL_CUH
 
 #include "mparray.cuh"
 
@@ -205,4 +205,4 @@ namespace cuda {
 } //end of namespace
 
 
-#endif //MPRES_MPREDUCT_CUH
+#endif //MPRES_MPREDUCT_ROWCOL_CUH
