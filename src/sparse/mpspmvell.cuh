@@ -20,8 +20,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef SPMV_CUH
-#define SPMV_CUH
+#ifndef MPSPMVELL_CUH
+#define MPSPMVELL_CUH
 
 
 #include "../mpvector.cuh"
@@ -31,28 +31,32 @@
 
 namespace cuda {
 
-    __global__ void mp_mat2vec_ellpack_right_scal_esi_kernel(mp_array_t R, mp_array_t A, int *indices, mp_array_t x,
-            const int m, const int n, const int maxNonZeros) {
+    __global__ void mp_mat2vec_ellpack_scal_esi_kernel(mp_array_t result, mp_array_t data, int *indices, mp_array_t x,
+                                                       const int num_rows, const int num_cols_per_row) {
         unsigned int lenx = x.len[0];
-        unsigned int lena = A.len[0];
-        unsigned int lenr = R.len[0];
+        unsigned int lena = data.len[0];
+        unsigned int lenr = result.len[0];
         unsigned int colId = blockIdx.y; // The column index
         //Iterate over matrix columns / vector elements
-        while (colId < maxNonZeros) {
-            //We process in the stride loop all the elements of the i-th column of A
-            int index = blockDim.x * blockIdx.x + threadIdx.x; //Index of the element of A in the colId-th column. Must be less than m
-            while (index < m) {
-                int idx = indices[colId * m + index];
+        while (colId < num_cols_per_row) {
+            //We process in the stride loop all the elements of the i-th column of data
+            //Index of the element of data in the colId-th column. Must be less than num_rows
+            int index = blockDim.x * blockIdx.x + threadIdx.x;
+            while (index < num_rows) {
+                int idx = indices[colId * num_rows + index];
                 //Load the corresponding vector element into the registers if possible
                 int x_sign = x.sign[idx];
                 int x_exp = x.exp[idx];
                 er_float_t x_ev0 = x.eval[idx];
                 er_float_t x_ev1 = x.eval[idx + lenx];
 
-                R.sign[colId * m + index] = A.sign[colId * m + index] ^ x_sign;
-                R.exp[colId * m + index] = A.exp[colId * m + index] + x_exp;
-                cuda::er_md_rd(&R.eval[colId * m + index], &A.eval[colId * m + index], &x_ev0, &cuda::RNS_EVAL_UNIT.upp);
-                cuda::er_md_ru(&R.eval[lenr + colId * m + index], &A.eval[lena + colId * m + index], &x_ev1, &cuda::RNS_EVAL_UNIT.low);
+                result.sign[colId * num_rows + index] = data.sign[colId * num_rows + index] ^ x_sign;
+                result.exp[colId * num_rows + index] = data.exp[colId * num_rows + index] + x_exp;
+                cuda::er_md_rd(&result.eval[colId * num_rows + index], &data.eval[colId * num_rows + index], &x_ev0,
+                               &cuda::RNS_EVAL_UNIT.upp);
+                cuda::er_md_ru(&result.eval[lenr + colId * num_rows + index],
+                               &data.eval[lena + colId * num_rows + index], &x_ev1,
+                               &cuda::RNS_EVAL_UNIT.low);
                 //Go to the next iteration
                 index += gridDim.x * blockDim.x;
             }
@@ -63,17 +67,19 @@ namespace cuda {
 
 
     __global__ static void
-    mp_mat2vec_ellpack_right_scal_digits_kernel(mp_array_t R, mp_array_t A, int *indices, mp_array_t x, const int m,
-            const int n, const int maxNonZeros) {
+    mp_mat2vec_ellpack_scal_digits_kernel(mp_array_t result, mp_array_t data, int *indices, mp_array_t x,
+                                          const int num_rows,
+                                          const int num_cols_per_row) {
         int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
         int colId = blockIdx.y; // The column index
-        while (colId < maxNonZeros) {
+        while (colId < num_cols_per_row) {
             int index = blockIdx.x * blockDim.x + threadIdx.x;
             int index_M = blockIdx.x * blockDim.x / RNS_MODULI_SIZE + threadIdx.x / RNS_MODULI_SIZE;
-            while (index < m * RNS_MODULI_SIZE) {
-                int ix = (indices[colId * m + index_M] * RNS_MODULI_SIZE) + threadIdx.x % RNS_MODULI_SIZE;
+            while (index < num_rows * RNS_MODULI_SIZE) {
+                int ix = (indices[colId * num_rows + index_M] * RNS_MODULI_SIZE) + threadIdx.x % RNS_MODULI_SIZE;
                 int lx = x.digits[ix];
-                R.digits[colId * m * RNS_MODULI_SIZE + index] = cuda::mod_mul(A.digits[colId * m * RNS_MODULI_SIZE + index], lx, lmodul);
+                result.digits[colId * num_rows * RNS_MODULI_SIZE + index] = cuda::mod_mul(
+                        data.digits[colId * num_rows * RNS_MODULI_SIZE + index], lx, lmodul);
                 index += gridDim.x * blockDim.x;
                 index_M += gridDim.x * blockDim.x / RNS_MODULI_SIZE;
             }
@@ -84,13 +90,15 @@ namespace cuda {
     /*
      * Kernel that calculates the sum of all the elements in each row of an m-by-n multiple-precision matrix
      * The result (a vector of size m) is then added to the vector y
-     * @param A - matrix of m rows and n columns
+     * @param data - matrix of m rows and n columns
      * @param y - vector of size m
-     * @param incy - storage spacing between elements of y
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
-    __global__ static void matrix_row_sum_kernel(const unsigned int m, const unsigned int n, mp_array_t A, mp_array_t y, int incy, const unsigned int nextPow2) {
-        extern __shared__ mp_float_t sdata[];
+    __global__ static void
+    matrix_row_sum_kernel(const unsigned int m, const unsigned int n, mp_array_t data, mp_array_t y,
+                          const unsigned int nextPow2) {
+        extern __shared__ mp_float_t
+        sdata[];
 
         // parameters
         const unsigned int tid = threadIdx.x;
@@ -101,7 +109,7 @@ namespace cuda {
         // do reduction in global mem
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add(&sdata[tid], &sdata[tid], A, i * m + bid);
+            cuda::mp_add(&sdata[tid], &sdata[tid], data, i * m + bid);
             i += bsize;
         }
         __syncthreads();
@@ -118,31 +126,14 @@ namespace cuda {
 
         // write result for this block to global mem
         if (tid == 0) {
-            int iy = incy > 0 ? bid * incy : (-m + bid + 1) * incy;
-            cuda::mp_set(y, iy, &sdata[tid]);
+            cuda::mp_set(y, bid, &sdata[tid]);
         }
         //__syncthreads();
     }
 
-    void show_matrix(mp_array_t data, int m, int maxNonZeros) {
-        mp_float_ptr hdata = new mp_float_t[m * maxNonZeros];
-        cuda::mp_array_device2host(hdata, data, m * maxNonZeros);
-        std::cout << "data" << std::endl;
-/*        for (int j = 0; j < m; ++j) {
-            for (int i = 0; i < (maxNonZeros); ++i) {
-                std::cout << mp_get_d(&hdata[j + m * i]) << " ";
-            }
-            std::cout << std::endl;
-        }*/
-        for (int i = 0; i < m * maxNonZeros; ++i) {
-            std::cout << i << " = " << mp_get_d(&hdata[i]) << std::endl;
-        }
-    }
-
-
     template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
-    void spmv(enum mblas_trans_type trans, const int m, const int n, const int maxNonZeros, mp_array_t &A,
-              int *indices, mp_array_t &x, mp_array_t &y, mp_array_t &buffer1) {
+    void mpspmvell(const int num_rows, const int num_cols_per_row, mp_array_t &data,
+                   int *indices, mp_array_t &x, mp_array_t &y, mp_array_t &buffer1) {
 
         //Execution configuration
         //  To compute the signs, exponents, and interval evaluations
@@ -152,18 +143,16 @@ namespace cuda {
         //  To compute digits (residues) in the vector operations
 
 
-        //Multiplication buffer1 = A * x - Computing the signs, exponents, and interval evaluations
-        mp_mat2vec_ellpack_right_scal_esi_kernel << < grid1, blockDim1 >> >
-                                                             (buffer1, A, indices, x, m, n, maxNonZeros);
+        //Multiplication buffer1 = data * x - Computing the signs, exponents, and interval evaluations
+        mp_mat2vec_ellpack_scal_esi_kernel << < grid1, blockDim1 >> >
+                                                       (buffer1, data, indices, x, num_rows, num_cols_per_row);
 
-        //Multiplication buffer1 = A * x - Multiplying the digits in the RNS
-        mp_mat2vec_ellpack_right_scal_digits_kernel << < grid2, BLOCK_SIZE_FOR_RESIDUES >> >
-                                                                (buffer1, A, indices, x, m, n, maxNonZeros);
+        //Multiplication buffer1 = data * x - Multiplying the digits in the RNS
+        mp_mat2vec_ellpack_scal_digits_kernel << < grid2, BLOCK_SIZE_FOR_RESIDUES >> >
+                                                          (buffer1, data, indices, x, num_rows, num_cols_per_row);
 
         //Rounding the intermediate result (buffer1)
-        mp_vector_round_kernel << < gridDim1, blockDim1 >> > (buffer1, 1, m * maxNonZeros);
-
-        //show_matrix(buffer1, m, maxNonZeros);
+        mp_vector_round_kernel << < gridDim1, blockDim1 >> > (buffer1, 1, num_rows * num_cols_per_row);
 
         //The following is tne reduction of the intermediate matrix (buffer 1).
         //Here, the sum of the elements in each row is calculated, and then y is added to the calculated sum
@@ -175,10 +164,10 @@ namespace cuda {
         // Power of two that is greater that or equals to blockDim3
         const unsigned int POW = nextPow2(blockDim3);
 
-        matrix_row_sum_kernel << < m, blockDim3, sizeof(mp_float_t) * blockDim3 >> >
-                                                 (m, maxNonZeros, buffer1, y, 1, POW);
+        matrix_row_sum_kernel << < num_rows, blockDim3, sizeof(mp_float_t) * blockDim3 >> >
+                                                        (num_rows, num_cols_per_row, buffer1, y, POW);
     }
 
 } // namespace cuda
 
-#endif //SPMV_CUH
+#endif //MPSPMVELL_CUH

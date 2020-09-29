@@ -28,12 +28,6 @@
 #include "../../sparse/performance/3rdparty.cuh"
 
 
-#define M 300  // Number of matrix rows and the vector Y dimension
-#define N 300 // Number of matrix columns and the vector X dimension
-#define LDA (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
-#define TRANS "N" // Specifies the operation: if trans = 'N' or 'n', then y := alpha*A*x + beta*y; if trans = 'T' or 't' or 'C' or 'c' then y = alpha*A**T*x + beta*y (transposed matrix).
-#define INCX 1 // Specifies the increment for the elements of x.
-#define INCY 1 // Specifies the increment for the elements of y.
 #define REPEAT_TEST 5 //Number of repeats
 
 //Execution configuration for mpgemv
@@ -76,28 +70,19 @@ void convert_vector(double *&dest, mp_float_t *source, int width) {
 
 
 //TODO придумать как убрать сложение с Y просчитать сразу строку
-__global__ static void double_ellpack_spmv(double *data, double *x, double *y, int *indices, int m, int maxNonZeros) {
+__global__ static void double_ellpack_spmv(double *data, double *x, double *y, int *indices, int num_rows, int num_cols_per_row) {
     double sum = 0;
     int indice = 0;
-    for (int colId = 0; colId < maxNonZeros; colId++) {
+    for (int colId = 0; colId < num_cols_per_row; colId++) {
         int index = (threadIdx.x + blockIdx.x * blockDim.x);
-        while( index < m ){
-            indice = indices[colId * m + index];
-            sum = data[colId * m + index] * x[indice];
+        while( index < num_rows ){
+            indice = indices[colId * num_rows + index];
+            sum = data[colId * num_rows + index] * x[indice];
             y[index] = y[index] + sum;
             index += gridDim.x * blockDim.x;
         }
         __syncthreads();
     }
-}
-
-void print_matrix(double *data, int size){
-    double *hdata = new double[size];
-    cudaMemcpy(hdata, data, sizeof(double) * size , cudaMemcpyDeviceToHost);
-    for (int i = 0; i < size; ++i) {
-        std::cout << i << " = " << hdata[i] << std::endl;
-    }
-    std::cout << std::endl;
 }
 
 
@@ -106,7 +91,7 @@ void print_matrix(double *data, int size){
 /////////
 // SpMV-ELLPACK double(structure of arrays)
 /////////
-void spmv_ellpack_double_test(int m, int n, int maxNonZeros, int lenx, int leny, mp_float_t *data, int *indices,
+void spmv_ellpack_double_test(int num_rows, int num_cols, int num_cols_per_row, mp_float_t *data, int *indices,
                                 mp_float_t *x, mp_float_t *y){
     InitCudaTimer();
     Logger::printDash();
@@ -114,44 +99,47 @@ void spmv_ellpack_double_test(int m, int n, int maxNonZeros, int lenx, int leny,
 
     //Execution configuration
     int threads = 32;
-    int blocks = m / (threads) + (m % (threads) ? 1 : 0);
+    int blocks = num_rows / (threads) + (num_rows % (threads) ? 1 : 0);
 
     //host data
-    double *hdata = new double[m * maxNonZeros];
-    int *hindices = indices;
-    double *hx = new double[lenx];
-    double *hy = new double[leny];
+    double *hdata = new double[num_rows * num_cols_per_row];
+    int *hindices = new int[num_rows];
+    double *hx = new double[num_cols];
+    double *hy = new double[num_rows];
 
     //GPU data
-    double *ddata = new double[m * maxNonZeros];
-    int *dindices = new int[m * maxNonZeros];
-    double *dx = new double[lenx];
-    double *dy = new double[leny];
+    double *ddata = new double[num_rows * num_cols_per_row];
+    int *dindices = new int[num_rows * num_cols_per_row];
+    double *dx = new double[num_cols];
+    double *dy = new double[num_rows];
 
-    convert_vector(hdata, data, m * maxNonZeros);
-    convert_vector(hx, x, lenx);
-    convert_vector(hy, y, m);
+    for (int i = 0; i < num_cols * num_cols_per_row; ++i) {
+        hindices[i] = indices[i];
+    }
+    convert_vector(hdata, data, num_rows * num_cols_per_row);
+    convert_vector(hx, x, num_cols);
+    convert_vector(hy, y, num_rows);
 
-    cudaMalloc(&ddata, sizeof(double) * m * maxNonZeros);
-    cudaMalloc(&dindices, sizeof(int) * m * maxNonZeros);
-    cudaMalloc(&dx, sizeof(double) * n);
-    cudaMalloc(&dy, sizeof(double) * m);
+    cudaMalloc(&ddata, sizeof(double) * num_rows * num_cols_per_row);
+    cudaMalloc(&dindices, sizeof(int) * num_rows * num_cols_per_row);
+    cudaMalloc(&dx, sizeof(double) * num_cols);
+    cudaMalloc(&dy, sizeof(double) * num_rows);
 
-    cudaMemcpy(ddata, hdata, sizeof(double) * m * maxNonZeros, cudaMemcpyHostToDevice);
-    cudaMemcpy(dindices, hindices, sizeof(int) * m * maxNonZeros, cudaMemcpyHostToDevice);
-    cudaMemcpy(dx, hx, sizeof(double) * lenx, cudaMemcpyHostToDevice);
+    cudaMemcpy(ddata, hdata, sizeof(double) * num_rows * num_cols_per_row, cudaMemcpyHostToDevice);
+    cudaMemcpy(dindices, hindices, sizeof(int) * num_rows * num_cols_per_row, cudaMemcpyHostToDevice);
+    cudaMemcpy(dx, hx, sizeof(double) * num_cols, cudaMemcpyHostToDevice);
 
     for(int i = 0; i < REPEAT_TEST; i ++) {
-        cudaMemcpy(dy, hy, sizeof(double) * leny, cudaMemcpyHostToDevice);
+        cudaMemcpy(dy, hy, sizeof(double) * num_rows, cudaMemcpyHostToDevice);
         StartCudaTimer();
-        double_ellpack_spmv<<<blocks, threads>>>(ddata, dx, dy, dindices, m, maxNonZeros);
+        double_ellpack_spmv<<<blocks, threads>>>(ddata, dx, dy, dindices, num_rows, num_cols_per_row);
         EndCudaTimer();
     }
 
-    cudaMemcpy(hy, dy, sizeof(double) * leny , cudaMemcpyDeviceToHost);
+    cudaMemcpy(hy, dy, sizeof(double) * num_rows , cudaMemcpyDeviceToHost);
 
     PrintCudaTimer("took");
-    print_double_sum(hy, leny);
+    print_double_sum(hy, num_rows);
 
     delete [] hdata;
     delete [] hindices;
@@ -166,14 +154,13 @@ void spmv_ellpack_double_test(int m, int n, int maxNonZeros, int lenx, int leny,
 /////////
 // SpMV-ELLPACK (structure of arrays)
 /////////
-void spmv_ellpack_test(enum mblas_trans_type trans, int m, int n, int maxNonZeros, int lenx, int leny, mp_float_ptr data, int *indices,
-                       mp_float_ptr x, mp_float_ptr y) {
+void spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row, mp_float_ptr data, int *indices, mp_float_ptr x, mp_float_ptr y) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] ELLPACK SpMV");
 
     //Host data
-    mp_float_ptr hy = new mp_float_t[leny];
+    mp_float_ptr hy = new mp_float_t[num_rows];
 
     //GPU data
     mp_array_t dx;
@@ -183,17 +170,17 @@ void spmv_ellpack_test(enum mblas_trans_type trans, int m, int n, int maxNonZero
     int *dindices;
 
     //Init data
-    cuda::mp_array_init(dx, lenx);
-    cuda::mp_array_init(dy, leny);
-    cuda::mp_array_init(ddata, m * maxNonZeros);
-    cuda::mp_array_init(dbuf1, m * maxNonZeros);
-    cudaMalloc(&dindices, sizeof(int) * m * maxNonZeros);
+    cuda::mp_array_init(dx, num_cols);
+    cuda::mp_array_init(dy, num_rows);
+    cuda::mp_array_init(ddata, num_rows * num_cols_per_row);
+    cuda::mp_array_init(dbuf1, num_rows * num_cols_per_row);
+    cudaMalloc(&dindices, sizeof(int) * num_rows * num_cols_per_row);
 
     //Copying to the GPU
-    cuda::mp_array_host2device(dx, x, lenx);
-    cuda::mp_array_host2device(ddata, data, m * maxNonZeros);
-    cudaMemcpy(dindices, indices, sizeof(int) * m * maxNonZeros, cudaMemcpyHostToDevice);
-    cuda::mp_array_host2device(dy, y, leny);
+    cuda::mp_array_host2device(dx, x, num_cols);
+    cuda::mp_array_host2device(ddata, data, num_rows * num_cols_per_row);
+    cudaMemcpy(dindices, indices, sizeof(int) * num_rows * num_cols_per_row, cudaMemcpyHostToDevice);
+    cuda::mp_array_host2device(dy, y, num_rows);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -201,12 +188,12 @@ void spmv_ellpack_test(enum mblas_trans_type trans, int m, int n, int maxNonZero
     //Launch
     for (int i = 0; i < REPEAT_TEST; i++) {
         StartCudaTimer();
-        cuda::spmv<
+        cuda::mpspmvell<
                 MPRES_CUDA_BLOCKS_FIELDS_ROUND,
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
                 MPRES_CUDA_BLOCKS_RESIDUES,
                 MPRES_CUDA_THREADS_REDUCE>
-                (trans, m, n, maxNonZeros, ddata, dindices, dx, dy, dbuf1);
+                (num_rows, num_cols_per_row, ddata, dindices, dx, dy, dbuf1);
         EndCudaTimer();
     }
     PrintCudaTimer("took");
@@ -214,8 +201,8 @@ void spmv_ellpack_test(enum mblas_trans_type trans, int m, int n, int maxNonZero
     cudaCheckErrors();
 
     //Copying to the host
-    cuda::mp_array_device2host(hy, dy, leny);
-    print_mp_sum(hy, leny);
+    cuda::mp_array_device2host(hy, dy, num_rows);
+    print_mp_sum(hy, num_rows);
 
     //Cleanup
     delete [] hy;
@@ -226,7 +213,7 @@ void spmv_ellpack_test(enum mblas_trans_type trans, int m, int n, int maxNonZero
     cudaFree(dindices);
 }
 
-void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, int &m, int &n, int &maxNonZeros) {
+void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, int &num_rows, int &num_cols, int &num_cols_per_row) {
 
     std::ifstream file(filename);
     int num_lines = 0;
@@ -235,11 +222,11 @@ void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, 
     while (file.peek() == '%') file.ignore(2048, '\n');
 
 // Read number of rows and columns
-    file >> m >> n >> num_lines;
+    file >> num_rows >> num_cols >> num_lines;
 
 // Create 2D array and fill with zeros
     int *nonZeros;
-    nonZeros = new int[m]();
+    nonZeros = new int[num_rows]();
 
 // fill the matrix with data
     for (int l = 0; l < num_lines; l++) {
@@ -249,12 +236,12 @@ void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, 
         nonZeros[(row - 1)] = nonZeros[(row - 1)] + 1;
     }
 
-    maxNonZeros = *std::max_element(nonZeros, nonZeros + m);
+    num_cols_per_row = *std::max_element(nonZeros, nonZeros + num_rows);
 
-    data = new mp_float_t[m * (maxNonZeros)];
-    indices = new int[m * (maxNonZeros)]();
+    data = new mp_float_t[num_rows * (num_cols_per_row)];
+    indices = new int[num_rows * (num_cols_per_row)]();
 
-    for (int i = 0; i < m * maxNonZeros; ++i) {
+    for (int i = 0; i < num_rows * num_cols_per_row; ++i) {
         mp_set_d(&data[i], 0);
     }
 
@@ -265,81 +252,59 @@ void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, 
     while (file.peek() == '%') file.ignore(2048, '\n');
 
     // Read number of rows and columns
-    file >> m >> n >> num_lines;
+    file >> num_rows >> num_cols >> num_lines;
 
-    int * colNum = new int[m]();
+    int * colNum = new int[num_rows]();
 
     //разобраться как заново считывать файл
     for (int l = 0; l < num_lines; l++) {
         double fileData = 0.0;
         int row = 0, col = 0;
         file >> row >> col >> fileData;
-        mp_set_d(&data[colNum[(row - 1)] * m + (row - 1)], fileData);
-        indices[colNum[(row - 1)] * m + (row - 1)] = (col-1);
+        mp_set_d(&data[colNum[(row - 1)] * num_rows + (row - 1)], fileData);
+        indices[colNum[(row - 1)] * num_rows + (row - 1)] = (col-1);
         colNum[row - 1]++;
     }
 
     file.close();
-
-/*    std::cout << "data" << std::endl;
-    for (int j = 0; j < m; ++j) {
-        for (int i = 0; i < maxNonZeros; ++i) {
-            std::cout << mp_get_d(&data[j + m * i]) << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << std::endl;
-    std::cout << "indices" << std::endl;
-    for (int j = 0; j < m; ++j) {
-        for (int i = 0; i < (maxNonZeros); ++i) {
-            std::cout << indices[j + m * i] << " ";
-        }
-        std::cout << std::endl;
-    }*/
 }
 /********************* Main test *********************/
 
 /*
  * Test for non-transposed matrix
- * x is of size n
- * y is of size m
- * a is of size lda * n, where the value of lda must be at least max(1, m).
+ * x is of size num_cols
+ * y is of size num_rows
+ * a is of size num_rows * num_cols
  */
-void testNoTrans() {
+void test() {
     //Actual length of the vectors
 
-    int m = 0, n = 0, maxNonZeros = 0;
+    int num_rows = 0, num_cols = 0, num_cols_per_row = 0;
     mp_float_t *data;
     int *indices;
 
-    create_ellpack_matrices("/home/ivan/Загрузки/matrixes/Trefethen_20b.mtx", data, indices, m, n, maxNonZeros);
-
-    int lenx = (1 + (n - 1) * abs(INCX));
-    int leny = (1 + (m - 1) * abs(INCY));
+    create_ellpack_matrices("/home/ivan/Загрузки/matrixes/Trefethen_20b.mtx", data, indices, num_rows, num_cols, num_cols_per_row);
 
     //Inputs
-    mp_float_t *vectorX = new mp_float_t[lenx];
-    mp_float_t *vectorY = new mp_float_t[leny];
+    mp_float_t *vectorX = new mp_float_t[num_cols];
+    mp_float_t *vectorY = new mp_float_t[num_rows];
 
     //инициализируем вектор X
-    for (int i = 0; i < lenx; ++i) {
+    for (int i = 0; i < num_cols; ++i) {
         mp_set_d(&vectorX[i], (i + 1));
     }
 
     //инициализируем вектор Y
-    for (int i = 0; i < leny; ++i) {
+    for (int i = 0; i < num_rows; ++i) {
         mp_set_d(&vectorY[i], 0);
     }
 
     //Launch tests
-    spmv_ellpack_test(mblas_no_trans, m, n, maxNonZeros, lenx, leny, data, indices, vectorX, vectorY);
-    campary_spmv_ellpack_test<CAMPARY_PRECISION>(m, n, maxNonZeros, lenx, leny, data, indices, vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
-    //инициализируем вектор Y
-    for (int i = 0; i < leny; ++i) {
-        mp_set_d(&vectorY[i], 0);
-    }
-    spmv_ellpack_double_test(m, n, maxNonZeros, lenx, leny, data, indices, vectorX, vectorY);
+    spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY);
+    campary_spmv_ellpack_test<CAMPARY_PRECISION>(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
+    //todo что-то не так с double-тестом, после него cump тест не работает
+    //spmv_ellpack_double_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY);
+    cump_spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -358,12 +323,10 @@ int main() {
 
     //Start logging
     Logger::beginTestDescription(Logger::BLAS_SPMV_PERFORMANCE_TEST);
-    Logger::printTestParameters(N * M, REPEAT_TEST, MP_PRECISION, MP_PRECISION_DEC);
+    //Logger::printTestParameters(N * M, REPEAT_TEST, MP_PRECISION, MP_PRECISION_DEC);
     Logger::beginSection("Operation info:");
-    Logger::printParam("Matrix rows, M", M);
-    Logger::printParam("Matrix columns, N", N);
-    Logger::printParam("LDA", LDA);
-    Logger::printParam("TRANS", TRANS);
+    //Logger::printParam("Matrix rows, M", M);
+    //Logger::printParam("Matrix columns, N", N);
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
@@ -375,8 +338,7 @@ int main() {
     Logger::endSection(true);
 
     //Run the test
-    testNoTrans();
-
+    test();
 
     //Finalize
     finalize();
