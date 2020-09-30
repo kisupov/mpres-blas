@@ -19,12 +19,12 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <fstream>
 #include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/sparse/mpspmvell.cuh"
+#include "../../../src/sparse/matrix_convertor.cuh"
 #include "../../sparse/performance/3rdparty.cuh"
 
 
@@ -37,6 +37,8 @@
 #define MPRES_CUDA_THREADS_REDUCE 32
 
 #define OPENBLAS_THREADS 4
+
+#define MATRIX_PATH "../../tests/sparse/matrices/Trefethen_20b.mtx"
 
 int MP_PRECISION_DEC; //in decimal digits
 int INP_BITS; //in bits
@@ -103,7 +105,6 @@ void spmv_ellpack_double_test(int num_rows, int num_cols, int num_cols_per_row, 
 
     //host data
     double *hdata = new double[num_rows * num_cols_per_row];
-    int *hindices = new int[num_rows];
     double *hx = new double[num_cols];
     double *hy = new double[num_rows];
 
@@ -113,9 +114,6 @@ void spmv_ellpack_double_test(int num_rows, int num_cols, int num_cols_per_row, 
     double *dx = new double[num_cols];
     double *dy = new double[num_rows];
 
-    for (int i = 0; i < num_cols * num_cols_per_row; ++i) {
-        hindices[i] = indices[i];
-    }
     convert_vector(hdata, data, num_rows * num_cols_per_row);
     convert_vector(hx, x, num_cols);
     convert_vector(hy, y, num_rows);
@@ -126,7 +124,7 @@ void spmv_ellpack_double_test(int num_rows, int num_cols, int num_cols_per_row, 
     cudaMalloc(&dy, sizeof(double) * num_rows);
 
     cudaMemcpy(ddata, hdata, sizeof(double) * num_rows * num_cols_per_row, cudaMemcpyHostToDevice);
-    cudaMemcpy(dindices, hindices, sizeof(int) * num_rows * num_cols_per_row, cudaMemcpyHostToDevice);
+    cudaMemcpy(dindices, indices, sizeof(int) * num_rows * num_cols_per_row, cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(double) * num_cols, cudaMemcpyHostToDevice);
 
     for(int i = 0; i < REPEAT_TEST; i ++) {
@@ -142,7 +140,6 @@ void spmv_ellpack_double_test(int num_rows, int num_cols, int num_cols_per_row, 
     print_double_sum(hy, num_rows);
 
     delete [] hdata;
-    delete [] hindices;
     delete [] hx;
     delete [] hy;
     cudaFree(ddata);
@@ -213,61 +210,7 @@ void spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row, mp_floa
     cudaFree(dindices);
 }
 
-void create_ellpack_matrices(char filename[], mp_float_t *&data, int *&indices, int &num_rows, int &num_cols, int &num_cols_per_row) {
 
-    std::ifstream file(filename);
-    int num_lines = 0;
-
-// Ignore comments headers
-    while (file.peek() == '%') file.ignore(2048, '\n');
-
-// Read number of rows and columns
-    file >> num_rows >> num_cols >> num_lines;
-
-// Create 2D array and fill with zeros
-    int *nonZeros;
-    nonZeros = new int[num_rows]();
-
-// fill the matrix with data
-    for (int l = 0; l < num_lines; l++) {
-        double fileData = 0.0;
-        int row = 0, col = 0;
-        file >> row >> col >> fileData;
-        nonZeros[(row - 1)] = nonZeros[(row - 1)] + 1;
-    }
-
-    num_cols_per_row = *std::max_element(nonZeros, nonZeros + num_rows);
-
-    data = new mp_float_t[num_rows * (num_cols_per_row)];
-    indices = new int[num_rows * (num_cols_per_row)]();
-
-    for (int i = 0; i < num_rows * num_cols_per_row; ++i) {
-        mp_set_d(&data[i], 0);
-    }
-
-    //курсор в начало
-    file.seekg(0, ios::beg);
-
-    // Ignore comments headers
-    while (file.peek() == '%') file.ignore(2048, '\n');
-
-    // Read number of rows and columns
-    file >> num_rows >> num_cols >> num_lines;
-
-    int * colNum = new int[num_rows]();
-
-    //разобраться как заново считывать файл
-    for (int l = 0; l < num_lines; l++) {
-        double fileData = 0.0;
-        int row = 0, col = 0;
-        file >> row >> col >> fileData;
-        mp_set_d(&data[colNum[(row - 1)] * num_rows + (row - 1)], fileData);
-        indices[colNum[(row - 1)] * num_rows + (row - 1)] = (col-1);
-        colNum[row - 1]++;
-    }
-
-    file.close();
-}
 /********************* Main test *********************/
 
 /*
@@ -283,7 +226,7 @@ void test() {
     mp_float_t *data;
     int *indices;
 
-    create_ellpack_matrices("/home/ivan/Загрузки/matrixes/Trefethen_20b.mtx", data, indices, num_rows, num_cols, num_cols_per_row);
+    create_ellpack_matrices(MATRIX_PATH, data, indices, num_rows, num_cols, num_cols_per_row);
 
     //Inputs
     mp_float_t *vectorX = new mp_float_t[num_cols];
@@ -302,8 +245,7 @@ void test() {
     //Launch tests
     spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY);
     campary_spmv_ellpack_test<CAMPARY_PRECISION>(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
-    //todo что-то не так с double-тестом, после него cump тест не работает
-    //spmv_ellpack_double_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY);
+    spmv_ellpack_double_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY);
     cump_spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -323,10 +265,8 @@ int main() {
 
     //Start logging
     Logger::beginTestDescription(Logger::BLAS_SPMV_PERFORMANCE_TEST);
-    //Logger::printTestParameters(N * M, REPEAT_TEST, MP_PRECISION, MP_PRECISION_DEC);
     Logger::beginSection("Operation info:");
-    //Logger::printParam("Matrix rows, M", M);
-    //Logger::printParam("Matrix columns, N", N);
+    Logger::printParam("Matrix path", MATRIX_PATH);
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
