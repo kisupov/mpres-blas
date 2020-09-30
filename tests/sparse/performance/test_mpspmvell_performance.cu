@@ -1,7 +1,7 @@
 /*
- *  Performance test for BLAS GEMV routines
+ *  Performance test for SpMV routines using the ELLPACK matrix format
  *
- *  Copyright 2020 by Konstantin Isupov.
+ *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -24,7 +24,7 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/sparse/mpspmvell.cuh"
-#include "../../../src/sparse/matrix_convertor.cuh"
+#include "../../../src/sparse/matrix_converter.cuh"
 #include "../../sparse/performance/3rdparty.cuh"
 
 
@@ -40,12 +40,10 @@
 
 #define MATRIX_PATH "../../tests/sparse/matrices/Trefethen_20b.mtx"
 
-int MP_PRECISION_DEC; //in decimal digits
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
 
 void setPrecisions() {
-    MP_PRECISION_DEC = (int) (MP_PRECISION / 3.32 + 1);
     INP_BITS = (int) (MP_PRECISION / 4);
     INP_DIGITS = (int) (INP_BITS / 3.32 + 1);
 }
@@ -55,91 +53,95 @@ void initialize() {
     rns_const_init();
     mp_const_init();
     setPrecisions();
-    mp_real::mp_init(MP_PRECISION_DEC);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 }
 
 void finalize() {
-    mp_real::mp_finalize();
 }
 
-void convert_vector(double *&dest, mp_float_t *source, int width) {
-    for (int i = 0; i < width; i++) {
-        dest[i] = mp_get_d(&source[i]);
+void convert_vector(double * dest, mpfr_t *source, int width){
+    #pragma omp parallel for
+    for( int i = 0; i < width; i++ ){
+        dest[i] = mpfr_get_d(source[i], MPFR_RNDN);
     }
 }
 
+void convert_vector(mp_float_ptr dest, mpfr_t *source, int width){
+    #pragma omp parallel for
+    for( int i = 0; i < width; i++ ){
+        mp_set_mpfr(&dest[i], source[i]);
+    }
+}
 
-//TODO придумать как убрать сложение с Y просчитать сразу строку
-__global__ static void double_ellpack_spmv(double *data, double *x, double *y, int *indices, int num_rows, int num_cols_per_row) {
-    double sum = 0;
-    int indice = 0;
+/********************* SpMV ELLPACK implementations and benchmarks *********************/
+
+/////////
+// double precision
+/////////
+__global__ static void double_spmv_ellpack_kernel(const int num_rows, const int num_cols_per_row, const int *indices, const double *data, const double *x, double *y) {
+    int id = (threadIdx.x + blockIdx.x * blockDim.x);
+    double dot = 0;
     for (int colId = 0; colId < num_cols_per_row; colId++) {
-        int index = (threadIdx.x + blockIdx.x * blockDim.x);
-        while( index < num_rows ){
-            indice = indices[colId * num_rows + index];
-            sum = data[colId * num_rows + index] * x[indice];
-            y[index] = y[index] + sum;
-            index += gridDim.x * blockDim.x;
+        if (id < num_rows) {
+            int index = indices[colId * num_rows + id];
+            dot += data[colId * num_rows + id] * x[index];
         }
-        __syncthreads();
+    }
+    __syncthreads();
+    if (id < num_rows) {
+        y[id] = dot;
     }
 }
 
-
-/********************* SPMV implementations and benchmarks *********************/
-
-/////////
-// SpMV-ELLPACK double(structure of arrays)
-/////////
-void spmv_ellpack_double_test(int num_rows, int num_cols, int num_cols_per_row, mp_float_t *data, int *indices,
-                                mp_float_t *x, mp_float_t *y){
+void spmv_ellpack_double_test(const int num_rows, const int num_cols, const int num_cols_per_row, double const *data, int *indices, mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] ELLPACK SpMV (straightforward)");
+    PrintTimerName("[GPU] double SpMV ELLPACK");
 
     //Execution configuration
     int threads = 32;
     int blocks = num_rows / (threads) + (num_rows % (threads) ? 1 : 0);
 
     //host data
-    double *hdata = new double[num_rows * num_cols_per_row];
-    double *hx = new double[num_cols];
-    double *hy = new double[num_rows];
+    auto *hx = new double[num_cols];
+    auto *hy = new double[num_rows];
 
     //GPU data
-    double *ddata = new double[num_rows * num_cols_per_row];
-    int *dindices = new int[num_rows * num_cols_per_row];
-    double *dx = new double[num_cols];
-    double *dy = new double[num_rows];
-
-    convert_vector(hdata, data, num_rows * num_cols_per_row);
-    convert_vector(hx, x, num_cols);
-    convert_vector(hy, y, num_rows);
+    auto *ddata = new double[num_rows * num_cols_per_row];
+    auto *dindices = new int[num_rows * num_cols_per_row];
+    auto *dx = new double[num_cols];
+    auto *dy = new double[num_rows];
 
     cudaMalloc(&ddata, sizeof(double) * num_rows * num_cols_per_row);
     cudaMalloc(&dindices, sizeof(int) * num_rows * num_cols_per_row);
     cudaMalloc(&dx, sizeof(double) * num_cols);
     cudaMalloc(&dy, sizeof(double) * num_rows);
 
-    cudaMemcpy(ddata, hdata, sizeof(double) * num_rows * num_cols_per_row, cudaMemcpyHostToDevice);
+    // Convert from MPFR
+    convert_vector(hx, x, num_cols);
+
+    //Copying data to the GPU
+    cudaMemcpy(ddata, data, sizeof(double) * num_rows * num_cols_per_row, cudaMemcpyHostToDevice);
     cudaMemcpy(dindices, indices, sizeof(int) * num_rows * num_cols_per_row, cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(double) * num_cols, cudaMemcpyHostToDevice);
 
+    //Launch
     for(int i = 0; i < REPEAT_TEST; i ++) {
-        cudaMemcpy(dy, hy, sizeof(double) * num_rows, cudaMemcpyHostToDevice);
         StartCudaTimer();
-        double_ellpack_spmv<<<blocks, threads>>>(ddata, dx, dy, dindices, num_rows, num_cols_per_row);
+        double_spmv_ellpack_kernel<<<blocks, threads>>>(num_rows, num_cols_per_row, dindices, ddata, dx, dy);
         EndCudaTimer();
     }
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
 
+    //Copying to the host
     cudaMemcpy(hy, dy, sizeof(double) * num_rows , cudaMemcpyDeviceToHost);
 
     PrintCudaTimer("took");
     print_double_sum(hy, num_rows);
 
-    delete [] hdata;
     delete [] hx;
     delete [] hy;
     cudaFree(ddata);
@@ -157,7 +159,7 @@ void spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row, mp_floa
     PrintTimerName("[GPU] ELLPACK SpMV");
 
     //Host data
-    mp_float_ptr hy = new mp_float_t[num_rows];
+    auto hy = new mp_float_t[num_rows];
 
     //GPU data
     mp_array_t dx;
@@ -213,60 +215,57 @@ void spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row, mp_floa
 
 /********************* Main test *********************/
 
-/*
- * Test for non-transposed matrix
- * x is of size num_cols
- * y is of size num_rows
- * a is of size num_rows * num_cols
- */
-void test() {
-    //Actual length of the vectors
-
-    int num_rows = 0, num_cols = 0, num_cols_per_row = 0;
-    mp_float_t *data;
-    int *indices;
-
-    create_ellpack_matrices(MATRIX_PATH, data, indices, num_rows, num_cols, num_cols_per_row);
+void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int NUM_COLS_PER_ROW) {
 
     //Inputs
-    mp_float_t *vectorX = new mp_float_t[num_cols];
-    mp_float_t *vectorY = new mp_float_t[num_rows];
+    mpfr_t *vectorX = create_random_array(NUM_COLS, INP_BITS);
+    auto * data = new double [NUM_ROWS * NUM_COLS_PER_ROW]();
+    auto * indices = new int[NUM_ROWS * NUM_COLS_PER_ROW]();
 
-    //инициализируем вектор X
-    for (int i = 0; i < num_cols; ++i) {
-        mp_set_d(&vectorX[i], (i + 1));
-    }
+    //Convert a sparse matrix to the double-precision ELLPACK format
+    convert_to_ellpack(MATRIX_PATH, NUM_ROWS, NUM_LINES, data, indices);
 
-    //инициализируем вектор Y
-    for (int i = 0; i < num_rows; ++i) {
-        mp_set_d(&vectorY[i], 0);
+   //Vector X initialization
+   //TODO: Delete after debugging
+    for (int i = 0; i < NUM_COLS; ++i) {
+        mpfr_set_si(vectorX[i], (i+1), MPFR_RNDN);
     }
 
     //Launch tests
-    spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY);
+    spmv_ellpack_double_test(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX);
+/*    spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY);
     campary_spmv_ellpack_test<CAMPARY_PRECISION>(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
-    spmv_ellpack_double_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY);
-    cump_spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
+    cump_spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);*/
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
+    // cudaCheckErrors(); //CUMP gives failure
 
     //Cleanup
+    for(int i = 0; i < NUM_COLS; i++){
+        mpfr_clear(vectorX[i]);
+    }
     delete[] vectorX;
-    delete[] vectorY;
     delete[] data;
     delete[] indices;
     cudaDeviceReset();
 }
 
 int main() {
-
+    //The operation parameters. Read from an input file that contains a sparse matrix
+    int NUM_ROWS = 0; //number of rows
+    int NUM_COLS = 0; //number of columns
+    int NUM_LINES = 0; //number of lines in the input matrix file
+    int NUM_COLS_PER_ROW = 0; //maximum number of nonzeros per row
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::BLAS_SPMV_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::BLAS_SPMV_ELL_PERFORMANCE_TEST);
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
+    read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, NUM_COLS_PER_ROW);
+    Logger::printParam("Matrix rows, NUM_ROWS", NUM_ROWS);
+    Logger::printParam("Matrix columns, NUM_COLUMNS", NUM_COLS);
+    Logger::printParam("Maximum nonzeros per row, NUM_COLS_PER_ROW", NUM_COLS_PER_ROW);
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
@@ -278,7 +277,7 @@ int main() {
     Logger::endSection(true);
 
     //Run the test
-    test();
+    test(NUM_ROWS, NUM_COLS, NUM_LINES, NUM_COLS_PER_ROW);
 
     //Finalize
     finalize();
