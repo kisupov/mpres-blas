@@ -125,7 +125,7 @@ namespace cuda {
      * @param buffer - auxiliary array, size num_rows * num_cols_per_row, in the global GPU memory for storing the intermediate matrix
      */
     template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
-    void mpspmvell(const int num_rows, const int num_cols_per_row, mp_array_t &data, const int *indices, mp_array_t &x, mp_array_t &y, mp_array_t &buffer) {
+    void mpspmvell(const int num_rows, const int num_cols_per_row, const int *indices, mp_array_t &data, mp_array_t &x, mp_array_t &y, mp_array_t &buffer) {
 
         //Execution configuration
         //  To compute the signs, exponents, and interval evaluations

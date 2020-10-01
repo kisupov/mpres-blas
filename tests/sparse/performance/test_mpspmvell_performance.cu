@@ -74,13 +74,20 @@ void convert_vector(mp_float_ptr dest, mpfr_t *source, int width){
     }
 }
 
+void convert_vector(mp_float_ptr dest, const double *source, int width){
+    #pragma omp parallel for
+    for( int i = 0; i < width; i++ ){
+        mp_set_d(&dest[i], source[i]);
+    }
+}
+
 /********************* SpMV ELLPACK implementations and benchmarks *********************/
 
 /////////
 // double precision
 /////////
 __global__ static void double_spmv_ellpack_kernel(const int num_rows, const int num_cols_per_row, const int *indices, const double *data, const double *x, double *y) {
-    int id = (threadIdx.x + blockIdx.x * blockDim.x);
+    int id = threadIdx.x + blockIdx.x * blockDim.x;
     double dot = 0;
     for (int colId = 0; colId < num_cols_per_row; colId++) {
         if (id < num_rows) {
@@ -88,13 +95,12 @@ __global__ static void double_spmv_ellpack_kernel(const int num_rows, const int 
             dot += data[colId * num_rows + id] * x[index];
         }
     }
-    __syncthreads();
     if (id < num_rows) {
         y[id] = dot;
     }
 }
 
-void spmv_ellpack_double_test(const int num_rows, const int num_cols, const int num_cols_per_row, double const *data, int *indices, mpfr_t *x) {
+void double_test(const int num_rows, const int num_cols, const int num_cols_per_row, double const *data, int *indices, mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] double SpMV ELLPACK");
@@ -138,8 +144,6 @@ void spmv_ellpack_double_test(const int num_rows, const int num_cols, const int 
 
     //Copying to the host
     cudaMemcpy(hy, dy, sizeof(double) * num_rows , cudaMemcpyDeviceToHost);
-
-    PrintCudaTimer("took");
     print_double_sum(hy, num_rows);
 
     delete [] hx;
@@ -151,35 +155,41 @@ void spmv_ellpack_double_test(const int num_rows, const int num_cols, const int 
 }
 
 /////////
-// SpMV-ELLPACK (structure of arrays)
+// MPRES-BLAS
 /////////
-void spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row, mp_float_ptr data, int *indices, mp_float_ptr x, mp_float_ptr y) {
+void mpres_test(const int num_rows, const int num_cols, const int num_cols_per_row, double const *data, int *indices, mpfr_t *x) {
     Logger::printDash();
     InitCudaTimer();
-    PrintTimerName("[GPU] ELLPACK SpMV");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmvell");
 
+    size_t matrix_len = num_rows * num_cols_per_row;
     //Host data
+    auto hx = new mp_float_t[num_cols];
     auto hy = new mp_float_t[num_rows];
+    auto hdata = new mp_float_t[matrix_len];
 
     //GPU data
     mp_array_t dx;
     mp_array_t dy;
     mp_array_t ddata;
-    mp_array_t dbuf1;
+    mp_array_t dbuf;
     int *dindices;
 
     //Init data
     cuda::mp_array_init(dx, num_cols);
     cuda::mp_array_init(dy, num_rows);
-    cuda::mp_array_init(ddata, num_rows * num_cols_per_row);
-    cuda::mp_array_init(dbuf1, num_rows * num_cols_per_row);
-    cudaMalloc(&dindices, sizeof(int) * num_rows * num_cols_per_row);
+    cuda::mp_array_init(ddata, matrix_len);
+    cuda::mp_array_init(dbuf, matrix_len);
+    cudaMalloc(&dindices, sizeof(int) * matrix_len);
+
+    // Convert from MPFR and double
+    convert_vector(hx, x, num_cols);
+    convert_vector(hdata, data, matrix_len);
 
     //Copying to the GPU
-    cuda::mp_array_host2device(dx, x, num_cols);
-    cuda::mp_array_host2device(ddata, data, num_rows * num_cols_per_row);
-    cudaMemcpy(dindices, indices, sizeof(int) * num_rows * num_cols_per_row, cudaMemcpyHostToDevice);
-    cuda::mp_array_host2device(dy, y, num_rows);
+    cuda::mp_array_host2device(dx, hx, num_cols);
+    cuda::mp_array_host2device(ddata, hdata, matrix_len);
+    cudaMemcpy(dindices, indices, sizeof(int) * matrix_len, cudaMemcpyHostToDevice);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -192,7 +202,7 @@ void spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row, mp_floa
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
                 MPRES_CUDA_BLOCKS_RESIDUES,
                 MPRES_CUDA_THREADS_REDUCE>
-                (num_rows, num_cols_per_row, ddata, dindices, dx, dy, dbuf1);
+                (num_rows, num_cols_per_row, dindices, ddata, dx, dy, dbuf);
         EndCudaTimer();
     }
     PrintCudaTimer("took");
@@ -204,11 +214,13 @@ void spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row, mp_floa
     print_mp_sum(hy, num_rows);
 
     //Cleanup
+    delete [] hx;
     delete [] hy;
+    delete [] hdata;
     cuda::mp_array_clear(dx);
     cuda::mp_array_clear(dy);
     cuda::mp_array_clear(ddata);
-    cuda::mp_array_clear(dbuf1);
+    cuda::mp_array_clear(dbuf);
     cudaFree(dindices);
 }
 
@@ -227,15 +239,15 @@ void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int NUM_COLS_PER_ROW) {
 
    //Vector X initialization
    //TODO: Delete after debugging
-    for (int i = 0; i < NUM_COLS; ++i) {
+ /*   for (int i = 0; i < NUM_COLS; ++i) {
         mpfr_set_si(vectorX[i], (i+1), MPFR_RNDN);
-    }
+    }*/
 
     //Launch tests
-    spmv_ellpack_double_test(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX);
-/*    spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY);
-    campary_spmv_ellpack_test<CAMPARY_PRECISION>(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
-    cump_spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);*/
+    double_test(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX);
+    mpres_test(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX);
+    campary_spmv_ellpack_test<CAMPARY_PRECISION>(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX, INP_DIGITS, REPEAT_TEST);
+    /* cump_spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);*/
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure

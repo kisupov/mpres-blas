@@ -1,7 +1,7 @@
 /*
- *  Multiple-precision BLAS routines using CAMPARY as well as corresponding performance benchmarks.
+ *  Multiple-precision sparse linear algebra kernels using CAMPARY as well as corresponding performance benchmarks.
  *
- *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
+ *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -50,22 +50,23 @@
 /********************* Computational kernels *********************/
 
 /*
- * Performs the matrix-vector operation  y := A*x + beta*y,
- * where beta is a scalar, x and y are vectors and A is an m by n matrix
+ * Performs the matrix-vector operation y = A * x
+ * where x and y are dense vectors and A is a sparse matrix.
+ * The matrix should be stored in the ELLPACK format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
 template<int prec>
-__global__ void campary_spmv_ellpack_kernel(int num_rows, int num_cols_per_row, multi_prec<prec> *data, int *indices, multi_prec<prec> *x, multi_prec<prec> *y) {
+__global__ void campary_spmv_ellpack_kernel(int num_rows, int num_cols_per_row, int *indices, multi_prec<prec> *data, multi_prec<prec> *x, multi_prec<prec> *y) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
-    int indice = 0;
-    for (int j = 0; j < num_cols_per_row; j++) {
-        if( i < num_rows ){
-            indice = indices[j * num_rows + i];
-            //TODO опять же суммирование (нехорошо)
-            y[i] = y[i] + data[j * num_rows + i] * x[indice];
+    multi_prec<prec> dot = 0.0;
+    for (int colId = 0; colId < num_cols_per_row; colId++) {
+        if (i < num_rows) {
+            int index = indices[colId * num_rows + i];
+            dot += data[colId * num_rows + i] * x[index];
         }
-        __syncthreads();
     }
-    __syncthreads();
+    if (i < num_rows) {
+        y[i] = dot;
+    }
 }
 
 
@@ -86,8 +87,6 @@ static void printResult(multi_prec<nterms> result){
         mpfr_add(r, r, x, MPFR_RNDN);
     }
     mpfr_printf("result: %.70Rf \n", r);
-    /* printf("RAW Data:\n");
-    result.prettyPrint(); */
     mpfr_clear(x);
     mpfr_clear(r);
 }
@@ -96,8 +95,7 @@ static void printResult(multi_prec<nterms> result){
  * SpMV ELLPACK test
  */
 template<int prec>
-void campary_spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row, mp_float_ptr data, int *indices,
-                               mp_float_ptr x, mp_float_ptr y, int convert_prec, int repeats) {
+void campary_spmv_ellpack_test(const int num_rows, const int num_cols, const int num_cols_per_row,  double const *data, int *indices, mpfr_t *x, int convert_prec, int repeats) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY SpMV ELLPACK");
@@ -106,15 +104,9 @@ void campary_spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row,
     int BLOCKS = num_rows / CAMPARY_VECTOR_MULTIPLY_THREADS + 1;
 
     //Host data
-
     multi_prec<prec> *hx = new multi_prec<prec>[num_cols];
     multi_prec<prec> *hy = new multi_prec<prec>[num_rows];
     multi_prec<prec> *hdata = new multi_prec<prec>[num_rows * num_cols_per_row];
-
-    //mpfr_data for conversion mp_float -> mpfr -> string_sci
-    mpfr_t *mpfrX = new mpfr_t[num_cols];
-    mpfr_t *mpfrY = new mpfr_t[num_rows];
-    mpfr_t *mpfrData = new mpfr_t[num_rows * num_cols_per_row];
 
     //GPU data
     multi_prec<prec> *dx;
@@ -127,26 +119,17 @@ void campary_spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row,
     cudaMalloc(&ddata, sizeof(multi_prec<prec>) * num_rows * num_cols_per_row);
     cudaMalloc(&dindices, sizeof(int) * num_rows * num_cols_per_row);
 
-    //convert to string
+    //Convert from MPFR
     #pragma omp parallel for
-    for(int i = 0; i < num_cols; i ++){
-        mpfr_init2(mpfrX[i], prec);
-        mp_get_mpfr(mpfrX[i], &x[i]);
-        hx[i] = convert_to_string_sci(mpfrX[i], convert_prec).c_str();
-    }
-    #pragma omp parallel for
-    for(int i = 0; i < num_rows; i ++){
-        mpfr_init2(mpfrY[i], prec);
-        mp_get_mpfr(mpfrY[i], &y[i]);
-        hy[i] = convert_to_string_sci(mpfrY[i], convert_prec).c_str();
-    }
-    #pragma omp parallel for
-    for(int i = 0; i < num_rows * num_cols_per_row; i ++){
-        mpfr_init2(mpfrData[i], prec);
-        mp_get_mpfr(mpfrData[i], &data[i]);
-        hdata[i] = convert_to_string_sci(mpfrData[i], convert_prec).c_str();
+    for(int i = 0; i < num_cols; i++){
+        hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
     }
 
+    //Convert from double
+    #pragma omp parallel for
+    for(int i = 0; i < num_rows * num_cols_per_row; i++){
+        hdata[i] = data[i];
+    }
 
     //Copying to the GPU
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * num_cols, cudaMemcpyHostToDevice);
@@ -157,10 +140,8 @@ void campary_spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row,
 
     //Launch
     for(int i = 0; i < repeats; i ++){
-        //TODO нужно ли перезаписывать?
-        cudaMemcpy(dy, hy, sizeof(multi_prec<prec>) * num_rows, cudaMemcpyHostToDevice);
         StartCudaTimer();
-        campary_spmv_ellpack_kernel<prec><<<BLOCKS, CAMPARY_VECTOR_MULTIPLY_THREADS>>>(num_rows, num_cols, ddata, dindices, dx, dy);
+        campary_spmv_ellpack_kernel<prec><<<BLOCKS, CAMPARY_VECTOR_MULTIPLY_THREADS>>>(num_rows, num_cols_per_row, dindices, ddata, dx, dy);
         EndCudaTimer();
     }
     PrintCudaTimer("took");
@@ -175,25 +156,13 @@ void campary_spmv_ellpack_test(int num_rows, int num_cols, int num_cols_per_row,
     printResult<prec>(hy[0]);
 
     //Cleanup
-    for(int i = 0; i < num_rows * num_cols_per_row; i++){
-        mpfr_clear(mpfrData[i]);
-    }
-    for(int i = 0; i < num_cols; i++){
-        mpfr_clear(mpfrX[i]);
-    }
-    for(int i = 0; i < num_rows; i++){
-        mpfr_clear(mpfrY[i]);
-    }
-    delete [] mpfrData;
-    delete [] mpfrX;
-    delete [] mpfrY;
-    delete [] hdata;
     delete [] hx;
     delete [] hy;
-    cudaFree(ddata);
-    cudaFree(dindices);
+    delete [] hdata;
     cudaFree(dx);
     cudaFree(dy);
+    cudaFree(ddata);
+    cudaFree(dindices);
 }
 
 

@@ -1,7 +1,7 @@
 /*
- *  Multiple-precision BLAS routines using CUMP as well as corresponding performance benchmarks.
+ *  Multiple-precision sparse linear algebra kernels using CUMP as well as corresponding performance benchmarks.
  *
- *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
+ *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -34,9 +34,11 @@
 using cump::mpf_array_t;
 
 /********************* Computational kernels *********************/
+
 /*
- * Performs the matrix-vector operation  y := A*x,
- * where x and y are vectors and A is an num_rows by num_cols matrix
+ * Performs the matrix-vector operation y = A * x
+ * where x and y are dense vectors and A is a sparse matrix.
+ * The matrix should be stored in the ELLPACK format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
 __global__ void cump_spmv_ellpack_kernel(int num_rows, int num_cols_per_row, mpf_array_t data, int *indices, mpf_array_t x, mpf_array_t y, mpf_array_t tmp1) {
     using namespace cump;
