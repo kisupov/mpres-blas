@@ -35,7 +35,7 @@ using namespace std;
  * @param num_lines - total number of lines with data (output parameter)
  * @param num_cols_per_row - maximum number of nonzeros in the matrix (output parameter)
  */
-void read_matrix_properties(const char filename[], int &num_rows, int &num_cols, int &num_lines, int &num_cols_per_row) {
+void read_matrix_properties(const char filename[], int &num_rows, int &num_cols, int &num_lines, int &num_cols_per_row, bool is_symmetric) {
 
     std::ifstream file(filename);
 
@@ -57,6 +57,9 @@ void read_matrix_properties(const char filename[], int &num_rows, int &num_cols,
         int row = 0, col = 0;
         file >> row >> col >> fileData;
         nonZeros[(row - 1)] = nonZeros[(row - 1)] + 1;
+        if (is_symmetric && (row != col)) {
+            nonZeros[(col - 1)] = nonZeros[(col - 1)] + 1;
+        }
     }
     num_cols_per_row = * std::max_element(nonZeros, nonZeros + num_rows);
     delete [] nonZeros;
@@ -75,7 +78,7 @@ void read_matrix_properties(const char filename[], int &num_rows, int &num_cols,
  * @param data - ELLPACK data: an array of size num_rows * num_cols_per_row containing a matrix in the ELLPACK format
  * @param data - ELLPACK indices: an array of size num_rows * num_cols_per_row containing the indices of nonzero elements in the matrix
  */
-void convert_to_ellpack(const char filename[], const int num_rows, const int num_lines, double *data, int *indices) {
+void convert_to_ellpack(const char filename[], const int num_rows, const int num_lines, double *data, int *indices, bool is_symmetric) {
 
     std::ifstream file(filename);
 
@@ -94,6 +97,11 @@ void convert_to_ellpack(const char filename[], const int num_rows, const int num
         data[colNum[(row - 1)] * num_rows + (row - 1)] = fileData;
         indices[colNum[(row - 1)] * num_rows + (row - 1)] = (col-1);
         colNum[row - 1]++;
+        if (is_symmetric && (row != col)) {
+            data[colNum[(col - 1)] * num_rows + (col - 1)] = fileData;
+            indices[colNum[(col - 1)] * num_rows + (col - 1)] = (row-1);
+            colNum[col - 1]++;
+        }
     }
     delete [] colNum;
     file.close();

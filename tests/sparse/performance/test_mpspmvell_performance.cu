@@ -38,7 +38,7 @@
 
 #define OPENBLAS_THREADS 4
 
-#define MATRIX_PATH "../../tests/sparse/matrices/Trefethen_20b.mtx"
+#define MATRIX_PATH "../../tests/sparse/matrices/Trefethen_500.mtx"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -227,7 +227,7 @@ void mpres_test(const int num_rows, const int num_cols, const int num_cols_per_r
 
 /********************* Main test *********************/
 
-void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int NUM_COLS_PER_ROW) {
+void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int NUM_COLS_PER_ROW, bool IS_SYMMETRIC) {
 
     //Inputs
     mpfr_t *vectorX = create_random_array(NUM_COLS, INP_BITS);
@@ -235,13 +235,24 @@ void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int NUM_COLS_PER_ROW) {
     auto * indices = new int[NUM_ROWS * NUM_COLS_PER_ROW]();
 
     //Convert a sparse matrix to the double-precision ELLPACK format
-    convert_to_ellpack(MATRIX_PATH, NUM_ROWS, NUM_LINES, data, indices);
+    convert_to_ellpack(MATRIX_PATH, NUM_ROWS, NUM_LINES, data, indices, IS_SYMMETRIC);
 
    //Vector X initialization
    //TODO: Delete after debugging
- /*   for (int i = 0; i < NUM_COLS; ++i) {
+    for (int i = 0; i < NUM_COLS; ++i) {
         mpfr_set_si(vectorX[i], (i+1), MPFR_RNDN);
-    }*/
+    }
+
+    print_ellpack(NUM_ROWS,NUM_COLS_PER_ROW,data,indices);
+
+    int count = 0;
+    for (int i = 0; i < NUM_ROWS * NUM_COLS_PER_ROW; ++i) {
+        if (data[i] != 0) {
+            count++;
+        }
+    }
+
+    std::cout<<std::endl<<"NonZeros: "<<count<<std::endl;
 
     //Launch tests
     double_test(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX);
@@ -268,13 +279,14 @@ int main() {
     int NUM_COLS = 0; //number of columns
     int NUM_LINES = 0; //number of lines in the input matrix file
     int NUM_COLS_PER_ROW = 0; //maximum number of nonzeros per row
+    bool IS_SYMMETRIC = true;
     initialize();
 
     //Start logging
     Logger::beginTestDescription(Logger::BLAS_SPMV_ELL_PERFORMANCE_TEST);
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, NUM_COLS_PER_ROW);
+    read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, NUM_COLS_PER_ROW, IS_SYMMETRIC);
     Logger::printParam("Matrix rows, NUM_ROWS", NUM_ROWS);
     Logger::printParam("Matrix columns, NUM_COLUMNS", NUM_COLS);
     Logger::printParam("Maximum nonzeros per row, NUM_COLS_PER_ROW", NUM_COLS_PER_ROW);
@@ -289,7 +301,7 @@ int main() {
     Logger::endSection(true);
 
     //Run the test
-    test(NUM_ROWS, NUM_COLS, NUM_LINES, NUM_COLS_PER_ROW);
+    test(NUM_ROWS, NUM_COLS, NUM_LINES, NUM_COLS_PER_ROW, IS_SYMMETRIC);
 
     //Finalize
     finalize();
