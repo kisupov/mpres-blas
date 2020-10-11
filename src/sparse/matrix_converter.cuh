@@ -33,9 +33,10 @@ using namespace std;
  * @param num_rows - number of rows in the matrix (output parameter)
  * @param num_cols - number of columns in the matrix (output parameter)
  * @param num_lines - total number of lines with data (output parameter)
- * @param num_cols_per_row - maximum number of nonzeros in the matrix (output parameter)
+ * @param num_cols_per_row - maximum number of nonzeros per row in the matrix (output parameter)
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  */
-void read_matrix_properties(const char filename[], int &num_rows, int &num_cols, int &num_lines, int &num_cols_per_row, bool is_symmetric) {
+void read_matrix_properties(const char filename[], int &num_rows, int &num_cols, int &num_lines, int &num_cols_per_row, bool symmetric) {
 
     std::ifstream file(filename);
 
@@ -57,7 +58,7 @@ void read_matrix_properties(const char filename[], int &num_rows, int &num_cols,
         int row = 0, col = 0;
         file >> row >> col >> fileData;
         nonZeros[(row - 1)] = nonZeros[(row - 1)] + 1;
-        if (is_symmetric && (row != col)) {
+        if (symmetric && (row != col)) {
             nonZeros[(col - 1)] = nonZeros[(col - 1)] + 1;
         }
     }
@@ -66,20 +67,23 @@ void read_matrix_properties(const char filename[], int &num_rows, int &num_cols,
     file.close();
 }
 
-//TODO: Предусмотреть предустановку массива индексов отрицательными числами, например -1,
-// чтобы можно было исключить обращение к нулевому элементу вектора, если какие-то данные отсутствуют.
-
 /*!
  * Converts a sparse matrix to the ELLPACK format
  * @param filename - path to the file with the matrix
  * @param num_rows - number of rows in the matrix
- * @param num_cols - number of columns in the matrix
- * @param num_cols_per_row - maximum number of nonzeros in the matrix
- * @param data - ELLPACK data: an array of size num_rows * num_cols_per_row containing a matrix in the ELLPACK format
- * @param data - ELLPACK indices: an array of size num_rows * num_cols_per_row containing the indices of nonzero elements in the matrix
+ * @param num_cols_per_row - maximum number of nonzeros per row in the matrix
+ * @param num_lines - total number of lines with data
+ * @param data - ELLPACK data: an array of size num_rows * num_cols_per_row containing a matrix in the ELLPACK format (output parameter)
+ * @param indices - ELLPACK indices: an array of size num_rows * num_cols_per_row containing the indices of nonzero elements in the matrix (output parameter)
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  */
-void convert_to_ellpack(const char filename[], const int num_rows, const int num_lines, double *data, int *indices, bool is_symmetric) {
+void convert_to_ellpack(const char filename[], const int num_rows,  const int num_cols_per_row,  const int num_lines, double *data, int *indices, bool symmetric) {
 
+    //Set default values
+    std::fill(indices, indices + num_rows*num_cols_per_row, -1);
+    std::fill(data, data + num_rows*num_cols_per_row, 0);
+
+    //Create stream
     std::ifstream file(filename);
 
     // Ignore comments headers
@@ -97,7 +101,7 @@ void convert_to_ellpack(const char filename[], const int num_rows, const int num
         data[colNum[(row - 1)] * num_rows + (row - 1)] = fileData;
         indices[colNum[(row - 1)] * num_rows + (row - 1)] = (col-1);
         colNum[row - 1]++;
-        if (is_symmetric && (row != col)) {
+        if (symmetric && (row != col)) {
             data[colNum[(col - 1)] * num_rows + (col - 1)] = fileData;
             indices[colNum[(col - 1)] * num_rows + (col - 1)] = (row-1);
             colNum[col - 1]++;

@@ -27,18 +27,12 @@
 #include "../../../src/sparse/matrix_converter.cuh"
 #include "../../sparse/performance/3rdparty.cuh"
 
-
-#define REPEAT_TEST 5 //Number of repeats
-
-//Execution configuration for mpgemv
-#define MPRES_CUDA_BLOCKS_FIELDS_ROUND 256
-#define MPRES_CUDA_THREADS_FIELDS_ROUND 128
+//Execution configuration for mpspmvell
+#define MPRES_CUDA_THREADS_SCALAR_KERNELS 64
 #define MPRES_CUDA_BLOCKS_RESIDUES 256
-#define MPRES_CUDA_THREADS_REDUCE 32
 
-#define OPENBLAS_THREADS 4
-
-#define MATRIX_PATH "../../tests/sparse/matrices/Trefethen_500.mtx"
+#define MATRIX_PATH "../../tests/sparse/matrices/coater2.mtx"
+#define MATRIX_SYMMETRIC false
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -86,17 +80,17 @@ void convert_vector(mp_float_ptr dest, const double *source, int width){
 /////////
 // double precision
 /////////
-__global__ static void double_spmv_ellpack_kernel(const int num_rows, const int num_cols_per_row, const int *indices, const double *data, const double *x, double *y) {
-    int id = threadIdx.x + blockIdx.x * blockDim.x;
-    double dot = 0;
-    for (int colId = 0; colId < num_cols_per_row; colId++) {
-        if (id < num_rows) {
-            int index = indices[colId * num_rows + id];
-            dot += data[colId * num_rows + id] * x[index];
+__global__ static void double_spmv_ell_kernel(const int num_rows, const int num_cols_per_row, const int *indices, const double *data, const double *x, double *y) {
+    unsigned int threadId = threadIdx.x + blockIdx.x * blockDim.x;
+    if(threadId < num_rows){
+        double dot = 0;
+        for (int colId = 0; colId < num_cols_per_row; colId++) {
+            int index = indices[colId * num_rows + threadId];
+            if(index != -1){
+                dot += data[colId * num_rows + threadId] * x[index];
+            }
         }
-    }
-    if (id < num_rows) {
-        y[id] = dot;
+        y[threadId] = dot;
     }
 }
 
@@ -133,11 +127,9 @@ void double_test(const int num_rows, const int num_cols, const int num_cols_per_
     cudaMemcpy(dx, hx, sizeof(double) * num_cols, cudaMemcpyHostToDevice);
 
     //Launch
-    for(int i = 0; i < REPEAT_TEST; i ++) {
-        StartCudaTimer();
-        double_spmv_ellpack_kernel<<<blocks, threads>>>(num_rows, num_cols_per_row, dindices, ddata, dx, dy);
-        EndCudaTimer();
-    }
+    StartCudaTimer();
+    double_spmv_ell_kernel<<<blocks, threads>>>(num_rows, num_cols_per_row, dindices, ddata, dx, dy);
+    EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -195,16 +187,12 @@ void mpres_test(const int num_rows, const int num_cols, const int num_cols_per_r
     cudaCheckErrors();
 
     //Launch
-    for (int i = 0; i < REPEAT_TEST; i++) {
-        StartCudaTimer();
-        cuda::mpspmvell<
-                MPRES_CUDA_BLOCKS_FIELDS_ROUND,
-                MPRES_CUDA_THREADS_FIELDS_ROUND,
-                MPRES_CUDA_BLOCKS_RESIDUES,
-                MPRES_CUDA_THREADS_REDUCE>
-                (num_rows, num_cols_per_row, dindices, ddata, dx, dy, dbuf);
-        EndCudaTimer();
-    }
+    StartCudaTimer();
+    cuda::mpspmvell<
+            MPRES_CUDA_THREADS_SCALAR_KERNELS,
+            MPRES_CUDA_BLOCKS_RESIDUES>
+            (num_rows, num_cols_per_row, dindices, ddata, dx, dy, dbuf);
+    EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -227,7 +215,7 @@ void mpres_test(const int num_rows, const int num_cols, const int num_cols_per_r
 
 /********************* Main test *********************/
 
-void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int NUM_COLS_PER_ROW, bool IS_SYMMETRIC) {
+void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int NUM_COLS_PER_ROW) {
 
     //Inputs
     mpfr_t *vectorX = create_random_array(NUM_COLS, INP_BITS);
@@ -235,30 +223,28 @@ void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int NUM_COLS_PER_ROW, bool
     auto * indices = new int[NUM_ROWS * NUM_COLS_PER_ROW]();
 
     //Convert a sparse matrix to the double-precision ELLPACK format
-    convert_to_ellpack(MATRIX_PATH, NUM_ROWS, NUM_LINES, data, indices, IS_SYMMETRIC);
+    convert_to_ellpack(MATRIX_PATH, NUM_ROWS, NUM_COLS_PER_ROW, NUM_LINES, data, indices, MATRIX_SYMMETRIC);
 
-   //Vector X initialization
-   //TODO: Delete after debugging
+    //TODO: Delete after debugging
+ /*
     for (int i = 0; i < NUM_COLS; ++i) {
         mpfr_set_si(vectorX[i], (i+1), MPFR_RNDN);
     }
 
     print_ellpack(NUM_ROWS,NUM_COLS_PER_ROW,data,indices);
-
     int count = 0;
     for (int i = 0; i < NUM_ROWS * NUM_COLS_PER_ROW; ++i) {
         if (data[i] != 0) {
             count++;
         }
     }
-
     std::cout<<std::endl<<"NonZeros: "<<count<<std::endl;
-
+*/
     //Launch tests
     double_test(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX);
     mpres_test(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX);
-    campary_spmv_ellpack_test<CAMPARY_PRECISION>(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX, INP_DIGITS, REPEAT_TEST);
-    /* cump_spmv_ellpack_test(num_rows, num_cols, num_cols_per_row, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);*/
+    campary_spmv_ell_test<CAMPARY_PRECISION>(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX, INP_DIGITS);
+    cump_spmv_ell_test(NUM_ROWS, NUM_COLS, NUM_COLS_PER_ROW, data, indices, vectorX, MP_PRECISION, INP_DIGITS);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
@@ -279,29 +265,27 @@ int main() {
     int NUM_COLS = 0; //number of columns
     int NUM_LINES = 0; //number of lines in the input matrix file
     int NUM_COLS_PER_ROW = 0; //maximum number of nonzeros per row
-    bool IS_SYMMETRIC = true;
+
     initialize();
 
     //Start logging
     Logger::beginTestDescription(Logger::BLAS_SPMV_ELL_PERFORMANCE_TEST);
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, NUM_COLS_PER_ROW, IS_SYMMETRIC);
+    read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, NUM_COLS_PER_ROW, MATRIX_SYMMETRIC);
     Logger::printParam("Matrix rows, NUM_ROWS", NUM_ROWS);
     Logger::printParam("Matrix columns, NUM_COLUMNS", NUM_COLS);
     Logger::printParam("Maximum nonzeros per row, NUM_COLS_PER_ROW", NUM_COLS_PER_ROW);
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
-    Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
+    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_THREADS_SCALAR_KERNELS);
+    Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_RESIDUES);
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
 
     //Run the test
-    test(NUM_ROWS, NUM_COLS, NUM_LINES, NUM_COLS_PER_ROW, IS_SYMMETRIC);
+    test(NUM_ROWS, NUM_COLS, NUM_LINES, NUM_COLS_PER_ROW);
 
     //Finalize
     finalize();
