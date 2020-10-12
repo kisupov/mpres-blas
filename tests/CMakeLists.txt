@@ -113,6 +113,11 @@ add_executable(test_mpgenorm_performance blas/performance/test_mpgenorm_performa
 target_compile_options(test_mpgenorm_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpgenorm_performance gmp mpfr OpenMP::OpenMP_CXX)
 
+# Performance test for SPMV using ELLPACK
+add_executable(test_mpspmvell_performance sparse/performance/test_mpspmvell_performance.cu)
+target_compile_options(test_mpspmvell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpspmvell_performance gmp mpfr OpenMP::OpenMP_CXX cump)
+
 
 #########################
 ## Accuracy tests for BLAS routines

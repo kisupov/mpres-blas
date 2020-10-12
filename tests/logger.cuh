@@ -49,7 +49,8 @@ namespace Logger {
         BLAS_AXPY_ACCURACY_TEST,
         RNS_EVAL_ACCURACY_TEST,
         EXTRANGE_CORRECTNESS_TEST,
-        RNS_CMP_PERFORMANCE_TEST
+        RNS_CMP_PERFORMANCE_TEST,
+        BLAS_SPMV_ELL_PERFORMANCE_TEST
     };
 
     const char *testHeaderAsString(enum TestHeader header) {
@@ -98,6 +99,8 @@ namespace Logger {
                 return "Test for checking the correctness of the extended-range floating-point routines";
             case RNS_CMP_PERFORMANCE_TEST:
                 return "Test for measure the performance of the RNS magnitude comparison algorithms";
+            case BLAS_SPMV_ELL_PERFORMANCE_TEST:
+                return "Performance test for SpMV routines using the ELLPACK matrix format";
         }
         return "";
     }

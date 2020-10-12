@@ -22,30 +22,13 @@
 #ifndef MPRES_TEST_CUMP_BLAS_CUH
 #define MPRES_TEST_CUMP_BLAS_CUH
 
-#include <stdio.h>
-#include "mpfr.h"
 #include "../../../src/mblas_enum.cuh"
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "cump/cump.cuh"
-
-#define CUMP_MAX_THREADS_PER_BLOCK 1024
-using cump::mpf_array_t;
+#include "3rdparty/cump_common.cuh"
 
 /********************* Computational kernels *********************/
-
-/*
- * Set the elements of an array to zero
- */
-__global__ void cump_reset_array(int n, mpf_array_t temp) {
-    using namespace cump;
-    int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
-    while (numberIdx < n) {
-        mpf_sub(temp[numberIdx], temp[numberIdx], temp[numberIdx]); // set to zero
-        numberIdx +=  gridDim.x * blockDim.x;
-    }
-}
 
 /*
  * Computes the sum of the elements of vector x
@@ -166,18 +149,14 @@ __global__  void cump_rot_kernel(int n, mpf_array_t x, mpf_array_t y, mpf_array_
  * Performs the matrix-vector operation  y := A*x + beta*y,
  * where beta is a scalar, x and y are vectors and A is an m by n matrix
  */
-__global__ void cump_gemv_kernel(int m, int n, mpf_array_t alpha, mpf_array_t A, int lda, mpf_array_t x, mpf_array_t beta, mpf_array_t y, mpf_array_t tmp1) {
+__global__ void cump_gemv_kernel(int m, int n, mpf_array_t alpha, mpf_array_t A, int lda, mpf_array_t x, mpf_array_t beta, mpf_array_t y, mpf_array_t tmp1)  {
     using namespace cump;
-    int i = threadIdx.x + blockIdx.x * blockDim.x;
-    // Multiply the y vector by beta
-    if(i < m){
-        mpf_mul(y[i], beta[0], y[i]);
-    }
-    __syncthreads();
-    for (int j = 0; j < n; j++) {
-        if( i < m ){
-            mpf_mul(tmp1[i], x[j], A[i + j * lda]);
-            mpf_add(y[i], y[i], tmp1[i]);
+    unsigned int threadId = threadIdx.x + blockIdx.x * blockDim.x;
+    if (threadId < m) {
+        mpf_mul(y[threadId], beta[0], y[threadId]);
+        for (int colId = 0; colId < n; colId++) {
+            mpf_mul(tmp1[threadId], x[colId], A[colId * lda + threadId]);
+            mpf_add(y[threadId], y[threadId], tmp1[threadId]);
         }
     }
 }
@@ -1347,7 +1326,7 @@ void cump_ge_diag_scale_test(enum  mblas_side_type side, int m, int n, int lend,
     } else {
         for (int i = 0; i < repeats; i++) {
             cumpf_array_set_mpf(dA, hA, lda * n);StartCudaTimer();
-            cump_ge_diag_scale_l_kernel << < dimGrid, dimBlock >> > (m, n, dD, incd, dA, lda);EndCudaTimer();
+            cump_ge_diag_scale_l_kernel <<< dimGrid, dimBlock >>> (m, n, dD, incd, dA, lda);EndCudaTimer();
         }
     }
     PrintCudaTimer("took");

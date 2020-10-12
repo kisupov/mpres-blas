@@ -26,98 +26,12 @@
 
 #include "../mpvector.cuh"
 #include "../mpmatrix.cuh"
+#include "../mpreduct_rowcol.cuh"
 #include "../kernel_config.cuh"
 #include "../mblas_enum.cuh"
 
 namespace cuda
 {
-
-    /*
-     * Kernel that calculates the sum of all the elements in each row of an m-by-n multiple-precision matrix
-     * The result (a vector of size m) is then added to the vector y
-     * @param A - matrix of m rows and n columns
-     * @param y - vector of size m
-     * @param incy - storage spacing between elements of y
-     * @param nextPow2 - least power of two greater than or equal to blockDim.x
-     */
-    __global__ static void matrix_row_sum_kernel(const unsigned int m, const unsigned int n, mp_array_t A, mp_array_t y, int incy, const unsigned int nextPow2) {
-        extern __shared__ mp_float_t sdata[];
-
-        // parameters
-        const unsigned int tid = threadIdx.x;
-        const unsigned int bid = blockIdx.x;
-        const unsigned int bsize = blockDim.x;
-        unsigned int i = threadIdx.x;
-
-        // do reduction in global mem
-        sdata[tid] = cuda::MP_ZERO;
-        while (i < n) {
-            cuda::mp_add(&sdata[tid], &sdata[tid], A, i * m + bid);
-            i += bsize;
-        }
-        __syncthreads();
-
-        // do reduction in shared mem
-        i = nextPow2 >> 1; // half of nextPow2
-        while(i >= 1){
-            if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
-            }
-            i = i >> 1;
-            __syncthreads();
-        }
-
-        // write result for this block to global mem
-        if (tid == 0) {
-            int iy = incy > 0 ? bid * incy : (-m + bid + 1)*incy;
-            cuda::mp_add(y, iy, y, iy, &sdata[tid]);
-        }
-        //__syncthreads();
-    }
-
-    /*
-     * Kernel that calculates the sum of all the elements in each column of an m-by-n multiple-precision matrix
-     * The result (a vector of size n) is then added to the vector y
-     * @param A - matrix of m rows and n columns
-     * @param y - vector of size n
-     * @param incy - storage spacing between elements of y
-     * @param nextPow2 - least power of two greater than or equal to blockDim.x
-     */
-    __global__ static void matrix_col_sum_kernel(const unsigned int m, const unsigned int n, mp_array_t input, mp_array_t y, int incy, const unsigned int nextPow2) {
-        extern __shared__ mp_float_t sdata[];
-
-        // parameters
-        const unsigned int tid = threadIdx.x;
-        const unsigned int bid = blockIdx.x;
-        const unsigned int bsize = blockDim.x;
-        unsigned int i = tid;
-
-        // do reduction in global mem
-        sdata[tid] = cuda::MP_ZERO;
-        while (i < m) {
-            cuda::mp_add(&sdata[tid], &sdata[tid], input, bid * m + i);
-            i += bsize;
-        }
-        __syncthreads();
-
-        // do reduction in shared mem
-        i = nextPow2 >> 1; // half of nextPow2
-        while(i >= 1){
-            if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
-            }
-            i = i >> 1;
-            __syncthreads();
-        }
-
-        // write result for this block to global mem
-        if (tid == 0) {
-            int iy = incy > 0 ? bid * incy : (-n + bid + 1)*incy;
-            cuda::mp_add(y, iy, y, iy, &sdata[tid]);
-        }
-        //__syncthreads();
-    }
-
     /*!
      * Performs one of the matrix-vector operations
      * y = alpha*A*x + beta*y  or
@@ -214,7 +128,7 @@ namespace cuda
             const unsigned int POW = nextPow2(blockDim3);
 
             // Compute row sums
-            matrix_row_sum_kernel<<<m, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
+            matrix_row_sum_add_kernel<<<m, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
 
         } else {
 
@@ -262,7 +176,7 @@ namespace cuda
             const unsigned int POW = nextPow2(blockDim3);
 
             // Compute column sums
-            matrix_col_sum_kernel<<<n, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
+            matrix_col_sum_add_kernel<<<n, blockDim3, sizeof(mp_float_t) * blockDim3>>>(m, n, buffer2, y, incy, POW);
         }
     }
 

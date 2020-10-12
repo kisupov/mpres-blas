@@ -29,7 +29,7 @@ namespace cuda {
 
     /********************* Computing the sum of the elements of a multiple-precision vector *********************/
 
-    /*
+    /*!
      * Multiple-precision summation kernel
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
@@ -71,7 +71,7 @@ namespace cuda {
         __syncthreads();
     }
 
-    /*
+    /*!
      * Multiple-precision summation kernel.  This kernel is exactly the same as the previous one,
      * but takes mp_float_ptr instead of mp_array_t for the input vector and mp_array_t instead of mp_float_ptr for the result
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
@@ -111,7 +111,7 @@ namespace cuda {
 
     /********************* Computing the sum of the absolute values of the elements of a multiple-precision vector *********************/
 
-    /*
+    /*!
      * Kernel that calculates the sum of magnitudes of the vector elements
      * @param nextPow2 - least power of two greater than or equal to blockDim.x
      */
@@ -150,7 +150,7 @@ namespace cuda {
         __syncthreads();
     }
 
-    /*
+    /*!
      * Kernel that calculates the sum of magnitudes of the vector elements.
      * This kernel is exactly the same as the previous one, but takes mp_float_ptr instead of mp_array_t for the input vector
      * and mp_array_t instead of mp_float_ptr for the result
@@ -190,7 +190,7 @@ namespace cuda {
 
     /********************* Computing the maximum of the absolute values of the elements of a multiple-precision vector *********************/
 
-    /*
+    /*!
       * Kernel that calculates the maximum absolute value of the elements of a multiple-precision vector
       * @param nextPow2 - least power of two greater than or equal to blockDim.x
       */
@@ -240,7 +240,7 @@ namespace cuda {
         __syncthreads();
     }
 
-    /*
+    /*!
     * Kernel that calculates the maximum absolute value of the elements of a multiple-precision vector.
     * This kernel is exactly the same as the previous one, but takes mp_float_ptr instead of mp_array_t for the input vector
     * and mp_array_t instead of mp_float_ptr for the result

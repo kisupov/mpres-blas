@@ -409,19 +409,17 @@ __global__ static void mp_scal_straightforward(int n, mp_float_ptr alpha, mp_flo
     }
 }
 
-__global__ static void mp_gemv_straightforward(int m, int n, mp_float_ptr A, int lda, mp_float_ptr x, mp_float_ptr beta, mp_float_ptr y){
-    mp_float_t sum;
-    int i = (threadIdx.x + blockIdx.x * blockDim.x);
-    if(i < m){
-        cuda::mp_mul(&y[i], &beta[0], &y[i]);
-    }
-    __syncthreads();
-    for (int j = 0; j < n; j++) {
-        if( i < m ){
-            cuda::mp_mul(&sum, &x[j], &A[i + j * lda]);
-            cuda::mp_add(&y[i], &y[i], &sum);
+__global__ static void mp_gemv_straightforward(int m, int n, mp_float_ptr A, int lda, mp_float_ptr x, mp_float_ptr beta, mp_float_ptr y) {
+    unsigned int threadId = threadIdx.x + blockIdx.x * blockDim.x;
+    if (threadId < m) {
+        mp_float_t prod;
+        mp_float_t dot = cuda::MP_ZERO;
+        for (int colId = 0; colId < n; colId++) {
+            cuda::mp_mul(&prod, &x[colId], &A[colId * lda + threadId]);
+            cuda::mp_add(&dot, &dot, &prod);
         }
-        __syncthreads();
+        cuda::mp_mul(&y[threadId], &beta[0], &y[threadId]);
+        cuda::mp_add(&y[threadId], &y[threadId], &dot);
     }
 }
 
