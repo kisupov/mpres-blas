@@ -24,7 +24,6 @@
 #define MPSPMVELL_CUH
 
 #include "../mpvector.cuh"
-#include "../mpreduct_rowcol.cuh"
 #include "../kernel_config.cuh"
 
 namespace cuda {

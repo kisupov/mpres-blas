@@ -22,30 +22,11 @@
 #ifndef MPRES_TEST_CAMPARY_BLAS_CUH
 #define MPRES_TEST_CAMPARY_BLAS_CUH
 
-#include <stdio.h>
-#include "mpfr.h"
-#include "../../../src/params.h"
-#include "../../../src/mblas_enum.cuh"
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "../../3rdparty/campary/Doubles/src_gpu/multi_prec.h"
-
-/*
- * Precision of CAMPARY in n-double
- * For predefined RNS moduli sets from the src/32-bit-n-double-moduli/ directory:
- * 8 moduli give 2-double, 16 moduli give 4-double, 24 moduli give 6-double, etc.
- */
-#define CAMPARY_PRECISION (RNS_MODULI_SIZE / 4)
-
-//Execution configuration
-#define CAMPARY_REDUCTION_BLOCKS 1024
-#define CAMPARY_REDUCTION_THREADS 32
-#define CAMPARY_VECTOR_MULTIPLY_THREADS 32
-#define CAMPARY_MATRIX_THREADS_X 32
-#define CAMPARY_MATRIX_THREADS_Y 8
-
-
+#include "mblas_enum.cuh"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
+#include "3rdparty/campary_common.cuh"
 
 /********************* Computational kernels *********************/
 
@@ -248,19 +229,15 @@ __global__ void campary_axpy_dot_kernel(int n, multi_prec<prec> *alpha, multi_pr
  */
 template<int prec>
 __global__ void campary_gemv_kernel(int m, int n, multi_prec<prec> *A, int lda, multi_prec<prec> *x, multi_prec<prec> *beta, multi_prec<prec> *y) {
-    int i = threadIdx.x + blockIdx.x * blockDim.x;
-    if(i < m){
-        y[i] = beta[0] * y[i];
-    }
-    __syncthreads();
-
-    for (int j = 0; j < n; j++) {
-        if( i < m ){
-            y[i] = y[i] + x[j] * A[i + j * lda];
+    unsigned int threadId = threadIdx.x + blockIdx.x * blockDim.x;
+    if (threadId < m) {
+        multi_prec<prec> dot = 0.0;
+        for (int colId = 0; colId < n; colId++) {
+            dot = dot + A[colId * lda + threadId] * x[colId];
         }
-        __syncthreads();
+        y[threadId] = beta[0] * y[threadId];
+        y[threadId] = y[threadId] + dot;
     }
-    __syncthreads();
 }
 
 /*
@@ -528,27 +505,6 @@ void campary_ge_lrscale(int m, int n, multi_prec<prec> * DL, int incdl, multi_pr
 }
 
 /********************* Benchmarks *********************/
-
-// Printing the result, which is a CAMPARY's floating-point expansion (ONE multiple precision number)
-// prec specifies the number of terms (precision), i.e. the size of the floating point expansion
-template<int nterms>
-static void printResult(multi_prec<nterms> result){
-    int p = 8192;
-    mpfr_t x;
-    mpfr_t r;
-    mpfr_init2(x, p);
-    mpfr_init2(r, p);
-    mpfr_set_d(r, 0.0, MPFR_RNDN);
-    for(int i = nterms - 1; i >= 0; i--){
-        mpfr_set_d(x, result.getData()[i], MPFR_RNDN);
-        mpfr_add(r, r, x, MPFR_RNDN);
-    }
-    mpfr_printf("result: %.70Rf \n", r);
-    /* printf("RAW Data:\n");
-    result.prettyPrint(); */
-    mpfr_clear(x);
-    mpfr_clear(r);
-}
 
 /*
  * ASUM test

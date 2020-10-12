@@ -31,7 +31,7 @@
 #define MPRES_CUDA_THREADS_SCALAR_KERNELS 64
 #define MPRES_CUDA_BLOCKS_RESIDUES 256
 
-#define MATRIX_PATH "../../tests/sparse/matrices/coater2.mtx"
+#define MATRIX_PATH "../../tests/sparse/matrices/onetone1.mtx"
 #define MATRIX_SYMMETRIC false
 
 int INP_BITS; //in bits

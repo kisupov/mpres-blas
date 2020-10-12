@@ -22,16 +22,10 @@
 #ifndef MPRES_TEST_CUMP_SPARSE_CUH
 #define MPRES_TEST_CUMP_SPARSE_CUH
 
-#include <stdio.h>
-#include "mpfr.h"
-#include "../../../src/mblas_enum.cuh"
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "cump/cump.cuh"
-
-#define CUMP_MAX_THREADS_PER_BLOCK 1024
-using cump::mpf_array_t;
+#include "3rdparty/cump_common.cuh"
 
 /********************* Computational kernels *********************/
 

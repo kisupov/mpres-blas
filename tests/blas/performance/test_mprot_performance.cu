@@ -69,7 +69,7 @@ static void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
         mp_add(&print_result, &print_result, &result[i]);
     }
 
-    mp_get_mpfr(mpfr_result, &print`_result);
+    mp_get_mpfr(mpfr_result, &print_result);
     mpfr_printf("result %s: %.70Rf \n", name, mpfr_result);
     mpfr_clear(mpfr_result);
 }
