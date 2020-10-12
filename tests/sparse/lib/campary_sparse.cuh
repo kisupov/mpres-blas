@@ -19,8 +19,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPRES_TEST_CAMPARY_BLAS_CUH
-#define MPRES_TEST_CAMPARY_BLAS_CUH
+#ifndef MPRES_TEST_CAMPARY_SPARSE_CUH
+#define MPRES_TEST_CAMPARY_SPARSE_CUH
 
 #include "tsthelper.cuh"
 #include "logger.cuh"
@@ -124,4 +124,4 @@ void campary_spmv_ell_test(const int num_rows, const int num_cols, const int num
     cudaFree(dindices);
 }
 
-#endif //MPRES_TEST_CAMPARY_BLAS_CUH
+#endif //MPRES_TEST_CAMPARY_SPARSE_CUH
