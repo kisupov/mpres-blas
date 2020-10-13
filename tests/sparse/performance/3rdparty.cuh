@@ -37,4 +37,9 @@
 #include "../lib/campary_sparse.cuh"
 #endif
 
+//cuSPARSE - https://developer.nvidia.com/cusparse
+#ifndef EXCLUDE_CUSPARSE
+#include "cusparse.h"
+#endif
+
 #endif //MPRES_TEST_3RDPARTY_CUH

@@ -107,6 +107,63 @@ void convert_to_ellpack(const char filename[], const int num_rows, const int num
     file.close();
 }
 
+
+void convert_to_coo(const char filename[], const int num_rows, const int num_lines, float *m_data, int *m_row, int *m_col, bool is_symmetric) {
+
+    std::ifstream file(filename);
+
+    // Ignore comments headers
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    //Skip one line with the matrix properties
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    //j нужно для того, чтобы за 1 цикл заполнить весь массив
+    int j = num_lines;
+
+    // Iterating over the matrix
+    for (int l = 0; l < num_lines; l++) {
+        double fileData = 0.0;
+        int row = 0, col = 0;
+        file >> row >> col >> fileData;
+        m_data[l] = fileData;
+        m_row[l] = row;
+        m_col[l] = col;
+        if (is_symmetric && (row != col)) {
+            m_data[j] = fileData;
+            m_row[j] = (col);
+            m_col[j] = (row);
+            j++;
+        }
+    }
+    file.close();
+}
+
+void convert_to_csr(const char filename[], const int num_rows, const int num_lines, float *m_data, int *m_csrOffsets, int *m_col, bool is_symmetric) {
+
+    std::ifstream file(filename);
+
+    // Ignore comments headers
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    //Skip one line with the matrix properties
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    // Iterating over the matrix
+    for (int l = 0; l < num_lines; l++) {
+        double fileData = 0.0;
+        int row = 0, col = 0;
+        file >> row >> col >> fileData;
+        m_data[l] = fileData;
+        m_col[l] = col;
+        m_csrOffsets[row]++;
+    }
+
+    for (int i = 1; i < num_rows + 1; ++i) {
+        m_csrOffsets[i] = m_csrOffsets[i-1] + m_csrOffsets[i];
+    }
+
+    file.close();
+}
+
 /*!
  * Prints a sparse matrix represented in the ELLPACK format
  */
