@@ -19,8 +19,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPRES_TEST_3RDPARTY_CUH
-#define MPRES_TEST_3RDPARTY_CUH
+#ifndef MPRES_TEST_BLAS_3RDPARTY_CUH
+#define MPRES_TEST_BLAS_3RDPARTY_CUH
 
 //MPFR - https://mpfr.org
 #ifndef EXCLUDE_MPFR
@@ -73,4 +73,4 @@
 #include "cublas_v2.h"
 #endif
 
-#endif //MPRES_TEST_3RDPARTY_CUH
+#endif //MPRES_TEST_BLAS_3RDPARTY_CUH
