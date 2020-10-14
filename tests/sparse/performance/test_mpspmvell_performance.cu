@@ -32,6 +32,7 @@
 #define MPRES_CUDA_BLOCKS_RESIDUES 256
 
 #define MATRIX_PATH "../../tests/sparse/matrices/ex40.mtx"
+//TODO read from file
 #define MATRIX_SYMMETRIC false
 
 int INP_BITS; //in bits
@@ -74,21 +75,6 @@ void convert_vector(mp_float_ptr dest, const double *source, int width){
         mp_set_d(&dest[i], source[i]);
     }
 }
-
-void print_float(float * data, int size){
-    for (int i = 0; i < size; ++i) {
-        std::cout << data[i] << " ";
-    }
-    std::cout<<std::endl;
-}
-
-void print_int(int * data, int size){
-    for (int i = 0; i < size; ++i) {
-        std::cout << data[i] << " ";
-    }
-    std::cout<<std::endl;
-}
-
 /********************* SpMV ELLPACK implementations and benchmarks *********************/
 
 /////////
@@ -314,229 +300,48 @@ void mpres_test_naive(const int num_rows, const int num_cols, const int cols_per
 }
 
 /////////
-// cuSPARSE
+// TACO
 /////////
-void cusparse_test_coo(const int num_rows, const int num_cols, const int num_lines, mpfr_t *x){
-    InitCudaTimer();
+void taco_test(const mpfr_t * vectorX, const mpfr_t * vectorY){
+    using namespace taco;
+    InitCpuTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] cuSPARSE COO");
+    PrintTimerName("[CPU] TACO spmv");
 
-    int A_num_nnz = num_lines;
-    if (IS_SYMMETRIC) {
-        A_num_nnz = (num_lines - num_cols) * 2 + num_cols;
+    Format csr({Dense,Sparse});
+    Format  dv({Dense});
+
+    Tensor<double> A = read(MATRIX_PATH, csr, false);
+
+    Tensor<double> x({A.getDimension(1)}, dv);
+    for (int i = 0; i < x.getDimension(0); ++i) {
+        x.insert({i}, mpfr_get_d(vectorX[i], MPFR_RNDN));
     }
+    x.pack();
 
-/*    int *hA_rows = new int[A_num_nnz];
-    int *hA_columns = new int[A_num_nnz];
-    float *hA_values = new float[A_num_nnz];*/
-
-    float hA_values[] = { 3.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 5.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 7.0f, 1.0f,
-                          1.0f, 1.0f, 11.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 13.0f};
-    int hA_rows[] = { 1, 1, 1, 1,
-                      2, 2, 2, 2,
-                      3, 3, 3, 3,
-                      4, 4, 4, 4,
-                      5, 5, 5, 5};
-
-    int hA_columns[] ={ 1, 2, 4, 5,
-                        1, 2, 3, 5,
-                        1, 2, 3, 4,
-                        2, 3, 4, 5,
-                        1, 3, 4, 5};
-    float *hX = new float[num_rows];
-    float *hY = new float[num_rows]();
-
-
-    // Convert from MPFR
-    convert_vector(hX, x, num_cols);
-    //Convert a sparse matrix to the double-precision ELLPACK format
-    convert_to_coo(MATRIX_PATH, num_rows, num_lines, hA_values, hA_rows, hA_columns, IS_SYMMETRIC);
-
-    print_float(hA_values, A_num_nnz);
-    print_int(hA_rows, A_num_nnz);
-    print_int(hA_columns, A_num_nnz);
-
-    int *dA_rows;
-    int *dA_columns;
-    float *dA_values;
-    float *dX;
-    float *dY;
-    float alpha = 1.0f;
-    float beta = 0.0f;
-
-    cudaMalloc(&dA_rows, A_num_nnz * sizeof(int));
-    cudaMalloc(&dA_columns, A_num_nnz * sizeof(int));
-    cudaMalloc(&dA_values, A_num_nnz * sizeof(float));
-    cudaMalloc(&dX, num_cols * sizeof(float));
-    cudaMalloc(&dY, num_rows * sizeof(float));
-
-    cudaMemcpy(dA_rows, hA_rows, A_num_nnz * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dA_columns, hA_columns, A_num_nnz * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dA_values, hA_values, A_num_nnz * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(dX, hX, num_cols * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(dY, hY, num_rows * sizeof(float), cudaMemcpyHostToDevice);
-
-    cusparseHandle_t handle = NULL;
-    cusparseStatus_t stat;
-    cusparseSpMatDescr_t matA;
-    cusparseDnVecDescr_t vecX;
-    cusparseDnVecDescr_t vecY;
-    void *dBuffer = NULL;
-    size_t bufferSize = 0;
-
-    stat = cusparseCreate(&handle);
-    if (stat != CUSPARSE_STATUS_SUCCESS) {
-        printf ("CUSPARSE initialization failed\n");
-        return;
+    Tensor<double> y({A.getDimension(0)}, dv);
+    for (int i = 0; i < y.getDimension(0); ++i) {
+        y.insert({i}, mpfr_get_d(vectorY[i], MPFR_RNDN));
     }
+    y.pack();
 
-    // Create sparse matrix A in COO format
-    cusparseCreateCoo(&matA, num_rows, num_cols, A_num_nnz, dA_rows, dA_columns, dA_values, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ONE, CUDA_R_32F);
-    // Create dense vector X
-    cusparseCreateDnVec(&vecX, num_cols, dX, CUDA_R_32F);
-    // Create dense vector y
-    cusparseCreateDnVec(&vecY, num_rows, dY, CUDA_R_32F);
-    // allocate an external buffer if needed
-    cusparseSpMV_bufferSize(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, matA, vecX, &beta, vecY, CUDA_R_32F, CUSPARSE_MV_ALG_DEFAULT, &bufferSize);
-    cudaMalloc(&dBuffer, bufferSize);
+    Tensor<double> result({A.getDimension(0)}, dv);
 
-    // execute SpMV
-    cusparseSpMV(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, matA, vecX, &beta, vecY, CUDA_R_32F, CUSPARSE_MV_ALG_DEFAULT, dBuffer);
+    IndexVar i, j;
+    result(i) = (A(i,j) * x(j) + y(i));
 
-    // destroy matrix/vector descriptors
-    cusparseDestroySpMat(matA);
-    cusparseDestroyDnVec(vecX);
-    cusparseDestroyDnVec(vecY);
-    cusparseDestroy(handle);
+    StartCpuTimer();
+    result.compile();
+    result.assemble();
+    result.compute();
+    EndCpuTimer();
 
-    cudaMemcpy(hY, dY, num_rows * sizeof(float), cudaMemcpyDeviceToHost);
-    float sum = 0;
-    for (int i = 0; i < num_rows; i++) {
-        sum += hY[i];
+    double sum = 0.0;
+    for (int i = 0; i < result.getDimension(0); i++) {
+        sum += result(i);
     }
+    PrintCpuTimer("took");
     printf("result: %.70f\n", sum);
-
-/*    delete [] hA_rows;
-    delete [] hA_columns;
-    delete [] hA_values;*/
-    delete [] hX;
-    delete [] hY;
-    cudaFree(dBuffer);
-    cudaFree(dA_rows);
-    cudaFree(dA_columns);
-    cudaFree(dA_values);
-    cudaFree(dX);
-    cudaFree(dY);
-}
-
-void cusparse_test_csr(const int num_rows, const int num_cols, const int num_lines, mpfr_t *x) {
-    InitCudaTimer();
-    Logger::printDash();
-    PrintTimerName("[GPU] cuSPARSE CSR");
-
-    int A_num_nnz = num_lines;
-    /*int *hA_csrOffsets = new int[num_rows + 1]();
-    int *hA_columns = new int[A_num_nnz] ;
-    float *hA_values = new float[A_num_nnz];*/
-
-    float hA_values[] = { 3.0f, 1.0f, 1.0f, 1.0f,
-                          1.0f, 5.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 7.0f, 1.0f,
-                          1.0f, 1.0f, 11.0f, 1.0f,
-                          1.0f, 1.0f, 1.0f, 13.0f};
-    int hA_csrOffsets[] = {0, 4, 8, 12, 16, 20};
-    int hA_columns[] ={ 1, 2, 4, 5,
-                        1, 2, 3, 5,
-                        1, 2, 3, 4,
-                        2, 3, 4, 5,
-                        1, 3, 4, 5};
-    float *hX = new float[num_cols];
-    float *hY = new float[num_rows]();
-
-    convert_vector(hX, x, num_cols);
-    //Convert a sparse matrix to the double-precision ELLPACK format
-    //convert_to_csr(MATRIX_PATH, num_rows, num_lines, hA_values, hA_csrOffsets, hA_columns, IS_SYMMETRIC);
-
-    print_float(hA_values, A_num_nnz);
-    print_int(hA_csrOffsets, num_rows+1);
-    print_int(hA_columns, A_num_nnz);
-
-    int *dA_csrOffsets;
-    int *dA_columns;
-    float *dA_values;
-    float *dX;
-    float *dY;
-    float alpha = 1.0f;
-    float beta = 0.0f;
-
-    cudaMalloc((void**) &dA_csrOffsets, (num_rows + 1) * sizeof(int));
-    cudaMalloc((void**) &dA_columns, A_num_nnz * sizeof(int));
-    cudaMalloc((void**) &dA_values, A_num_nnz * sizeof(float));
-    cudaMalloc((void**) &dX, num_cols * sizeof(float));
-    cudaMalloc((void**) &dY, num_rows * sizeof(float));
-
-    cudaMemcpy(dA_csrOffsets, hA_csrOffsets, (num_rows + 1) * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dA_columns, hA_columns, A_num_nnz * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dA_values, hA_values, A_num_nnz * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(dX, hX, num_cols * sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(dY, hY, num_rows * sizeof(float), cudaMemcpyHostToDevice);
-
-    //--------------------------------------------------------------------------
-    // CUSPARSE APIs
-    cusparseHandle_t handle = NULL;
-    cusparseStatus_t stat;
-    cusparseSpMatDescr_t matA;
-    cusparseDnVecDescr_t vecX;
-    cusparseDnVecDescr_t vecY;
-    void* dBuffer = NULL;
-    size_t bufferSize = 0;
-
-    cusparseCreate(&handle);
-    // Create sparse matrix A in CSR format
-    cusparseCreateCsr(&matA, num_rows, num_cols, A_num_nnz, dA_csrOffsets, dA_columns, dA_values, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ONE, CUDA_R_32F);
-    // Create dense vector X
-    cusparseCreateDnVec(&vecX, num_cols, dX, CUDA_R_32F);
-    // Create dense vector y
-    cusparseCreateDnVec(&vecY, num_rows, dY, CUDA_R_32F);
-    // allocate an external buffer if needed
-    cusparseSpMV_bufferSize(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, matA, vecX, &beta, vecY, CUDA_R_32F, CUSPARSE_MV_ALG_DEFAULT, &bufferSize);
-    cudaMalloc(&dBuffer, bufferSize);
-
-    // execute SpMV
-    cusparseSpMV(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, matA, vecX, &beta, vecY, CUDA_R_32F, CUSPARSE_MV_ALG_DEFAULT, dBuffer);
-
-    // destroy matrix/vector descriptors
-    cusparseDestroySpMat(matA);
-    cusparseDestroyDnVec(vecX);
-    cusparseDestroyDnVec(vecY);
-    cusparseDestroy(handle);
-
-    //--------------------------------------------------------------------------
-    // device result check
-
-    cudaMemcpy(hY, dY, num_rows * sizeof(float), cudaMemcpyDeviceToHost);
-    float sum = 0;
-    for (int i = 0; i < num_rows; i++) {
-        sum += hY[i];
-    }
-    printf("result: %.70f\n", sum);
-
-    //--------------------------------------------------------------------------
-    // device memory deallocation
-/*    delete [] hA_csrOffsets;
-    delete [] hA_columns;
-    delete [] hA_values;*/
-    delete [] hX;
-    delete [] hY;
-    cudaFree(dBuffer);
-    cudaFree(dA_csrOffsets);
-    cudaFree(dA_columns);
-    cudaFree(dA_values);
-    cudaFree(dX);
-    cudaFree(dY);
 }
 
 /********************* Main test *********************/
@@ -573,6 +378,8 @@ void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW) {
     mpres_test_naive(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY);
     campary_spmv_ell_test<CAMPARY_PRECISION>(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY, INP_DIGITS);
     cump_spmv_ell_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS);
+    //works only with real data type
+    taco_test(vectorX, vectorY);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
