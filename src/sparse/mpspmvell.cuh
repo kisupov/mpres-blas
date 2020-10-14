@@ -31,7 +31,7 @@ namespace cuda {
     /*!
      * Multiplication of a sparse matrix A stored in the ELLPACK format (data) by a diagonal matrix on the right which is stored as a vector x
      * One thread computes each row of the matrix
-     * The result is written into the matrix in the ELLPACK format (result) of size num_rows by cols_per_row
+     * The result is written into the data array in the ELLPACK format (result) of size num_rows by cols_per_row
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note The data and result arrays are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
      * @param result - pointer to the multiple-precision result array, size num_rows * cols_per_row
@@ -66,7 +66,7 @@ namespace cuda {
 
     /*!
      * Multiplication of a sparse matrix A stored in the ELLPACK format (data) by a diagonal matrix on the right which is stored as a vector x
-     * The result is written into the matrix in the ELLPACK format (result) of size num_rows by cols_per_row
+     * The result is written into the data array in the ELLPACK format (result) of size num_rows by cols_per_row
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note The data and result arrays are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
      * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the data array.
@@ -101,8 +101,8 @@ namespace cuda {
     }
 
     /*!
-     * Kernel that calculates the sum of all the elements in each row of multiple-precision matrix and adds it to the result vector
-     * One thread computes each element of the vector y (each row of the matrix)
+     * Kernel that computes the sum of all the elements in each row of a multiple-precision matrix and adds it to the result vector
+     * One thread calculates the sum of the elements in one row of the matrix, i.e. one element of the vector y
      * @note Shared memory of size sizeof(mp_float_t) * nThreads must be allocated, where nThreads is the number of threads per block
      * @param result - pointer to the result vector of num_rows elements
      * @param indices - pointer to the array of ELLPACK column indices. Addition is performed only if the corresponding index is positive, size num_rows * cols_per_row
@@ -169,8 +169,6 @@ namespace cuda {
 
         //The following is tne reduction of the intermediate matrix (buffer).
         //Here, the sum of the elements in each row is calculated, and stored in the corresponding element of y
-        //Kernel memory configurations. We prefer shared memory
-        //cudaFuncSetCacheConfig(matrix_row_sum_kernel, cudaFuncCachePreferShared);
         ell_matrix_row_sum_kernel<<<grid1, blockDim1, sizeof(mp_float_t) * blockDim1 >>>(y, indices, buffer, num_rows, cols_per_row);
     }
 

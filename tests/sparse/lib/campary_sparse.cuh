@@ -62,7 +62,8 @@ void campary_spmv_ell_test(const int num_rows, const int num_cols, const int col
     PrintTimerName("[GPU] CAMPARY SpMV ELLPACK");
 
     //Execution configuration
-    int BLOCKS = num_rows / CAMPARY_VECTOR_MULTIPLY_THREADS + 1;
+    int threads = 32;
+    int blocks = num_rows / threads + 1;
 
     //Host data
     multi_prec<prec> *hx = new multi_prec<prec>[num_cols];
@@ -105,7 +106,7 @@ void campary_spmv_ell_test(const int num_rows, const int num_cols, const int col
 
     //Launch
     StartCudaTimer();
-    campary_spmv_ell_kernel<prec><<<BLOCKS, CAMPARY_VECTOR_MULTIPLY_THREADS>>>(num_rows, cols_per_row, dindices, ddata, dx, dy);
+    campary_spmv_ell_kernel<prec><<<blocks, threads>>>(num_rows, cols_per_row, dindices, ddata, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

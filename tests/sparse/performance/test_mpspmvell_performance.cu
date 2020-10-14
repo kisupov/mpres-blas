@@ -28,7 +28,7 @@
 #include "../../sparse/performance/3rdparty.cuh"
 
 //Execution configuration for mpspmvell
-#define MPRES_CUDA_THREADS_SCALAR_KERNELS 64
+#define MPRES_CUDA_THREADS_SCALAR_KERNELS 32
 #define MPRES_CUDA_BLOCKS_RESIDUES 256
 
 #define MATRIX_PATH "../../tests/sparse/matrices/ex40.mtx"
@@ -101,7 +101,7 @@ void double_test(const int num_rows, const int num_cols, const int cols_per_row,
 
     //Execution configuration
     int threads = 32;
-    int blocks = num_rows / (threads) + (num_rows % (threads) ? 1 : 0);
+    int blocks = num_rows / threads + 1;
 
     //host data
     auto *hx = new double[num_cols];
