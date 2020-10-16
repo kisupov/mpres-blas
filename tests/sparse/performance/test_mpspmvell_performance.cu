@@ -31,14 +31,14 @@
 #define MPRES_CUDA_THREADS_SCALAR_KERNELS 32
 #define MPRES_CUDA_BLOCKS_RESIDUES 256
 
-#define MATRIX_PATH "../../tests/sparse/matrices/ex40.mtx"
+#define MATRIX_PATH "../../tests/sparse/matrices/psmigr_3.mtx"
 #define MATRIX_SYMMETRIC false
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
 
 void setPrecisions() {
-    INP_BITS = (int) (MP_PRECISION / 2);
+    INP_BITS = (int) (MP_PRECISION / 4);
     INP_DIGITS = (int) (INP_BITS / 3.32 + 1);
 }
 
@@ -368,9 +368,11 @@ int main() {
     read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC);
     Logger::printParam("Matrix rows, NUM_ROWS", NUM_ROWS);
     Logger::printParam("Matrix columns, NUM_COLUMNS", NUM_COLS);
+    Logger::printParam("Symmetry, MATRIX_SYMMETRIC", MATRIX_SYMMETRIC);
     Logger::printParam("Maximum nonzeros per row, COLS_PER_ROW", COLS_PER_ROW);
     Logger::printDash();
     Logger::beginSection("Additional info:");
+    Logger::printParam("MP_PRECISION", MP_PRECISION);
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
     Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_THREADS_SCALAR_KERNELS);
     Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_RESIDUES);
