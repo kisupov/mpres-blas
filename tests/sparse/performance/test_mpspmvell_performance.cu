@@ -31,9 +31,7 @@
 #define MPRES_CUDA_THREADS_SCALAR_KERNELS 32
 #define MPRES_CUDA_BLOCKS_RESIDUES 256
 
-#define MATRIX_PATH "../../tests/sparse/matrices/psmigr_3.mtx"
-//TODO read from file
-#define MATRIX_SYMMETRIC false
+#define MATRIX_PATH "../../tests/sparse/matrices/t3dl.mtx"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -347,7 +345,7 @@ void taco_test(const mpfr_t * vectorX, const mpfr_t * vectorY){
 
 /********************* Main test *********************/
 
-void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW) {
+void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW, bool MATRIX_SYMMETRIC, bool IS_REAL_DATA_TYPE) {
 
     //Inputs
     mpfr_t *vectorX = create_random_array(NUM_COLS, INP_BITS);
@@ -379,9 +377,9 @@ void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW) {
     mpres_test_naive(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY);
     campary_spmv_ell_test<CAMPARY_PRECISION>(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY, INP_DIGITS);
     cump_spmv_ell_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS);
-    //works only with real data type
-    taco_test(vectorX, vectorY);
-
+    if (IS_REAL_DATA_TYPE) {
+        taco_test(vectorX, vectorY);
+    }
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -405,6 +403,8 @@ int main() {
     int NUM_COLS = 0; //number of columns
     int NUM_LINES = 0; //number of lines in the input matrix file
     int COLS_PER_ROW = 0; //maximum number of nonzeros per row
+    bool MATRIX_SYMMETRIC = false; //true if the input matrix is to be treated as symmetrical; otherwise false
+    bool IS_REAL_DATA_TYPE = false; //defines type of data in MatrixMarket, used only for taco test
 
     initialize();
 
@@ -412,10 +412,11 @@ int main() {
     Logger::beginTestDescription(Logger::BLAS_SPMV_ELL_PERFORMANCE_TEST);
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC);
+    read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC, IS_REAL_DATA_TYPE);
     Logger::printParam("Matrix rows, NUM_ROWS", NUM_ROWS);
     Logger::printParam("Matrix columns, NUM_COLUMNS", NUM_COLS);
     Logger::printParam("Symmetry, MATRIX_SYMMETRIC", MATRIX_SYMMETRIC);
+    Logger::printParam("Real data type, IS_REAL_DATA_TYPE", IS_REAL_DATA_TYPE);
     Logger::printParam("Maximum nonzeros per row, COLS_PER_ROW", COLS_PER_ROW);
     Logger::printDash();
     Logger::beginSection("Additional info:");
@@ -427,7 +428,7 @@ int main() {
     Logger::endSection(true);
 
     //Run the test
-    test(NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW);
+    test(NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC, IS_REAL_DATA_TYPE);
 
     //Finalize
     finalize();

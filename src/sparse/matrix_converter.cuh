@@ -24,6 +24,7 @@
 #define MATRIX_CONVERTER_CUH
 
 #include <fstream>
+#include "assert.h"
 #include "mparray.cuh"
 using namespace std;
 
@@ -36,9 +37,24 @@ using namespace std;
  * @param num_cols_per_row - maximum number of nonzeros per row in the matrix (output parameter)
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  */
-void read_matrix_properties(const char filename[], int &num_rows, int &num_cols, int &num_lines, int &num_cols_per_row, bool symmetric) {
+void read_matrix_properties(const char filename[], int &num_rows, int &num_cols, int &num_lines, int &num_cols_per_row, bool &symmetric, bool &is_real) {
 
+    //Create stream
     std::ifstream file(filename);
+
+    //Read header
+    string head, type, formats, field, symmetry;
+    file >> head >> type >> formats >> field >> symmetry;
+
+    //header checking
+    assert(head == "%%MatrixMarket");
+    assert((type == "matrix") || (type == "tensor"));
+    assert((symmetry=="general") || (symmetry=="symmetric"));
+
+    is_real = (field=="real");
+    symmetric = (symmetry=="symmetric");
+
+    file.seekg(0, ios::beg);
 
     // Ignore comments headers
     while (file.peek() == '%'){
