@@ -63,8 +63,8 @@ void cump_spmv_ell_test(const int num_rows, const int num_cols, const int cols_p
     cumpf_set_default_prec(prec);
 
     //Execution configuration
-    int threads = 64;
-    int blocks = num_rows / (threads) + (num_rows % (threads) ? 1 : 0);
+    int threads = 32;
+    int blocks = num_rows / threads + 1;
 
     //Host data
     mpf_t *hx = new mpf_t[num_cols];
