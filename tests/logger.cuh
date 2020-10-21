@@ -136,6 +136,10 @@ namespace Logger {
         std::cout << "- " << param << ": " << value << std::endl;
     }
 
+    void printParam(const char *param, const std::string value) {
+        std::cout << "- " << param << ": " << value << std::endl;
+    }
+
     void printParam(const char *param, const int value) {
         std::cout << "- " << param << ": " << value << std::endl;
     }
