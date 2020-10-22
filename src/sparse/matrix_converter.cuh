@@ -24,7 +24,9 @@
 #define MATRIX_CONVERTER_CUH
 
 #include <fstream>
+#include "assert.h"
 #include "mparray.cuh"
+
 using namespace std;
 
 /*!
@@ -35,13 +37,29 @@ using namespace std;
  * @param num_lines - total number of lines with data (output parameter)
  * @param num_cols_per_row - maximum number of nonzeros per row in the matrix (output parameter)
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
+ * @param datatype - type of data according to the matrix market format - real, integer, binary
  */
-void read_matrix_properties(const char filename[], int &num_rows, int &num_cols, int &num_lines, int &num_cols_per_row, bool symmetric) {
+void read_matrix_properties(const char filename[], int &num_rows, int &num_cols, int &num_lines, int &num_cols_per_row, bool &symmetric, string &datatype) {
 
+    //Create stream
     std::ifstream file(filename);
 
+    //Read header
+    string head, type, formats, dtype, symmetry;
+    file >> head >> type >> formats >> dtype >> symmetry;
+
+    //header checking
+    assert(head == "%%MatrixMarket");
+    assert((type == "matrix") || (type == "tensor"));
+    assert((symmetry == "general") || (symmetry == "symmetric"));
+
+    datatype = dtype;
+    symmetric = (symmetry == "symmetric");
+
+    file.seekg(0, ios::beg);
+
     // Ignore comments headers
-    while (file.peek() == '%'){
+    while (file.peek() == '%') {
         file.ignore(2048, '\n');
     }
 
@@ -62,8 +80,8 @@ void read_matrix_properties(const char filename[], int &num_rows, int &num_cols,
             nonZeros[(col - 1)] = nonZeros[(col - 1)] + 1;
         }
     }
-    num_cols_per_row = * std::max_element(nonZeros, nonZeros + num_rows);
-    delete [] nonZeros;
+    num_cols_per_row = *std::max_element(nonZeros, nonZeros + num_rows);
+    delete[] nonZeros;
     file.close();
 }
 
@@ -77,11 +95,11 @@ void read_matrix_properties(const char filename[], int &num_rows, int &num_cols,
  * @param indices - ELLPACK indices: an array of size num_rows * num_cols_per_row containing the indices of nonzero elements in the matrix (output parameter)
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  */
-void convert_to_ellpack(const char filename[], const int num_rows,  const int num_cols_per_row,  const int num_lines, double *data, int *indices, bool symmetric) {
+void convert_to_ellpack(const char filename[], const int num_rows, const int num_cols_per_row, const int num_lines, double *data, int *indices, bool symmetric) {
 
     //Set default values
-    std::fill(indices, indices + num_rows*num_cols_per_row, -1);
-    std::fill(data, data + num_rows*num_cols_per_row, 0);
+    std::fill(indices, indices + num_rows * num_cols_per_row, -1);
+    std::fill(data, data + num_rows * num_cols_per_row, 0);
 
     //Create stream
     std::ifstream file(filename);
@@ -91,7 +109,7 @@ void convert_to_ellpack(const char filename[], const int num_rows,  const int nu
     //Skip one line with the matrix properties
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-    int * colNum = new int[num_rows]();
+    int *colNum = new int[num_rows]();
 
     // Iterating over the matrix
     for (int l = 0; l < num_lines; l++) {
@@ -99,36 +117,94 @@ void convert_to_ellpack(const char filename[], const int num_rows,  const int nu
         int row = 0, col = 0;
         file >> row >> col >> fileData;
         data[colNum[(row - 1)] * num_rows + (row - 1)] = fileData;
-        indices[colNum[(row - 1)] * num_rows + (row - 1)] = (col-1);
+        indices[colNum[(row - 1)] * num_rows + (row - 1)] = (col - 1);
         colNum[row - 1]++;
         if (symmetric && (row != col)) {
             data[colNum[(col - 1)] * num_rows + (col - 1)] = fileData;
-            indices[colNum[(col - 1)] * num_rows + (col - 1)] = (row-1);
+            indices[colNum[(col - 1)] * num_rows + (col - 1)] = (row - 1);
             colNum[col - 1]++;
         }
     }
-    delete [] colNum;
+    delete[] colNum;
     file.close();
 }
 
 /*!
  * Prints a sparse matrix represented in the ELLPACK format
  */
-void print_ellpack(const int num_rows, const int num_cols_per_row, double *data, int *indices){
-    std::cout<<std::endl << "data:";
-    for(int i = 0; i < num_rows; i++){
-        std::cout<<std::endl;
-        for(int j = 0; j < num_cols_per_row; j++){
-            std::cout<<data[i + num_rows * j] << "\t";
+void print_ellpack(const int num_rows, const int num_cols_per_row, double *data, int *indices) {
+    std::cout << std::endl << "data:";
+    for (int i = 0; i < num_rows; i++) {
+        std::cout << std::endl;
+        for (int j = 0; j < num_cols_per_row; j++) {
+            std::cout << data[i + num_rows * j] << "\t";
         }
     }
-    std::cout<<std::endl << "indices:";
-    for(int i = 0; i < num_rows; i++){
-        std::cout<<std::endl;
-        for(int j = 0; j < num_cols_per_row; j++){
-            std::cout<<indices[i + num_rows * j] << "\t";
+    std::cout << std::endl << "indices:";
+    for (int i = 0; i < num_rows; i++) {
+        std::cout << std::endl;
+        for (int j = 0; j < num_cols_per_row; j++) {
+            std::cout << indices[i + num_rows * j] << "\t";
         }
     }
 }
+
+/*void convert_to_coo(const char filename[], const int num_rows, const int num_lines, float *m_data, int *m_row, int *m_col, bool symmetric) {
+
+    std::ifstream file(filename);
+
+    // Ignore comments headers
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    //Skip one line with the matrix properties
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    //j нужно для того, чтобы за 1 цикл заполнить весь массив
+    int j = num_lines;
+
+    // Iterating over the matrix
+    for (int l = 0; l < num_lines; l++) {
+        double fileData = 0.0;
+        int row = 0, col = 0;
+        file >> row >> col >> fileData;
+        m_data[l] = fileData;
+        m_row[l] = row;
+        m_col[l] = col;
+        if (symmetric && (row != col)) {
+            m_data[j] = fileData;
+            m_row[j] = (col);
+            m_col[j] = (row);
+            j++;
+        }
+    }
+    file.close();
+}
+
+void convert_to_csr(const char filename[], const int num_rows, const int num_lines, float *m_data, int *m_csrOffsets, int *m_col, bool symmetric) {
+
+    std::ifstream file(filename);
+
+    // Ignore comments headers
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    //Skip one line with the matrix properties
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    // Iterating over the matrix
+    for (int l = 0; l < num_lines; l++) {
+        double fileData = 0.0;
+        int row = 0, col = 0;
+        file >> row >> col >> fileData;
+        m_data[l] = fileData;
+        m_col[l] = col;
+        m_csrOffsets[row]++;
+    }
+
+    for (int i = 1; i < num_rows + 1; ++i) {
+        m_csrOffsets[i] = m_csrOffsets[i - 1] + m_csrOffsets[i];
+    }
+
+    file.close();
+}*/
+
+
 
 #endif //MATRIX_CONVERTER_CUH

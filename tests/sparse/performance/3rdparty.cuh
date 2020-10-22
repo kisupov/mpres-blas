@@ -37,4 +37,14 @@
 #include "../lib/campary_sparse.cuh"
 #endif
 
-#endif //MPRES_TEST_SPARSE_3RDPARTY_CUH
+//cuSPARSE - https://developer.nvidia.com/cusparse
+#ifndef EXCLUDE_CUSPARSE
+#include "cusparse.h"
+#endif
+
+//TACO - https://github.com/tensor-compiler/taco
+#ifndef EXCLUDE_TACO
+#include "taco.h"
+#endif
+
+#endif //MPRES_TEST_3RDPARTY_CUH

@@ -28,11 +28,12 @@
 #include "../../sparse/performance/3rdparty.cuh"
 
 //Execution configuration for mpspmvell
-#define MPRES_CUDA_THREADS_SCALAR_KERNELS 32
-#define MPRES_CUDA_BLOCKS_RESIDUES 256
+#define MPRES_CUDA_BLOCKS_FIELDS 512
+#define MPRES_CUDA_THREADS_FIELDS 128
+#define MPRES_CUDA_BLOCKS_RESIDUES 32768
+#define MPRES_CUDA_THREADS_REDUCE 64
 
-#define MATRIX_PATH "../../tests/sparse/matrices/psmigr_3.mtx"
-#define MATRIX_SYMMETRIC false
+#define MATRIX_PATH "../../tests/sparse/matrices/t3dl.mtx"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -149,6 +150,51 @@ void double_test(const int num_rows, const int num_cols, const int cols_per_row,
 }
 
 /////////
+// TACO
+/////////
+void taco_test(const mpfr_t * vectorX, const mpfr_t * vectorY){
+    using namespace taco;
+    InitCpuTimer();
+    Logger::printDash();
+    PrintTimerName("[CPU] TACO spmv");
+
+    Format csr({Dense,Sparse});
+    Format  dv({Dense});
+
+    Tensor<double> A = read(MATRIX_PATH, csr, false);
+
+    Tensor<double> x({A.getDimension(1)}, dv);
+    for (int i = 0; i < x.getDimension(0); ++i) {
+        x.insert({i}, mpfr_get_d(vectorX[i], MPFR_RNDN));
+    }
+    x.pack();
+
+    Tensor<double> y({A.getDimension(0)}, dv);
+    for (int i = 0; i < y.getDimension(0); ++i) {
+        y.insert({i}, mpfr_get_d(vectorY[i], MPFR_RNDN));
+    }
+    y.pack();
+
+    Tensor<double> result({A.getDimension(0)}, dv);
+
+    IndexVar i, j;
+    result(i) = (A(i,j) * x(j) + y(i));
+
+    StartCpuTimer();
+    result.compile();
+    result.assemble();
+    result.compute();
+    EndCpuTimer();
+
+    double sum = 0.0;
+    for (int k = 0; k < result.getDimension(0); k++) {
+        sum += result(k);
+    }
+    PrintCpuTimer("took");
+    printf("result: %.70f\n", sum);
+}
+
+/////////
 // MPRES-BLAS (structure of arrays)
 /////////
 void mpres_test(const int num_rows, const int num_cols, const int cols_per_row, const double * data, const int * indices, const mpfr_t * x,  const mpfr_t * y) {
@@ -192,8 +238,10 @@ void mpres_test(const int num_rows, const int num_cols, const int cols_per_row, 
     //Launch
     StartCudaTimer();
     cuda::mpspmvell<
-            MPRES_CUDA_THREADS_SCALAR_KERNELS,
-            MPRES_CUDA_BLOCKS_RESIDUES>
+            MPRES_CUDA_BLOCKS_FIELDS,
+            MPRES_CUDA_THREADS_FIELDS,
+            MPRES_CUDA_BLOCKS_RESIDUES,
+            MPRES_CUDA_THREADS_REDUCE>
             (num_rows, cols_per_row, dindices, ddata, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
@@ -238,7 +286,7 @@ __global__ static void mpspmvell_naive_kernel(const int num_rows, const int cols
 void mpres_test_naive(const int num_rows, const int num_cols, const int cols_per_row, const double * data, int * indices, const mpfr_t * x, const mpfr_t * y){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmvell (naive)");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmvell (basic)");
 
     size_t matrix_len = num_rows * cols_per_row;
 
@@ -299,10 +347,9 @@ void mpres_test_naive(const int num_rows, const int num_cols, const int cols_per
     cudaFree(dindices);
 }
 
-
 /********************* Main test *********************/
 
-void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW) {
+void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW, bool MATRIX_SYMMETRIC, string DATATYPE) {
 
     //Inputs
     mpfr_t *vectorX = create_random_array(NUM_COLS, INP_BITS);
@@ -330,11 +377,13 @@ void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW) {
 */
     //Launch tests
     double_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY);
+    if (DATATYPE == "real") {
+        taco_test(vectorX, vectorY);
+    }
     mpres_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY);
     mpres_test_naive(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY);
     campary_spmv_ell_test<CAMPARY_PRECISION>(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY, INP_DIGITS);
     cump_spmv_ell_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS);
-
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -358,6 +407,8 @@ int main() {
     int NUM_COLS = 0; //number of columns
     int NUM_LINES = 0; //number of lines in the input matrix file
     int COLS_PER_ROW = 0; //maximum number of nonzeros per row
+    bool MATRIX_SYMMETRIC = false; //true if the input matrix is to be treated as symmetrical; otherwise false
+    string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary
 
     initialize();
 
@@ -365,22 +416,25 @@ int main() {
     Logger::beginTestDescription(Logger::BLAS_SPMV_ELL_PERFORMANCE_TEST);
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC);
+    read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC, DATATYPE);
     Logger::printParam("Matrix rows, NUM_ROWS", NUM_ROWS);
     Logger::printParam("Matrix columns, NUM_COLUMNS", NUM_COLS);
-    Logger::printParam("Symmetry, MATRIX_SYMMETRIC", MATRIX_SYMMETRIC);
     Logger::printParam("Maximum nonzeros per row, COLS_PER_ROW", COLS_PER_ROW);
+    Logger::printParam("Symmetry, MATRIX_SYMMETRIC", MATRIX_SYMMETRIC);
+    Logger::printParam("Data type, DATATYPE", DATATYPE);
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("MP_PRECISION", MP_PRECISION);
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_THREADS_SCALAR_KERNELS);
-    Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_RESIDUES);
+    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS", MPRES_CUDA_BLOCKS_FIELDS);
+    Logger::printParam("MPRES_CUDA_THREADS_FIELDS", MPRES_CUDA_THREADS_FIELDS);
+    Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
 
     //Run the test
-    test(NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW);
+    test(NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC, DATATYPE);
 
     //Finalize
     finalize();
