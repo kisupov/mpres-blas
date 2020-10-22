@@ -28,8 +28,10 @@
 #include "../../sparse/performance/3rdparty.cuh"
 
 //Execution configuration for mpspmvell
-#define MPRES_CUDA_THREADS_SCALAR_KERNELS 32
-#define MPRES_CUDA_BLOCKS_RESIDUES 256
+#define MPRES_CUDA_BLOCKS_FIELDS 512
+#define MPRES_CUDA_THREADS_FIELDS 128
+#define MPRES_CUDA_BLOCKS_RESIDUES 32768
+#define MPRES_CUDA_THREADS_REDUCE 64
 
 #define MATRIX_PATH "../../tests/sparse/matrices/t3dl.mtx"
 
@@ -236,8 +238,10 @@ void mpres_test(const int num_rows, const int num_cols, const int cols_per_row, 
     //Launch
     StartCudaTimer();
     cuda::mpspmvell<
-            MPRES_CUDA_THREADS_SCALAR_KERNELS,
-            MPRES_CUDA_BLOCKS_RESIDUES>
+            MPRES_CUDA_BLOCKS_FIELDS,
+            MPRES_CUDA_THREADS_FIELDS,
+            MPRES_CUDA_BLOCKS_RESIDUES,
+            MPRES_CUDA_THREADS_REDUCE>
             (num_rows, cols_per_row, dindices, ddata, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
@@ -282,7 +286,7 @@ __global__ static void mpspmvell_naive_kernel(const int num_rows, const int cols
 void mpres_test_naive(const int num_rows, const int num_cols, const int cols_per_row, const double * data, int * indices, const mpfr_t * x, const mpfr_t * y){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmvell (naive)");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmvell (basic)");
 
     size_t matrix_len = num_rows * cols_per_row;
 
@@ -422,13 +426,15 @@ int main() {
     Logger::beginSection("Additional info:");
     Logger::printParam("MP_PRECISION", MP_PRECISION);
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_THREADS_SCALAR_KERNELS);
-    Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_RESIDUES);
+    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS", MPRES_CUDA_BLOCKS_FIELDS);
+    Logger::printParam("MPRES_CUDA_THREADS_FIELDS", MPRES_CUDA_THREADS_FIELDS);
+    Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
 
     //Run the test
-    test(NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC, IS_REAL_DATA_TYPE);
+    test(NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC, DATATYPE);
 
     //Finalize
     finalize();
