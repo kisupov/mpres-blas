@@ -1,7 +1,7 @@
 /*
- *  Utilities for working with the mp_array_t type, see types.h
+ *  Utilities for working with the mp_sparse_t type, see types.h
  *
- *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
+ *  Copyright 2020 by Konstantin Isupov.
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -19,8 +19,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPRES_MPARRAY_CUH
-#define MPRES_MPARRAY_CUH
+#ifndef MPRES_MPSPARSE_CUH
+#define MPRES_MPSPARSE_CUH
 
 #include "mpfloat.cuh"
 
@@ -30,22 +30,17 @@ namespace cuda {
      * Allocate a multiple-precision array that holds size elements in the GPU memory
      * @param dev_dest - pointer to the array to be allocated
      */
-    void mp_array_init(mp_array_t &dev_dest, size_t size) {
+    void mp_sparse_init(mp_sparse_t &dev_dest, size_t size) {
         // Allocating digits
         size_t residue_vec_size = RNS_MODULI_SIZE * size * sizeof(int);
         checkDeviceHasErrors(cudaMalloc(&dev_dest.digits, residue_vec_size));
         // Allocating signs
-        checkDeviceHasErrors(cudaMalloc(&dev_dest.sign, size * sizeof(int)));
+        size_t length = size * sizeof(int);
+        checkDeviceHasErrors(cudaMalloc(&dev_dest.sign, length));
         // Allocating exponents
-        checkDeviceHasErrors(cudaMalloc(&dev_dest.exp, size * sizeof(int)));
+        checkDeviceHasErrors(cudaMalloc(&dev_dest.exp, length));
         // Allocating interval evaluations
-        checkDeviceHasErrors(cudaMalloc(&dev_dest.eval, 2 * size * sizeof(er_float_t)));
-        // Allocating temporary buffer
-        checkDeviceHasErrors(cudaMalloc(&dev_dest.buf, size * sizeof(int4)));
-        // Setting the actual size of the vector
-        int length = size;
-        checkDeviceHasErrors(cudaMalloc(&dev_dest.len, sizeof(int)));
-        checkDeviceHasErrors(cudaMemcpy(dev_dest.len, &length, sizeof(int), cudaMemcpyHostToDevice));
+        checkDeviceHasErrors(cudaMalloc(&dev_dest.eval, sizeof(er_float_t) * 2 * size));
         //Error checking
         checkDeviceHasErrors(cudaDeviceSynchronize());
         cudaCheckErrors();
@@ -54,24 +49,22 @@ namespace cuda {
     /*!
      * Clear the GPU memory occupied by an array
      */
-    void mp_array_clear(mp_array_t &dev_dest) {
+    void mp_sparse_clear(mp_sparse_t &dev_dest) {
         checkDeviceHasErrors(cudaFree(dev_dest.digits));
         checkDeviceHasErrors(cudaFree(dev_dest.sign));
         checkDeviceHasErrors(cudaFree(dev_dest.exp));
         checkDeviceHasErrors(cudaFree(dev_dest.eval));
-        checkDeviceHasErrors(cudaFree(dev_dest.buf));
-        checkDeviceHasErrors(cudaFree(dev_dest.len));
         checkDeviceHasErrors(cudaDeviceSynchronize());
         cudaCheckErrors();
     }
 
     /*!
-     * Convert a regular multiple-precision mp_float_t[] array allocated on the host to a mp_array_t instance allocated on the GPU
+     * Convert a regular multiple-precision mp_float_t[] array allocated on the host to a mp_sparse_t instance allocated on the GPU
      * @param dev_dest - pointer to the result array in the GPU memory (must be initialized)
      * @param host_src - pointer to the source array in the host memory
-     * @param size - number of array elements (must be the same as used in mp_array_init)
+     * @param size - number of array elements (must be the same as used in mp_sparse_init)
      */
-    void mp_array_host2device(mp_array_t &dev_dest, mp_float_ptr host_src, size_t size) {
+    void mp_sparse_host2device(mp_sparse_t &dev_dest, mp_float_ptr host_src, size_t size) {
         int *buffer = new int[size];
         er_float_ptr eval_buffer = new er_float_t[size * 2];
         size_t buffer_size = sizeof(int) * size;
@@ -83,7 +76,6 @@ namespace cuda {
             offset += RNS_MODULI_SIZE;
         }
         cudaDeviceSynchronize();
-
         // Copy sign
         #pragma omp parallel
         for (int i = 0; i < size; i++) {
@@ -115,12 +107,12 @@ namespace cuda {
     }
 
     /*!
-     * Convert a multiple-precision mp_array_t array allocated on the GPU to a regular mp_float_t[] array allocated on the host
+     * Convert a multiple-precision mp_sparse_t array allocated on the GPU to a regular mp_float_t[] array allocated on the host
      * @param host_dest - pointer to the result array in the host memory
      * @param dev_src - pointer to the source array in the GPU memory
      * @param size - number of array elements
      */
-    void mp_array_device2host(mp_float_ptr host_dest, mp_array_t &dev_src, size_t size) {
+    void mp_sparse_device2host(mp_float_ptr host_dest, mp_sparse_t &dev_src, size_t size) {
         int *buffer = new int[size];
         er_float_ptr eval_buffer = new er_float_t[size * 2];
         size_t buffer_size = sizeof(int) * size;
@@ -149,6 +141,7 @@ namespace cuda {
 
         // Copy residues
         unsigned int offset = 0;
+
         for (int i = 0; i < size; i++) {
             checkDeviceHasErrors(cudaMemcpy(host_dest[i].digits, &dev_src.digits[offset], RNS_MODULI_SIZE * sizeof(int), cudaMemcpyDeviceToHost));
             offset += RNS_MODULI_SIZE;
@@ -164,4 +157,4 @@ namespace cuda {
 
 } //end of namespace
 
-#endif //MPRES_MPARRAY_CUH
+#endif //MPRES_MPSPARSE_CUH
