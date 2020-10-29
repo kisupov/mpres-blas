@@ -91,11 +91,11 @@ __global__ static void double_spmv_ell_kernel(const int num_rows, const int cols
                 dot += data[col * num_rows + row] * x[index];
             }
         }
-        y[row] += dot;
+        y[row] = dot;
     }
 }
 
-void double_test(const int num_rows, const int num_cols, const int cols_per_row, const double * data, const int * indices, const mpfr_t * x, const mpfr_t * y) {
+void double_test(const int num_rows, const int num_cols, const int cols_per_row, const double * data, const int * indices, const mpfr_t * x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] double SpMV ELLPACK");
@@ -121,13 +121,11 @@ void double_test(const int num_rows, const int num_cols, const int cols_per_row,
 
     // Convert from MPFR
     convert_vector(hx, x, num_cols);
-    convert_vector(hy, y, num_rows);
 
     //Copying data to the GPU
     cudaMemcpy(ddata, data, sizeof(double) * num_rows * cols_per_row, cudaMemcpyHostToDevice);
     cudaMemcpy(dindices, indices, sizeof(int) * num_rows * cols_per_row, cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(double) * num_cols, cudaMemcpyHostToDevice);
-    cudaMemcpy(dy, hy, sizeof(double) * num_rows, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();
@@ -152,7 +150,7 @@ void double_test(const int num_rows, const int num_cols, const int cols_per_row,
 /////////
 // TACO
 /////////
-void taco_test(const mpfr_t * vectorX, const mpfr_t * vectorY){
+void taco_test(const mpfr_t * vectorX){
     using namespace taco;
     InitCpuTimer();
     Logger::printDash();
@@ -168,17 +166,10 @@ void taco_test(const mpfr_t * vectorX, const mpfr_t * vectorY){
         x.insert({i}, mpfr_get_d(vectorX[i], MPFR_RNDN));
     }
     x.pack();
-
-    Tensor<double> y({A.getDimension(0)}, dv);
-    for (int i = 0; i < y.getDimension(0); ++i) {
-        y.insert({i}, mpfr_get_d(vectorY[i], MPFR_RNDN));
-    }
-    y.pack();
-
     Tensor<double> result({A.getDimension(0)}, dv);
 
     IndexVar i, j;
-    result(i) = (A(i,j) * x(j) + y(i));
+    result(i) = (A(i,j) * x(j));
 
     StartCpuTimer();
     result.compile();
@@ -197,7 +188,7 @@ void taco_test(const mpfr_t * vectorX, const mpfr_t * vectorY){
 /////////
 // MPRES-BLAS (structure of arrays)
 /////////
-void mpres_test(const int num_rows, const int num_cols, const int cols_per_row, const double * data, const int * indices, const mpfr_t * x,  const mpfr_t * y) {
+void mpres_test(const int num_rows, const int num_cols, const int cols_per_row, const double * data, const int * indices, const mpfr_t * x) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] MPRES-BLAS mpspmvell");
@@ -211,26 +202,24 @@ void mpres_test(const int num_rows, const int num_cols, const int cols_per_row, 
     //GPU data
     mp_array_t dx;
     mp_array_t dy;
-    mp_array_t ddata;
-    mp_array_t dbuf;
+    mp_collection_t ddata;
+    mp_collection_t dbuf;
     int *dindices;
 
     //Init data
     cuda::mp_array_init(dx, num_cols);
     cuda::mp_array_init(dy, num_rows);
-    cuda::mp_array_init(ddata, matrix_len);
-    cuda::mp_array_init(dbuf, matrix_len);
+    cuda::mp_collection_init(ddata, matrix_len);
+    cuda::mp_collection_init(dbuf, matrix_len);
     cudaMalloc(&dindices, sizeof(int) * matrix_len);
 
     // Convert from MPFR and double
     convert_vector(hx, x, num_cols);
-    convert_vector(hy, y, num_rows);
     convert_vector(hdata, data, matrix_len);
 
     //Copying to the GPU
     cuda::mp_array_host2device(dx, hx, num_cols);
-    cuda::mp_array_host2device(dy, hy, num_rows);
-    cuda::mp_array_host2device(ddata, hdata, matrix_len);
+    cuda::mp_collection_host2device(ddata, hdata, matrix_len);
     cudaMemcpy(dindices, indices, sizeof(int) * matrix_len, cudaMemcpyHostToDevice);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -242,7 +231,7 @@ void mpres_test(const int num_rows, const int num_cols, const int cols_per_row, 
             MPRES_CUDA_THREADS_FIELDS,
             MPRES_CUDA_BLOCKS_RESIDUES,
             MPRES_CUDA_THREADS_REDUCE>
-            (num_rows, cols_per_row, dindices, ddata, dx, dy, dbuf);
+            (num_rows, num_cols, cols_per_row, dindices, ddata, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -258,8 +247,8 @@ void mpres_test(const int num_rows, const int num_cols, const int cols_per_row, 
     delete [] hdata;
     cuda::mp_array_clear(dx);
     cuda::mp_array_clear(dy);
-    cuda::mp_array_clear(ddata);
-    cuda::mp_array_clear(dbuf);
+    cuda::mp_collection_clear(ddata);
+    cuda::mp_collection_clear(dbuf);
     cudaFree(dindices);
 }
 
@@ -279,11 +268,11 @@ __global__ static void mpspmvell_basic_kernel(const int num_rows, const int cols
                 cuda::mp_add(&dot, &dot, &prod);
             }
         }
-        cuda::mp_add(&y[row], &y[row], &dot);
+        cuda::mp_set(&y[row], &dot);
     }
 }
 
-void mpres_test_naive(const int num_rows, const int num_cols, const int cols_per_row, const double * data, int * indices, const mpfr_t * x, const mpfr_t * y){
+void mpres_test_naive(const int num_rows, const int num_cols, const int cols_per_row, const double * data, int * indices, const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS mpspmvell (basic)");
@@ -313,12 +302,10 @@ void mpres_test_naive(const int num_rows, const int num_cols, const int cols_per
 
     // Convert from MPFR
     convert_vector(hx, x, num_cols);
-    convert_vector(hy, y, num_rows);
     convert_vector(hdata, data, matrix_len);
 
     //Copying to the GPU
     cudaMemcpy(dx, hx, num_cols * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(dy, hy, num_rows * sizeof(mp_float_t), cudaMemcpyHostToDevice);
     cudaMemcpy(ddata, hdata, matrix_len * sizeof(mp_float_t), cudaMemcpyHostToDevice);
     cudaMemcpy(dindices, indices, matrix_len * sizeof(int), cudaMemcpyHostToDevice);
 
@@ -353,7 +340,6 @@ void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW, bool MAT
 
     //Inputs
     mpfr_t *vectorX = create_random_array(NUM_COLS, INP_BITS);
-    mpfr_t *vectorY = create_random_array(NUM_ROWS, INP_BITS);
     auto * data = new double [NUM_ROWS * COLS_PER_ROW]();
     auto * indices = new int[NUM_ROWS * COLS_PER_ROW]();
 
@@ -376,14 +362,14 @@ void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW, bool MAT
     std::cout<<std::endl<<"NonZeros: "<<count<<std::endl;
 */
     //Launch tests
-    double_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY);
+    double_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX);
     if (DATATYPE == "real") {
-        taco_test(vectorX, vectorY);
+        taco_test(vectorX);
     }
-    mpres_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY);
-    mpres_test_naive(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY);
-    campary_spmv_ell_test<CAMPARY_PRECISION>(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY, INP_DIGITS);
-    cump_spmv_ell_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY, MP_PRECISION, INP_DIGITS);
+    mpres_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX);
+    mpres_test_naive(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX);
+    campary_spmv_ell_test<CAMPARY_PRECISION>(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, INP_DIGITS);
+    cump_spmv_ell_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -391,11 +377,7 @@ void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW, bool MAT
     for(int i = 0; i < NUM_COLS; i++){
         mpfr_clear(vectorX[i]);
     }
-    for(int i = 0; i < NUM_ROWS; i++){
-        mpfr_clear(vectorY[i]);
-    }
     delete[] vectorX;
-    delete[] vectorY;
     delete[] data;
     delete[] indices;
     cudaDeviceReset();

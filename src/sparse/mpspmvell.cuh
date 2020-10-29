@@ -31,32 +31,28 @@ namespace cuda {
     /*!
      * Multiplication of a sparse matrix A stored in the ELLPACK format (data) by a diagonal matrix on the right which is stored as a vector x
      * The ELLPACK data and indices are treated as vectors (one-dimensional arrays)
-     * The result is written into the data array in the ELLPACK format (result) of size num_rows by cols_per_row
+     * The component wise products are written into the result array of size num_rows * cols_per_row
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note The data and result arrays are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
-     * @param result - pointer to the multiple-precision result array, size num_rows * cols_per_row
-     * @param data - pointer to the multiple-precision input array that contains matrix A in the ELLPACK format, size num_rows * cols_per_row
-     * @param indices - pointer to the array of column indices that are used to access the corresponding elements of the vector x, size num_rows * cols_per_row (the same as for data)
-     * @param x - pointer to the dense vector, size max(indices) + 1, where max(indices) is the maximum element from the indices array
-     * @param num_rows - specifies the number of rows in the data array
-     * @param cols_per_row - specifies the number of columns in the data array
+     * @param result - pointer to the multiple-precision result array, size = num_rows * cols_per_row
+     * @param data - pointer to the multiple-precision input array that contains matrix A in the ELLPACK format, size = num_rows * cols_per_row
+     * @param indices - pointer to the array of column indices that are used to access the corresponding elements of the vector x, size = num_rows * cols_per_row
+     * @param x - pointer to the dense vector, size = num_cols
+     * @param num_rows - specifies the number of rows in the matrix A and, accordingly, in the data array
+     * @param num_cols - specifies the number of columns in the matrix A and length of the vector x
+     * @param cols_per_row - specifies the number of columns in the data and result arrays (maximum number of nonzeros per row in A)
      */
-    __global__ void ell_scal_esi_kernel(mp_array_t result, mp_array_t data, const int * indices, mp_array_t x, const int num_rows, const int cols_per_row) {
+    __global__ void ell_scal_esi_kernel(mp_collection_t result, mp_collection_t data, const int * indices, mp_array_t x, const int num_rows, const int num_cols,  const int cols_per_row) {
         auto numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
-        // Actual vector lengths (may differ from the operation size, n)
-        auto lenx = x.len[0];
-        auto lend = data.len[0];
-        auto lenr = result.len[0];
-
-        while (numberIdx < cols_per_row * num_rows) {
+        auto len = cols_per_row * num_rows;
+        while (numberIdx < len) {
             auto index = indices[numberIdx];
             if(index >= 0) {
                 result.sign[numberIdx] = data.sign[numberIdx] ^ x.sign[index];
                 result.exp[numberIdx] = data.exp[numberIdx] + x.exp[index];
                 cuda::er_md_rd(&result.eval[numberIdx], &data.eval[numberIdx], &x.eval[index], &cuda::RNS_EVAL_UNIT.upp);
-                cuda::er_md_ru(&result.eval[lenr + numberIdx], &data.eval[lend + numberIdx], &x.eval[index + lenx], &cuda::RNS_EVAL_UNIT.low);
+                cuda::er_md_ru(&result.eval[len + numberIdx], &data.eval[len + numberIdx], &x.eval[num_cols + index], &cuda::RNS_EVAL_UNIT.low);
             }
-            //Go to the next iteration
             numberIdx +=  gridDim.x * blockDim.x;
         }
     }
@@ -64,18 +60,18 @@ namespace cuda {
     /*!
      * Multiplication of a sparse matrix A stored in the ELLPACK format (data) by a diagonal matrix on the right which is stored as a vector x
      * The ELLPACK data and indices are treated as vectors (one-dimensional arrays)
-     * The result is written into the data array in the ELLPACK format (result) of size num_rows by cols_per_row
+     * The component wise products are written into the result array of size num_rows * cols_per_row
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note The data and result arrays are assumed to be stored in the column major order, that is, [column 1] [column 2] ... [column n]
-     * @note This kernel can be run on a 2D grid of 1D blocks. Each line in the grid (i.e., all blocks with the same y coordinate) is associated with its own column of the data array.
-     * @param result - pointer to the multiple-precision result array, size num_rows * cols_per_row
-     * @param data - pointer to the multiple-precision input array that contains matrix A in the ELLPACK format, size num_rows * cols_per_row
-     * @param indices - pointer to the array of column indices that are used to access the corresponding elements of the vector x, size num_rows * cols_per_row (the same as for data)
-     * @param x - pointer to the dense vector, size max(indices) + 1, where max(indices) is the maximum element from the indices array
-     * @param num_rows - specifies the number of rows in the data array
-     * @param cols_per_row - specifies the number of columns in the data array
+     * @param result - pointer to the multiple-precision result array, size = num_rows * cols_per_row
+     * @param data - pointer to the multiple-precision input array that contains matrix A in the ELLPACK format, size = num_rows * cols_per_row
+     * @param indices - pointer to the array of column indices that are used to access the corresponding elements of the vector x, size = num_rows * cols_per_row
+     * @param x - pointer to the dense vector, size = num_cols
+     * @param num_rows - specifies the number of rows in the matrix A and, accordingly, in the data array
+     * @param num_cols - specifies the number of columns in the matrix A and length of the vector x
+     * @param cols_per_row - specifies the number of columns in the data and result arrays (maximum number of nonzeros per row in A)
      */
-    __global__ void ell_scal_digits_kernel(mp_array_t result, mp_array_t data, const int * indices, mp_array_t x, const int num_rows, const int cols_per_row){
+    __global__ void ell_scal_digits_kernel(mp_collection_t result, mp_collection_t data, const int * indices, mp_array_t x, const int num_rows, const int cols_per_row){
         auto lmodul = cuda::RNS_MODULI[threadIdx.x  % RNS_MODULI_SIZE];
         auto digitId = blockIdx.x * blockDim.x + threadIdx.x; //Index of the current digit
         auto numberId = (blockIdx.x * blockDim.x + threadIdx.x) / RNS_MODULI_SIZE; //Index of the current matrix element
@@ -91,16 +87,16 @@ namespace cuda {
     }
 
     /*!
-     * Kernel that computes the sum of all the elements in each row of a multiple-precision matrix and adds it to the result vector
+     * Kernel that computes the sum of all the elements in each row of a multiple-precision matrix and and stores it in the corresponding element of the vector y
      * One thread calculates the sum of the elements in one row of the matrix, i.e. one element of the vector y
-     * @note Shared memory of size sizeof(mp_float_t) * nThreads must be allocated, where nThreads is the number of threads per block
-     * @param result - pointer to the result vector of num_rows elements
-     * @param indices - pointer to the array of ELLPACK column indices. Addition is performed only if the corresponding index is positive, size num_rows * cols_per_row
-     * @param data - pointer to the multiple-precision input array to be summed contains, size num_rows * cols_per_row
-     * @param num_rows - matrix of m rows and n columns
-     * @param cols_per_row - matrix of m rows and n columns
+     * @note Shared memory of size = sizeof(mp_float_t) * nThreads must be allocated, where nThreads is the number of threads per block
+     * @param y - pointer to the result vector of num_rows elements
+     * @param indices - pointer to the array of ELLPACK column indices, size = num_rows * cols_per_row. Addition is performed only if the corresponding index is positive.
+     * @param data - pointer to the multiple-precision input array to be summed, size = num_rows * cols_per_row
+     * @param num_rows - specifies the number of rows in the data array and the number of elements in the vector y
+     * @param cols_per_row - specifies the number of columns in the data array (maximum number of nonzeros per row in A)
      */
-    __global__ static void ell_matrix_row_sum_kernel(mp_array_t result, const int * indices, mp_array_t data, const int num_rows, const int cols_per_row){
+    __global__ static void ell_matrix_row_sum_kernel(mp_array_t y, const int * indices, mp_collection_t data, const int num_rows, const int cols_per_row){
         extern __shared__ mp_float_t sum[];
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         if (row < num_rows) {
@@ -108,15 +104,15 @@ namespace cuda {
             for (auto col = 0; col < cols_per_row; col++) {
                 auto index = indices[col * num_rows + row];
                 if(index >= 0){
-                    cuda::mp_add(&sum[threadIdx.x], &sum[threadIdx.x], data, col * num_rows + row);
+                    cuda::mp_add(&sum[threadIdx.x], &sum[threadIdx.x], data, col * num_rows + row, num_rows * cols_per_row);
                 }
             }
-            cuda::mp_add(result, row, result, row, &sum[threadIdx.x]);
+            cuda::mp_set(y, row, &sum[threadIdx.x]);
         }
     }
 
     /*!
-     * Performs the matrix-vector operation y = A * x + y, where x and y are dense vectors and A is a sparse matrix.
+     * Performs the matrix-vector operation y = A * x, where x and y are dense vectors and A is a sparse matrix.
      * The matrix should be stored in the ELLPACK format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
      *
      * @tparam gridDim1 - number of blocks used to compute the signs, exponents, interval evaluations in an element-wise matrix-vector operation (diagonal scaling)
@@ -133,19 +129,19 @@ namespace cuda {
      * @param buffer - auxiliary array, size num_rows * cols_per_row, in the global GPU memory for storing the intermediate matrix
      */
     template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
-    void mpspmvell(const int num_rows, const int cols_per_row, const int * indices, mp_array_t &data, mp_array_t &x, mp_array_t &y, mp_array_t &buffer) {
+    void mpspmvell(const int num_rows, const int num_cols, const int cols_per_row, const int * indices, mp_collection_t &data, mp_array_t &x, mp_array_t &y, mp_collection_t &buffer) {
 
         //We consider the vector x as a diagonal matrix and perform the right diagonal scaling, buffer = A * x.
         //The result is written to the intermediate buffer of size num_rows * cols_per_row.
 
         //Multiplication buffer = A * x - Computing the signs, exponents, and interval evaluations
-        ell_scal_esi_kernel<<<gridDim1, blockDim1>>>(buffer, data, indices, x, num_rows, cols_per_row);
+        ell_scal_esi_kernel<<<gridDim1, blockDim1>>>(buffer, data, indices, x, num_rows, num_cols, cols_per_row);
 
         //Multiplication buffer = A * x - Multiplying the digits in the RNS
         ell_scal_digits_kernel<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (buffer, data, indices, x, num_rows, cols_per_row);
 
         //Rounding the intermediate result (buffer)
-        mp_vector_round_kernel<<< 64, 64 >>> (buffer, 1, num_rows * cols_per_row);
+        mp_vector_round_kernel<<< 64, 64 >>> (buffer, num_rows * cols_per_row);
 
         //The following is tne reduction of the intermediate matrix (buffer).
         //Here, the sum of the elements in each row is calculated, and stored in the corresponding element of y

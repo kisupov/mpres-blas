@@ -1,5 +1,5 @@
 /*
- *  Utilities for working with the mp_sparse_t type, see types.h
+ *  Utilities for working with the mp_collection_t type, see types.h
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,8 +19,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPRES_MPSPARSE_CUH
-#define MPRES_MPSPARSE_CUH
+#ifndef MPRES_MPCOLLECTION_CUH
+#define MPRES_MPCOLLECTION_CUH
 
 #include "mpfloat.cuh"
 
@@ -30,7 +30,7 @@ namespace cuda {
      * Allocate a multiple-precision array that holds size elements in the GPU memory
      * @param dev_dest - pointer to the array to be allocated
      */
-    void mp_sparse_init(mp_sparse_t &dev_dest, size_t size) {
+    void mp_collection_init(mp_collection_t &dev_dest, size_t size) {
         // Allocating digits
         size_t residue_vec_size = RNS_MODULI_SIZE * size * sizeof(int);
         checkDeviceHasErrors(cudaMalloc(&dev_dest.digits, residue_vec_size));
@@ -49,7 +49,7 @@ namespace cuda {
     /*!
      * Clear the GPU memory occupied by an array
      */
-    void mp_sparse_clear(mp_sparse_t &dev_dest) {
+    void mp_collection_clear(mp_collection_t &dev_dest) {
         checkDeviceHasErrors(cudaFree(dev_dest.digits));
         checkDeviceHasErrors(cudaFree(dev_dest.sign));
         checkDeviceHasErrors(cudaFree(dev_dest.exp));
@@ -64,7 +64,7 @@ namespace cuda {
      * @param host_src - pointer to the source array in the host memory
      * @param size - number of array elements (must be the same as used in mp_sparse_init)
      */
-    void mp_sparse_host2device(mp_sparse_t &dev_dest, mp_float_ptr host_src, size_t size) {
+    void mp_collection_host2device(mp_collection_t &dev_dest, mp_float_ptr host_src, size_t size) {
         int *buffer = new int[size];
         er_float_ptr eval_buffer = new er_float_t[size * 2];
         size_t buffer_size = sizeof(int) * size;
@@ -112,7 +112,7 @@ namespace cuda {
      * @param dev_src - pointer to the source array in the GPU memory
      * @param size - number of array elements
      */
-    void mp_sparse_device2host(mp_float_ptr host_dest, mp_sparse_t &dev_src, size_t size) {
+    void mp_collection_device2host(mp_float_ptr host_dest, mp_collection_t &dev_src, size_t size) {
         int *buffer = new int[size];
         er_float_ptr eval_buffer = new er_float_t[size * 2];
         size_t buffer_size = sizeof(int) * size;
@@ -157,4 +157,4 @@ namespace cuda {
 
 } //end of namespace
 
-#endif //MPRES_MPSPARSE_CUH
+#endif //MPRES_MPCOLLECTION_CUH
