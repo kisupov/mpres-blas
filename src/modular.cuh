@@ -26,12 +26,14 @@
 #include "params.h"
 #include "common.cuh"
 
-/*
- * The set of RNS moduli for GPU computing.
- * They are copied to the GPU memory in rns.cuh
+/**
+ * Constants that are computed  or copied to the device memory in rns.cuh
  */
+double RNS_MODULI_RECIPROCAL[RNS_MODULI_SIZE]; // Array of 1 / RNS_MODULI[i]
+
 namespace cuda {
-    __device__  int RNS_MODULI[RNS_MODULI_SIZE];
+    __device__  int RNS_MODULI[RNS_MODULI_SIZE]; // The set of RNS moduli for GPU computing
+    __device__ double RNS_MODULI_RECIPROCAL[RNS_MODULI_SIZE]; //Array of 1 / RNS_MODULI[i] for GPU computing
 }
 
 
@@ -42,10 +44,23 @@ namespace cuda {
  * Modulo m addition of x and y using the long data type
  * for intermediate result to avoid overflow.
  */
-GCC_FORCEINLINE int mod_add(int x, int y, int m){
+GCC_FORCEINLINE int mod_add(const int x, const int y, const int m){
     long r = (long)x + (long)y;
     r = r % (long)m;
     return (int) r;
+}
+
+/*!
+ * Modulo m addition of x and y using the long data type
+ * for intermediate result to avoid overflow.
+ * In order to speedup computations, the modulo operation is replaced
+ * by multiplication by d = 1 / m.
+*/
+GCC_FORCEINLINE int mod_add(const int x, const int y, const int m, const double d){
+    long r = (long)x + (long)y;
+    double quotient = (double) r * d;
+    int i = (int) quotient;
+    return (int) (r - (long) i * (long) m);
 }
 
 /*!
@@ -53,7 +68,7 @@ GCC_FORCEINLINE int mod_add(int x, int y, int m){
  * for intermediate result to avoid overflow.
  * The subtraction result is not adjusted and may be negative
  */
-GCC_FORCEINLINE int mod_sub(int x, int y, int m){
+GCC_FORCEINLINE int mod_sub(const int x, const int y, const int m){
     long r = (long)x - (long)y;
     r = r % (long)m;
     return (int) r;
@@ -64,7 +79,7 @@ GCC_FORCEINLINE int mod_sub(int x, int y, int m){
  * for intermediate result to avoid overflow.
  * Returns the adjusted (non-negative) result.
  */
-GCC_FORCEINLINE int mod_psub(int x, int y, int m){
+GCC_FORCEINLINE int mod_psub(const int x, const int y, const int m){
     long r = ((long)x - (long)y + (long)m);
     r = r % (long)m;
     return (int) r;
@@ -74,10 +89,23 @@ GCC_FORCEINLINE int mod_psub(int x, int y, int m){
  * Modulo m multiplication of x and y using the long data type
  * for intermediate result to avoid overflow.
  */
-GCC_FORCEINLINE int mod_mul(int x, int y, int m){
+GCC_FORCEINLINE int mod_mul(const int x, const int y, const int m){
     long r = (long)x * (long)y;
     r = r % (long)m;
     return (int)r;
+}
+
+/*!
+ * Modulo m multiplication of x and y using the long data type
+ * for intermediate result to avoid overflow.
+ * In order to speedup computations, the modulo operation is replaced
+ * by multiplication by d = 1 / m.
+*/
+GCC_FORCEINLINE int mod_mul(const int x, const int y, const int m, const double d){
+    long r = (long)x * (long)y;
+    double quotient = (double) r * d;
+    int i = (int) quotient;
+    return (int) (r - (long) i * (long) m);
 }
 
 /*!
@@ -85,7 +113,7 @@ GCC_FORCEINLINE int mod_mul(int x, int y, int m){
  * for intermediate result to avoid overflow.
  * Returned result is (a * x + b * y) mod m
  */
-GCC_FORCEINLINE int mod_axby(int a, int x, int b, int y, int m){
+GCC_FORCEINLINE int mod_axby(const int a, const int x, const int b, const int y, const int m){
     long r1 = (long)a * (long)x;
     long r2 = (long)b * (long)y;
     long r = (r1 + r2) % (long)m;
@@ -101,10 +129,23 @@ namespace cuda {
      * Modulo m addition of x and y using the long data type
      * for intermediate result to avoid overflow.
      */
-    DEVICE_CUDA_FORCEINLINE int mod_add(int x, int y, int m){
+    DEVICE_CUDA_FORCEINLINE int mod_add(const int x, const int y, const int m){
         long r = (long)x + (long)y;
         r = r % (long)m;
         return (int)r;
+    }
+
+    /*!
+     * Modulo m addition of x and y using the long data type
+     * for intermediate result to avoid overflow.
+     * In order to speedup computations, the modulo operation is replaced
+     * by multiplication by d = 1 / m.
+    */
+    DEVICE_CUDA_FORCEINLINE int mod_add(const int x, const int y, const int m, const double d){
+        long r = (long)x + (long)y;
+        double quotient = (double) r * d;
+        int i = (int) quotient;
+        return (int) (r - (long) i * (long) m);
     }
 
     /*!
@@ -112,7 +153,7 @@ namespace cuda {
      * for intermediate result to avoid overflow.
      * The subtraction result is not adjusted and may be negative
      */
-    DEVICE_CUDA_FORCEINLINE int mod_sub(int x, int y, int m){
+    DEVICE_CUDA_FORCEINLINE int mod_sub(const int x, const int y, const int m){
         long r = (long)x - (long)y;
         r = r % (long)m;
         return (int)r;
@@ -123,7 +164,7 @@ namespace cuda {
      * for intermediate result to avoid overflow.
      * Returns the adjusted (non-negative) result.
      */
-    DEVICE_CUDA_FORCEINLINE int mod_psub(int x, int y, int m){
+    DEVICE_CUDA_FORCEINLINE int mod_psub(const int x, const int y, const int m){
         long r = ((long)x - (long)y + (long)m);
         r = r % (long)m;
         return (int) r;
@@ -133,10 +174,23 @@ namespace cuda {
      * Modulo m multiplication of x and y using the long data type
      * for intermediate result to avoid overflow.
      */
-    DEVICE_CUDA_FORCEINLINE int mod_mul(int x, int y, int m){
+    DEVICE_CUDA_FORCEINLINE int mod_mul(const int x, const int y, const int m){
         long r = (long)x * (long)y;
         r = r % (long)m;
         return (int)r;
+    }
+
+    /*!
+     * Modulo m multiplication of x and y using the long data type
+     * for intermediate result to avoid overflow.
+     * In order to speedup computations, the modulo operation is replaced
+     * by multiplication by d = 1 / m.
+    */
+    DEVICE_CUDA_FORCEINLINE int mod_mul(const int x, const int y, const int m, const double d){
+        long r = (long)x * (long)y;
+        double quotient = (double) r * d;
+        int i = (int) quotient;
+        return (int) (r - (long) i * (long) m);
     }
 
     /*!
@@ -197,7 +251,7 @@ namespace cuda {
  */
 GCC_FORCEINLINE void rns_mul(int * result, int * x, int * y){
     for(int i = 0; i < RNS_MODULI_SIZE; i++){
-        result[i] = mod_mul(x[i], y[i], RNS_MODULI[i]);
+        result[i] = mod_mul(x[i], y[i], RNS_MODULI[i], RNS_MODULI_RECIPROCAL[i]);
     }
 }
 
@@ -206,7 +260,7 @@ GCC_FORCEINLINE void rns_mul(int * result, int * x, int * y){
  */
 GCC_FORCEINLINE void rns_add(int * result, int * x, int * y){
     for(int i = 0; i < RNS_MODULI_SIZE; i++){
-        result[i] = mod_add(x[i], y[i], RNS_MODULI[i]);
+        result[i] = mod_add(x[i], y[i], RNS_MODULI[i], RNS_MODULI_RECIPROCAL[i]);
     }
 }
 
@@ -230,7 +284,7 @@ namespace cuda {
     DEVICE_CUDA_FORCEINLINE void rns_mul(int * result, int * x, int * y){
         #pragma unroll
         for(int i = 0; i < RNS_MODULI_SIZE; i++){
-            result[i] = cuda::mod_mul(x[i], y[i], cuda::RNS_MODULI[i]);
+            result[i] = cuda::mod_mul(x[i], y[i], cuda::RNS_MODULI[i], cuda::RNS_MODULI_RECIPROCAL[i]);
         }
     }
 
@@ -240,7 +294,7 @@ namespace cuda {
     DEVICE_CUDA_FORCEINLINE void rns_add(int * result, int * x, int * y){
         #pragma unroll
         for(int i = 0; i < RNS_MODULI_SIZE; i++){
-            result[i] = cuda::mod_add(x[i], y[i], cuda::RNS_MODULI[i]);
+            result[i] = cuda::mod_add(x[i], y[i], cuda::RNS_MODULI[i], cuda::RNS_MODULI_RECIPROCAL[i]);
         }
     }
 

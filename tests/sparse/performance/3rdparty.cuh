@@ -37,11 +37,6 @@
 #include "../lib/campary_sparse.cuh"
 #endif
 
-//cuSPARSE - https://developer.nvidia.com/cusparse
-#ifndef EXCLUDE_CUSPARSE
-#include "cusparse.h"
-#endif
-
 //TACO - https://github.com/tensor-compiler/taco
 #ifndef EXCLUDE_TACO
 #include "taco.h"

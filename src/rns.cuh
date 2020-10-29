@@ -43,7 +43,6 @@ mpfr_t RNS_MODULI_PRODUCT_MPFR; // Product of all RNS moduli in the MPFR type, M
 mpz_t  RNS_PART_MODULI_PRODUCT[RNS_MODULI_SIZE]; // Partial products of moduli, M_i = M / m_i (i = 1,...,n)
 int    RNS_PART_MODULI_PRODUCT_INVERSE[RNS_MODULI_SIZE]; // Modulo m_i multiplicative inverses of M_i (i = 1,...,n)
 mpz_t  RNS_ORTHOGONAL_BASE[RNS_MODULI_SIZE]; // Orthogonal bases of the RNS, B_i = M_i * RNS_PART_MODULI_PRODUCT_INVERSE[i] (i = 1,...,n)
-double RNS_MODULI_RECIPROCAL[RNS_MODULI_SIZE]; // Array of 1 / RNS_MODULI[i]
 
 /*
  * Residue codes of 2^j (j = 0,....,RNS_MODULI_PRODUCT_LOG2).
@@ -92,7 +91,6 @@ int RNS_POW2_INVERSE[RNS_P2_SCALING_THRESHOLD][RNS_MODULI_SIZE];
  */
 double RNS_EVAL_ACCURACY; // Accuracy constant for computing the RNS interval evaluation. RNS_EVAL_ACCURACY = 4*u*n*log_2(n)*(1+RNS_EVAL_RELATIVE_ERROR/2)/RNS_EVAL_RELATIVE_ERROR, where u is the unit roundoff,
 int RNS_EVAL_REF_FACTOR; // Refinement factor for computing the RNS interval evaluation
-int RNS_EVAL_POW2_REF_FACTOR[RNS_MODULI_SIZE]; //The RNS representation of 2^RNS_EVAL_REFINEMENT_FACTOR, (2^RNS_EVAL_REFINEMENT_FACTOR mod m1,..., 2^RNS_EVAL_REFINEMENT_FACTOR mod mn), which is used in the refinement loop
 interval_t RNS_EVAL_UNIT; // Interval approximation of 1 / M
 interval_t RNS_EVAL_INV_UNIT; // Interval approximation of (M - 1) / M
 er_float_t RNS_EVAL_ZERO_BOUND = (er_float_t) {0.0, 0}; // To set the zero interval evaluation
@@ -107,14 +105,12 @@ int MRC_MULT_INV[RNS_MODULI_SIZE][RNS_MODULI_SIZE]; // Triangle matrix with elem
  */
 namespace cuda {
     __device__ __constant__ int RNS_PART_MODULI_PRODUCT_INVERSE[RNS_MODULI_SIZE];
-    __device__ double RNS_MODULI_RECIPROCAL[RNS_MODULI_SIZE];
     __device__ int RNS_POW2[RNS_MODULI_PRODUCT_LOG2+1][RNS_MODULI_SIZE];
     __device__ int RNS_MODULI_PRODUCT_POW2_RESIDUES[RNS_P2_SCALING_THRESHOLD];
     __device__ int RNS_PART_MODULI_PRODUCT_POW2_RESIDUES[RNS_P2_SCALING_THRESHOLD][RNS_MODULI_SIZE];
     __device__ int RNS_POW2_INVERSE[RNS_P2_SCALING_THRESHOLD][RNS_MODULI_SIZE];
     __device__ __constant__ double RNS_EVAL_ACCURACY;
     __device__ __constant__ int RNS_EVAL_REF_FACTOR;
-    __device__ int RNS_EVAL_POW2_REF_FACTOR[RNS_MODULI_SIZE];
     __device__ __constant__  interval_t RNS_EVAL_UNIT;
     __device__ __constant__  interval_t RNS_EVAL_INV_UNIT;
     __device__ __constant__ er_float_t RNS_EVAL_ZERO_BOUND;
@@ -386,13 +382,6 @@ void rns_const_init(){
     RNS_EVAL_ACCURACY  =  4 * pow(2.0, 1 - DBL_PRECISION) * RNS_MODULI_SIZE * log2((double)RNS_MODULI_SIZE) * (1 + RNS_EVAL_RELATIVE_ERROR / 2)  / RNS_EVAL_RELATIVE_ERROR;
     // Computing refinement coefficient for RNS interval evaluation
     RNS_EVAL_REF_FACTOR  =  floor(log2(1/(2*RNS_EVAL_ACCURACY)));
-    // Computing two in degree of RNS_EVAL_REF_FACTOR in the RNS representation
-    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        RNS_EVAL_POW2_REF_FACTOR[i] = 1;
-        for (int k = 0; k < RNS_EVAL_REF_FACTOR; k++){
-            RNS_EVAL_POW2_REF_FACTOR[i] = mod_mul(RNS_EVAL_POW2_REF_FACTOR[i], 2, RNS_MODULI[i]);
-        }
-    }
     mpfr_t mpfr_tmp, mpfr_one;
     mpfr_init2(mpfr_tmp, 10000);
     mpfr_init2(mpfr_one, 10000);
@@ -437,7 +426,6 @@ void rns_const_init(){
     cudaMemcpyToSymbol(cuda::RNS_POW2_INVERSE, &RNS_POW2_INVERSE, RNS_P2_SCALING_THRESHOLD * RNS_MODULI_SIZE * sizeof(int));
     cudaMemcpyToSymbol(cuda::RNS_EVAL_ACCURACY, &::RNS_EVAL_ACCURACY, sizeof(double));
     cudaMemcpyToSymbol(cuda::RNS_EVAL_REF_FACTOR, &::RNS_EVAL_REF_FACTOR, sizeof(int));
-    cudaMemcpyToSymbol(cuda::RNS_EVAL_POW2_REF_FACTOR, &::RNS_EVAL_POW2_REF_FACTOR, sizeof(int) * RNS_MODULI_SIZE);
     cudaMemcpyToSymbol(cuda::RNS_EVAL_UNIT, &RNS_EVAL_UNIT, sizeof(interval_t));
     cudaMemcpyToSymbol(cuda::RNS_EVAL_INV_UNIT, &RNS_EVAL_INV_UNIT, sizeof(interval_t));
     cudaMemcpyToSymbol(cuda::RNS_EVAL_ZERO_BOUND, &RNS_EVAL_ZERO_BOUND, sizeof(er_float_t));
@@ -614,8 +602,8 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
         return;
     }
     //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
+    rns_mul(s, x, RNS_PART_MODULI_PRODUCT_INVERSE);
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        s[i] = mod_mul(x[i], RNS_PART_MODULI_PRODUCT_INVERSE[i], RNS_MODULI[i]);
         ddiv_rdu(&fracl[i], &fracu[i], (double)s[i], (double)RNS_MODULI[i]);
     }
     //Pairwise summation of the fractions
@@ -653,13 +641,15 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
     int j = 0;
     while (sumu < RNS_EVAL_ACCURACY) {
+        //The improvement is that the refinement factor depends on the value of X
+        int k = MAX(-(ceil(log2(sumu))+1), RNS_EVAL_REF_FACTOR);
+        rns_mul(s, s, RNS_POW2[k]);
         for(int i = 0; i < RNS_MODULI_SIZE; i++) {
-            s[i] = mod_mul(s[i], RNS_EVAL_POW2_REF_FACTOR[i], RNS_MODULI[i]);
             fracu[i] = ddiv_ru((double)s[i], (double)RNS_MODULI[i]);
         }
         sumu = psum_ru<RNS_MODULI_SIZE>(fracu);
         sumu -= (unsigned int) sumu;
-        j = j + 1;
+        j += k;
     }
     //Computing the shifted lower bound
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -670,9 +660,8 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
     er_set_d(low, suml);
     er_set_d(upp, sumu);
-    int K = RNS_EVAL_REF_FACTOR * j;
-    low->exp -= K;
-    upp->exp -= K;
+    low->exp -= j;
+    upp->exp -= j;
 }
 
 
@@ -696,8 +685,8 @@ GCC_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, i
         return;
     }
     //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
+    rns_mul(s, x, RNS_PART_MODULI_PRODUCT_INVERSE);
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        s[i] = mod_mul(x[i], RNS_PART_MODULI_PRODUCT_INVERSE[i], RNS_MODULI[i]);
         ddiv_rdu(&fracl[i], &fracu[i], (double)s[i], (double)RNS_MODULI[i]);
     }
     //Pairwise summation of the fractions
@@ -715,13 +704,15 @@ GCC_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, i
     //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
     int j = 0;
     while (sumu < RNS_EVAL_ACCURACY) {
+        //The improvement is that the refinement factor depends on the value of X
+        int k = MAX(-(ceil(log2(sumu))+1), RNS_EVAL_REF_FACTOR);
+        rns_mul(s, s, RNS_POW2[k]);
         for(int i = 0; i < RNS_MODULI_SIZE; i++){
-            s[i] = mod_mul(s[i], RNS_EVAL_POW2_REF_FACTOR[i], RNS_MODULI[i]);
             fracu[i] = ddiv_ru((double)s[i], (double)RNS_MODULI[i]);
         }
         sumu = psum_ru<RNS_MODULI_SIZE>(fracu);
         sumu -= (unsigned int) sumu;
-        j = j + 1;
+        j += k;
     }
     //Computing the shifted lower bound
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -732,9 +723,8 @@ GCC_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, i
     //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
     er_set_d(low, suml);
     er_set_d(upp, sumu);
-    int K = RNS_EVAL_REF_FACTOR * j;
-    low->exp -= K;
-    upp->exp -= K;
+    low->exp -= j;
+    upp->exp -= j;
 }
 
 
@@ -758,8 +748,8 @@ namespace cuda{
         double suml = 0.0;
         double sumu = 0.0;
         //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
+        cuda::rns_mul(s, x, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            s[i] = cuda::mod_mul(x[i], cuda::RNS_PART_MODULI_PRODUCT_INVERSE[i], cuda::RNS_MODULI[i]);
             fracl[i] = __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]);
             fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
         }
@@ -804,13 +794,15 @@ namespace cuda{
         //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
         int j = 0;
         while (sumu < accuracy_constant) {
+            //The improvement is that the refinement factor depends on the value of X
+            int k = MAX(-(ceil(log2(sumu))+1), cuda::RNS_EVAL_REF_FACTOR);
+            cuda::rns_mul(s, s, cuda::RNS_POW2[k]);
             for(int i = 0; i < RNS_MODULI_SIZE; i++) {
-                s[i] = cuda::mod_mul(s[i], cuda::RNS_EVAL_POW2_REF_FACTOR[i], cuda::RNS_MODULI[i]);
                 fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
             }
             sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
             sumu = __dsub_ru(sumu, (unsigned int) sumu);
-            j = j + 1;
+            j += k;
         }
         // Computing the shifted lower bound
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -821,9 +813,8 @@ namespace cuda{
         //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
         cuda::er_set_d(low, suml);
         cuda::er_set_d(upp, sumu);
-        int K = cuda::RNS_EVAL_REF_FACTOR * j;
-        low->exp -= K;
-        upp->exp -= K;
+        low->exp -= j;
+        upp->exp -= j;
     }
 
 
@@ -842,8 +833,8 @@ namespace cuda{
         double suml = 0.0;
         double sumu = 0.0;
         //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
+        cuda::rns_mul(s, x, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            s[i] = cuda::mod_mul(x[i], cuda::RNS_PART_MODULI_PRODUCT_INVERSE[i], cuda::RNS_MODULI[i]);
             fracl[i] = __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]);
             fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
         }
@@ -868,13 +859,15 @@ namespace cuda{
         //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
         int j = 0;
         while (sumu < accuracy_constant) {
+            //The improvement is that the refinement factor depends on the value of X
+            int k = MAX(-(ceil(log2(sumu))+1), cuda::RNS_EVAL_REF_FACTOR);
+            cuda::rns_mul(s, s, cuda::RNS_POW2[k]);
             for(int i = 0; i < RNS_MODULI_SIZE; i++) {
-                s[i] = cuda::mod_mul(s[i], cuda::RNS_EVAL_POW2_REF_FACTOR[i], cuda::RNS_MODULI[i]);
                 fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
             }
             sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
             sumu = __dsub_ru(sumu, (unsigned int) sumu);
-            j = j + 1;
+            j += k;
         }
         // Computing the shifted lower bound
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -885,9 +878,8 @@ namespace cuda{
         //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
         cuda::er_set_d(low, suml);
         cuda::er_set_d(upp, sumu);
-        int K = cuda::RNS_EVAL_REF_FACTOR * j;
-        low->exp -= K;
-        upp->exp -= K;
+        low->exp -= j;
+        upp->exp -= j;
     }
 
 

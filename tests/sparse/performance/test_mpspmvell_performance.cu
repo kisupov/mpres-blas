@@ -267,7 +267,7 @@ void mpres_test(const int num_rows, const int num_cols, const int cols_per_row, 
 // MPRES-BLAS straightforward (array of structures)
 // Each multiple-precision operation is performed by a single thread
 /////////
-__global__ static void mpspmvell_naive_kernel(const int num_rows, const int cols_per_row, const int * indices, mp_float_ptr data, mp_float_ptr x, mp_float_ptr y) {
+__global__ static void mpspmvell_basic_kernel(const int num_rows, const int cols_per_row, const int * indices, mp_float_ptr data, mp_float_ptr x, mp_float_ptr y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if (row < num_rows) {
         mp_float_t prod;
@@ -327,7 +327,7 @@ void mpres_test_naive(const int num_rows, const int num_cols, const int cols_per
 
     //Launch
     StartCudaTimer();
-    mpspmvell_naive_kernel<<<blocks, threads>>>(num_rows, cols_per_row, dindices, ddata, dx, dy);
+    mpspmvell_basic_kernel<<<blocks, threads>>>(num_rows, cols_per_row, dindices, ddata, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
