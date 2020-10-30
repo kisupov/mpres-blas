@@ -30,7 +30,7 @@
 /********************* Computational kernels *********************/
 
 /*
- * Performs the matrix-vector operation y = A * x + y
+ * Performs the matrix-vector operation y = A * x
  * where x and y are dense vectors and A is a sparse matrix.
  * The matrix should be stored in the ELLPACK format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
@@ -45,7 +45,7 @@ __global__ void campary_spmv_ell_kernel(const int num_rows, const int cols_per_r
                 dot += data[col * num_rows + row] * x[index];
             }
         }
-        y[row] += dot;
+        y[row] = dot;
     }
 }
 
@@ -56,7 +56,7 @@ __global__ void campary_spmv_ell_kernel(const int num_rows, const int cols_per_r
  * SpMV ELLPACK test
  */
 template<int prec>
-void campary_spmv_ell_test(const int num_rows, const int num_cols, const int cols_per_row,  const double * data, const int * indices, mpfr_t * x, mpfr_t * y, const int convert_prec) {
+void campary_spmv_ell_test(const int num_rows, const int num_cols, const int cols_per_row,  const double * data, const int * indices, mpfr_t * x, const int convert_prec) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY SpMV ELLPACK");
@@ -86,10 +86,6 @@ void campary_spmv_ell_test(const int num_rows, const int num_cols, const int col
     for(int i = 0; i < num_cols; i++){
         hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
     }
-    #pragma omp parallel for
-    for(int i = 0; i < num_rows; i++){
-        hy[i] = convert_to_string_sci(y[i], convert_prec).c_str();
-    }
     //Convert from double
     #pragma omp parallel for
     for(int i = 0; i < num_rows * cols_per_row; i++){
@@ -98,7 +94,6 @@ void campary_spmv_ell_test(const int num_rows, const int num_cols, const int col
 
     //Copying to the GPU
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * num_cols, cudaMemcpyHostToDevice);
-    cudaMemcpy(dy, hy, sizeof(multi_prec<prec>) * num_rows, cudaMemcpyHostToDevice);
     cudaMemcpy(ddata, hdata, sizeof(multi_prec<prec>) * num_rows * cols_per_row, cudaMemcpyHostToDevice);
     cudaMemcpy(dindices, indices, sizeof(int) * num_rows * cols_per_row, cudaMemcpyHostToDevice);
     checkDeviceHasErrors(cudaDeviceSynchronize());

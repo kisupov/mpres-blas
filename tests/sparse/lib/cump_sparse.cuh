@@ -30,7 +30,7 @@
 /********************* Computational kernels *********************/
 
 /*
- * Performs the matrix-vector operation y = A * x + y
+ * Performs the matrix-vector operation y = A * x
  * where x and y are dense vectors and A is a sparse matrix.
  * The matrix should be stored in the ELLPACK format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
@@ -53,7 +53,7 @@ __global__ void cump_spmv_ell_kernel(const int num_rows, const int cols_per_row,
 /*
  * SpMV ELLPACK test
  */
-void cump_spmv_ell_test(const int num_rows, const int num_cols, const int cols_per_row,  const double * data, const int * indices, mpfr_t * x, mpfr_t * y, const int prec, const int convert_digits){
+void cump_spmv_ell_test(const int num_rows, const int num_cols, const int cols_per_row,  const double * data, const int * indices, mpfr_t * x, const int prec, const int convert_digits){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CUMP SpMV ELLPACK");
@@ -91,7 +91,7 @@ void cump_spmv_ell_test(const int num_rows, const int num_cols, const int cols_p
     }
     for(int i = 0; i < num_rows; i++){
         mpf_init2(hy[i], prec);
-        mpf_set_str(hy[i], convert_to_string_sci(y[i], convert_digits).c_str(), 10);
+        mpf_set_d(hy[i], 0.0);
     }
     //Convert from double
     for(int i = 0; i < num_rows * cols_per_row; i++){

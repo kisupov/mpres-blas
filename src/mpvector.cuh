@@ -23,6 +23,7 @@
 #define MPRES_MPVECTOR_CUH
 
 #include "mparray.cuh"
+#include "mpcollection.cuh"
 
 namespace cuda {
 
@@ -716,6 +717,33 @@ namespace cuda {
             }
         }
     }
+
+    /*!
+     * Rounding a multiple-precision vector
+     * For each multiple-precision entry, the rounding is performed as a single thread
+     * @param result - pointer to the result vector in the GPU memory
+     * @param lenr - length of vector
+     */
+    __global__ void mp_vector_round_kernel(mp_collection_t result, int lenr) {
+        int numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
+        while (numberIdx < lenr) {
+            #if defined(DEBUG) || defined(_DEBUG)
+            if( result.eval[lenr + numberIdx].exp != result.eval[numberIdx].exp ){
+                    printf("\n [CUDA WARNING] Possible loss of accuracy");
+                }
+            #endif
+            int bits = (result.eval[lenr + numberIdx].exp - cuda::MP_H + 1)*(result.eval[lenr + numberIdx].frac != 0);
+            while (bits > 0) {
+                result.exp[numberIdx] += bits;
+                cuda::rns_scale2pow(&result.digits[numberIdx * RNS_MODULI_SIZE], &result.digits[numberIdx * RNS_MODULI_SIZE], bits);
+                cuda::rns_eval_compute_fast(&result.eval[numberIdx], &result.eval[lenr + numberIdx], &result.digits[numberIdx * RNS_MODULI_SIZE]);
+                bits = -1;
+            }
+            //Go to the next iteration
+            numberIdx +=  gridDim.x * blockDim.x;
+        }
+    }
+
 
 
 } //end of namespace

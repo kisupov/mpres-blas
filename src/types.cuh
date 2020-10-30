@@ -77,8 +77,10 @@ typedef mp_float_t * mp_float_ptr;
 
 
 /*!
- * Data layout (structure-of-arrays) for a multiple-precision array
- * This type is intended for use primarily in BLAS kernels (for storing dense matrices and vectors) where addition operations may be required.
+ * Data type for representing a general multiple-precision array in the structure-of-arrays layout.
+ * This data type contains a 'buf' field for transfer auxiliary variables between computational kernels
+ * in addition operations. This data type is intended for use primarily in BLAS kernels (for storing dense matrices and vectors)
+ * where addition operations may be required.
  */
 typedef struct {
     int * digits;        // Significand parts of the numbers in RNS (residues): [all residues of x1]...[all residues of x_N]
@@ -90,15 +92,16 @@ typedef struct {
 } mp_array_t;
 
 /*!
- * Data layout (structure-of-arrays) for a multiple-precision array without 'buf' and 'len' fields
- * This type is intended for use primarily in sparse linear algebra kernels (for storing a sparse matrix) where addition operations are usually not required.
+ * Data type for representing a multiple-precision array in the structure-of-arrays layout without 'buf' and 'len' fields.
+ * This type is intended for use primarily in sparse linear algebra kernels (for storing a sparse matrix)
+ * where addition operations are usually not required.
  */
 typedef struct {
     int * digits;        // Significand parts of the numbers in RNS (residues): [all residues of x1]...[all residues of x_N]
     int * sign;          // Signs: [sign of x1][sign of x2]...[sign of x_N]
     int * exp;           // Exponents: [exp of x1][exp of x2]...[exp of x_N]
     er_float_t * eval;   // Interval evaluations: [low bound of x1]...[low bound of x_N] [upp bound of x1]...[upp bound of x_N]
-} mp_sparse_t;
+} mp_collection_t;
 
 
 #endif //MPRES_TYPES_CUH
