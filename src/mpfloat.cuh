@@ -306,6 +306,22 @@ GCC_FORCEINLINE void mp_round(mp_float_ptr x, int n) {
     }
 }
 
+/*
+ * Sign identification in addition and subtraction operations when an ambiguous case occurs.
+ * To compare the aligned significands, the mixed-radix conversion is used.
+ * */
+GCC_FORCEINLINE int sign_estimate(const int * digx, const int * digy, const int sx, const int sy,
+                                  const int gamma, const int theta,  const unsigned char nzx, const unsigned char nzy){
+    int lx[RNS_MODULI_SIZE];
+    int ly[RNS_MODULI_SIZE];
+    for(int i = 0; i < RNS_MODULI_SIZE; i++){
+        lx[i] = mod_mul(digx[i], RNS_POW2[gamma][i] * nzx, RNS_MODULI[i]);
+        ly[i] = mod_mul(digy[i], RNS_POW2[theta][i] * nzy, RNS_MODULI[i]);
+    }
+    int cmp = mrc_compare_rns(lx, ly);
+    return (cmp < 0 ? sy : sx) * (cmp != 0);
+}
+
 /*!
  * Addition of two multiple-precision numbers
  * result = x + y
@@ -371,14 +387,7 @@ GCC_FORCEINLINE void mp_add(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y)
         sr = (result->eval[0].frac < 0);
     } else{
         //Ambiguous case, use MRC, see http://dx.doi.org/10.14569/IJACSA.2020.0110901
-        int lx[RNS_MODULI_SIZE];
-        int ly[RNS_MODULI_SIZE];
-        for(int i = 0; i < RNS_MODULI_SIZE; i++){
-            lx[i] = mod_mul(x->digits[i], RNS_POW2[gamma][i] * nzx, RNS_MODULI[i]);
-            ly[i] = mod_mul(y->digits[i], RNS_POW2[theta][i] * nzy, RNS_MODULI[i]);
-        }
-        int cmp = mrc_compare_rns(lx, ly);
-        sr = (cmp < 0 ? sy : sx) * (cmp != 0);
+        sr = sign_estimate(x->digits, y->digits, sx, sy, gamma, theta, nzx, nzy);
         result->eval[sr].frac = RNS_EVAL_UNIT.low.frac * (1 - 2 * sr);
         result->eval[sr].exp = RNS_EVAL_UNIT.low.exp;
     }
@@ -649,6 +658,22 @@ namespace cuda {
     // Addition routines
     ////////////////////////////////////////////////////////////////
 
+    /*
+     * Sign identification in addition and subtraction operations when an ambiguous case occurs.
+     * To compare the aligned significands, the mixed-radix conversion is used.
+     */
+    DEVICE_CUDA_FORCEINLINE int sign_estimate(const int * digx, const int * digy, const int sx, const int sy,
+                                              const int gamma, const int theta,  const unsigned char nzx, const unsigned char nzy){
+        int lx[RNS_MODULI_SIZE];
+        int ly[RNS_MODULI_SIZE];
+        for(int i = 0; i < RNS_MODULI_SIZE; i++){
+            lx[i] = cuda::mod_mul(digx[i], cuda::RNS_POW2[gamma][i] * nzx, cuda::RNS_MODULI[i]);
+            ly[i] = cuda::mod_mul(digy[i], cuda::RNS_POW2[theta][i] * nzy, cuda::RNS_MODULI[i]);
+        }
+        int cmp = cuda::mrc_compare_rns(lx, ly);
+        return (cmp < 0 ? sy : sx) * (cmp != 0);
+    }
+
     /*!
      * General routine for adding multiple-precision numbers (result = x + y)
      * The routines below call this routine
@@ -701,14 +726,7 @@ namespace cuda {
         if(levalr->frac * uevalr->frac >= 0){
             sign = (levalr->frac < 0);
         } else{
-            int lx[RNS_MODULI_SIZE];
-            int ly[RNS_MODULI_SIZE];
-            for(int i = 0; i < RNS_MODULI_SIZE; i++){
-                lx[i] = mod_mul(digx[i], cuda::RNS_POW2[gamma][i] * nzx, cuda::RNS_MODULI[i]);
-                ly[i] = mod_mul(digy[i], cuda::RNS_POW2[theta][i] * nzy, cuda::RNS_MODULI[i]);
-            }
-            int cmp = mrc_compare_rns(lx, ly);
-            sign = (cmp < 0 ? sy : sx) * (cmp != 0);
+            sign = sign_estimate(digx, digy, sx, sy, gamma, theta, nzx, nzy);
             if(sign == 0){
                 *levalr = RNS_EVAL_UNIT.low;
             } else{
