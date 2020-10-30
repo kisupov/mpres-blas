@@ -678,16 +678,16 @@ namespace cuda {
      * General routine for adding multiple-precision numbers (result = x + y)
      * The routines below call this routine
      */
-    DEVICE_CUDA_FORCEINLINE void mp_add_common(int * sr, int * er, er_float_ptr levalr, er_float_ptr uevalr, int * digr,
-                                               int sx, int ex, er_float_ptr levalx, er_float_ptr uevalx, const int * digx,
-                                               int sy, int ey, er_float_ptr levaly, er_float_ptr uevaly, const int * digy)
+    DEVICE_CUDA_FORCEINLINE void mp_add_common(int * sr, int * er, er_float_ptr * evalr, int * digr,
+                                               int sx, int ex, er_float_ptr * evlx, const int * digx,
+                                               int sy, int ey, er_float_ptr * evly, const int * digy)
     {
         er_float_t evalx[2];
         er_float_t evaly[2];
-        evalx[0] = *levalx;
-        evalx[1] = *uevalx;
-        evaly[0] = *levaly;
-        evaly[1] = *uevaly;
+        evalx[0] = *evlx[0];
+        evalx[1] = *evlx[1];
+        evaly[0] = *evly[0];
+        evaly[1] = *evly[1];
 
         int dexp = ex - ey;
         int gamma =  dexp * (dexp > 0);
@@ -718,21 +718,17 @@ namespace cuda {
         evaly[0].frac *=  factor_y;
         evaly[1].frac *=  factor_y;
 
-        cuda::er_add_rd(levalr, &evalx[sx], &evaly[sy]);
-        cuda::er_add_ru(uevalr, &evalx[1 - sx], &evaly[1 - sy]);
+        cuda::er_add_rd(evalr[0], &evalx[sx], &evaly[sy]);
+        cuda::er_add_ru(evalr[1], &evalx[1 - sx], &evaly[1 - sy]);
 
         //Sign identification
         unsigned char sign;
-        if(levalr->frac * uevalr->frac >= 0){
-            sign = (levalr->frac < 0);
+        if(evalr[0]->frac * evalr[1]->frac >= 0){
+            sign = (evalr[0]->frac < 0);
         } else{
             sign = sign_estimate(digx, digy, sx, sy, gamma, theta, nzx, nzy);
-            if(sign == 0){
-                *levalr = RNS_EVAL_UNIT.low;
-            } else{
-                uevalr->frac = -1 * RNS_EVAL_UNIT.low.frac;
-                uevalr->exp = RNS_EVAL_UNIT.low.exp;
-            }
+            evalr[sign]->frac = cuda::RNS_EVAL_UNIT.low.frac * (1 - 2 * sign);
+            evalr[sign]->exp =  cuda::RNS_EVAL_UNIT.low.exp;
         }
         *sr = sign;
         *er = (ex == 0) ? ey : ex;
@@ -750,11 +746,11 @@ namespace cuda {
             for (int i = 0; i < RNS_MODULI_SIZE; i++) {
                 digr[i] = (digr[i] != 0) * (cuda::RNS_MODULI[i] - digr[i]);
             }
-            er_float_t tmp = *levalr;
-            levalr->frac = -1 * uevalr->frac;
-            levalr->exp  = uevalr->exp;
-            uevalr->frac = -1 * tmp.frac;
-            uevalr->exp  = tmp.exp;
+            er_float_t tmp = *evalr[0];
+            evalr[0]->frac = -evalr[1]->frac;
+            evalr[0]->exp  = evalr[1]->exp;
+            evalr[1]->frac = -1 * tmp.frac;
+            evalr[1]->exp  = tmp.exp;
         }
     }
 
@@ -763,9 +759,14 @@ namespace cuda {
      * result = x + y
      */
     DEVICE_CUDA_FORCEINLINE void mp_add(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y) {
-      mp_add_common(&result->sign, &result->exp,&result->eval[0],&result->eval[1], result->digits,
-                    x->sign,x->exp, &x->eval[0],&x->eval[1], x->digits,
-                    y->sign, y->exp,&y->eval[0],&y->eval[1], y->digits);
+        er_float_ptr evalx[2] = { &x->eval[0], &x->eval[1] }; //Array of pointers to interval evaluations
+        er_float_ptr evaly[2] = { &y->eval[0], &y->eval[1] };
+        er_float_ptr evalr[2] = { &result->eval[0], &result->eval[1] };
+
+        mp_add_common(&result->sign, &result->exp, evalr, result->digits,
+                      x->sign, x->exp, evalx, x->digits,
+                      y->sign, y->exp, evaly, y->digits);
+
         if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
         }
@@ -777,9 +778,21 @@ namespace cuda {
      * @param result - pointer to the computed sum, result = x + y[idy]
      */
     DEVICE_CUDA_FORCEINLINE void mp_add(mp_float_ptr result, mp_float_ptr x, mp_array_t y, int idy) {
-        mp_add_common(&result->sign, &result->exp, &result->eval[0],&result->eval[1], result->digits,
-                      x->sign, x->exp,&x->eval[0],&x->eval[1], x->digits,
-                      y.sign[idy], y.exp[idy], &y.eval[idy],&y.eval[idy + y.len[0]],&y.digits[RNS_MODULI_SIZE * idy]);
+
+        er_float_ptr evalx[2] = { &x->eval[0], &x->eval[1] };
+        er_float_ptr evaly[2] = { &y.eval[idy], &y.eval[idy + y.len[0]] };
+        er_float_ptr evalr[2] = { &result->eval[0], &result->eval[1] };
+       /* evalx[0] = &x->eval[0];
+        evalx[1] = &x->eval[1];
+        evaly[0] = &y.eval[idy];
+        evaly[1] = &y.eval[idy + y.len[0]];
+        evalr[0] = &result->eval[0];
+        evalr[1] = &result->eval[1];*/
+
+        mp_add_common(&result->sign, &result->exp, evalr, result->digits,
+                      x->sign, x->exp, evalx, x->digits,
+                      y.sign[idy], y.exp[idy], evaly,&y.digits[RNS_MODULI_SIZE * idy]);
+
         if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
         }
@@ -793,9 +806,14 @@ namespace cuda {
      */
     DEVICE_CUDA_FORCEINLINE void mp_add(mp_array_t result, int idr, mp_array_t x, int idx, mp_float_ptr y) {
         int lenr = result.len[0]; //Actual length of the result vector
-        mp_add_common(&result.sign[idr], &result.exp[idr],&result.eval[idr], &result.eval[idr + lenr], &result.digits[RNS_MODULI_SIZE * idr],
-                      x.sign[idx], x.exp[idx], &x.eval[idx], &x.eval[idx + x.len[0]], &x.digits[RNS_MODULI_SIZE * idx],
-                      y->sign, y->exp,&y->eval[0],&y->eval[1], y->digits);
+
+        er_float_ptr evalx[2] = { &x.eval[idx], &x.eval[idx + x.len[0]] };
+        er_float_ptr evaly[2] = { &y->eval[0], &y->eval[1] };
+        er_float_ptr evalr[2] = { &result.eval[idr], &result.eval[idr + lenr] };
+
+        mp_add_common(&result.sign[idr], &result.exp[idr], evalr, &result.digits[RNS_MODULI_SIZE * idr],
+                      x.sign[idx], x.exp[idx], evalx, &x.digits[RNS_MODULI_SIZE * idx],
+                      y->sign, y->exp, evaly, y->digits);
         //Rounding
         if (result.eval[idr + lenr].frac != 0 && result.eval[idr + lenr].exp >= cuda::MP_H) {
             #if defined(DEBUG) || defined(_DEBUG)
@@ -820,9 +838,13 @@ namespace cuda {
      * @param result - pointer to the computed sum, result = x + y[idy]
      */
     DEVICE_CUDA_FORCEINLINE void mp_add(mp_float_ptr result, mp_float_ptr x, mp_collection_t y, int idy, int leny) {
-        mp_add_common(&result->sign, &result->exp, &result->eval[0],&result->eval[1], result->digits,
-                      x->sign, x->exp,&x->eval[0],&x->eval[1], x->digits,
-                      y.sign[idy], y.exp[idy], &y.eval[idy],&y.eval[idy + leny],&y.digits[RNS_MODULI_SIZE * idy]);
+        er_float_ptr evalx[2] = { &x->eval[0], &x->eval[1] };
+        er_float_ptr evaly[2] = { &y.eval[idy], &y.eval[idy + leny] };
+        er_float_ptr evalr[2] = { &result->eval[0], &result->eval[1] };
+
+        mp_add_common(&result->sign, &result->exp, evalr, result->digits,
+                      x->sign, x->exp, evalx, x->digits,
+                      y.sign[idy], y.exp[idy], evaly, &y.digits[RNS_MODULI_SIZE * idy]);
         if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
         }
