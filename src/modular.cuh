@@ -32,8 +32,8 @@
 double RNS_MODULI_RECIPROCAL[RNS_MODULI_SIZE]; // Array of 1 / RNS_MODULI[i]
 
 namespace cuda {
-    __device__  int RNS_MODULI[RNS_MODULI_SIZE]; // The set of RNS moduli for GPU computing
-    __device__ double RNS_MODULI_RECIPROCAL[RNS_MODULI_SIZE]; //Array of 1 / RNS_MODULI[i] for GPU computing
+    __device__  __constant__ int RNS_MODULI[RNS_MODULI_SIZE]; // The set of RNS moduli for GPU computing
+    __device__ __constant__ double RNS_MODULI_RECIPROCAL[RNS_MODULI_SIZE]; //Array of 1 / RNS_MODULI[i] for GPU computing
 }
 
 
@@ -281,7 +281,7 @@ namespace cuda {
     /*!
      * Multiplication of two RNS numbers.
      */
-    DEVICE_CUDA_FORCEINLINE void rns_mul(int * result, int * x, int * y){
+    DEVICE_CUDA_FORCEINLINE void rns_mul(int * result, const int * x, const  int * y){
         #pragma unroll
         for(int i = 0; i < RNS_MODULI_SIZE; i++){
             result[i] = cuda::mod_mul(x[i], y[i], cuda::RNS_MODULI[i], cuda::RNS_MODULI_RECIPROCAL[i]);
@@ -291,7 +291,7 @@ namespace cuda {
     /*!
      * Addition of two RNS numbers.
      */
-    DEVICE_CUDA_FORCEINLINE void rns_add(int * result, int * x, int * y){
+    DEVICE_CUDA_FORCEINLINE void rns_add(int * result, const int * x, const int * y){
         #pragma unroll
         for(int i = 0; i < RNS_MODULI_SIZE; i++){
             result[i] = cuda::mod_add(x[i], y[i], cuda::RNS_MODULI[i], cuda::RNS_MODULI_RECIPROCAL[i]);
@@ -301,7 +301,7 @@ namespace cuda {
     /*!
      * Subtraction of two RNS numbers.
      */
-    DEVICE_CUDA_FORCEINLINE void rns_sub(int * result, int * x, int * y){
+    DEVICE_CUDA_FORCEINLINE void rns_sub(int * result, const int * x, const int * y){
         #pragma unroll
         for(int i = 0; i < RNS_MODULI_SIZE; i++){
             result[i] = cuda::mod_psub(x[i], y[i], cuda::RNS_MODULI[i]);

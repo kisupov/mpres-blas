@@ -313,73 +313,88 @@ GCC_FORCEINLINE void mp_round(mp_float_ptr x, int n) {
 GCC_FORCEINLINE void mp_add(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y) {
 
     //The local copies of the terms are required since the exponent alignment can be performed
-    er_float_t eval_x[2];
-    er_float_t eval_y[2];
-    eval_x[0] = x->eval[0];
-    eval_x[1] = x->eval[1];
-    eval_y[0] = y->eval[0];
-    eval_y[1] = y->eval[1];
+    er_float_t evalx[2];
+    er_float_t evaly[2];
+    evalx[0] = x->eval[0];
+    evalx[1] = x->eval[1];
+    evaly[0] = y->eval[0];
+    evaly[1] = y->eval[1];
 
-    int exp_x = x->exp;
-    int exp_y = y->exp;
-    int sign_x = x->sign;
-    int sign_y = y->sign;
+    int ex = x->exp;
+    int ey = y->exp;
+    int sx = x->sign;
+    int sy = y->sign;
 
     //Exponent alignment
-    int dexp = exp_x - exp_y;
+    int dexp = ex - ey;
     int gamma =  dexp * (dexp > 0); //if dexp > 0, then gamma =  dexp; otherwise gamma = 0
     int theta = -dexp * (dexp < 0); //if dexp < 0, then theta = -dexp; otherwise theta = 0
 
-    int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < MP_J); //nzx (u) = 1 if x not need be zeroed; otherwise nzx = 0
-    int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < MP_J); //nzy (v) = 1 if y not need be zeroed; otherwise nzy = 0
+    unsigned char nzx = ((evaly[1].frac == 0) || (theta + evaly[1].exp) < MP_J); //nzx (u) = 1 if x not need be zeroed; otherwise nzx = 0
+    unsigned char nzy = ((evalx[1].frac == 0) || (gamma + evalx[1].exp) < MP_J); //nzy (v) = 1 if y not need be zeroed; otherwise nzy = 0
 
     gamma = gamma * nzy; //if nzy = 0 (y needs to be zeroed), then gamma = 0, i.e. we will multiply x by 2^0 without actually changing the value of x
     theta = theta * nzx; //if nzx = 0 (x needs to be zeroed), then theta = 0, i.e. we will multiply y by 2^0 without actually changing the value of y
 
     //Correction of the exponents
-    exp_x = (exp_x - gamma) * nzx; //if x needs to be zeroed, exp_x will be equal to 0
-    exp_y = (exp_y - theta) * nzy; //if y needs to be zeroed, exp_y will be equal to 0
+    ex = (ex - gamma) * nzx; //if x needs to be zeroed, ex will be equal to 0
+    ey = (ey - theta) * nzy; //if y needs to be zeroed, ey will be equal to 0
 
     //Correction of the signs
-    sign_x *= nzx;
-    sign_y *= nzy;
+    sx *= nzx;
+    sy *= nzy;
 
-    int factor_x = (1 - 2 * sign_x) * nzx; //-1 if  x is negative, 1 if x is positive, 0 if x needs to be zeroed (the exponent of x is too small)
-    int factor_y = (1 - 2 * sign_y) * nzy; //-1 if  y is negative, 1 if y is positive, 0 if y needs to be zeroed (the exponent of y is too small)
+    int factor_x = (1 - 2 * sx) * nzx; //-1 if  x is negative, 1 if x is positive, 0 if x needs to be zeroed (the exponent of x is too small)
+    int factor_y = (1 - 2 * sy) * nzy; //-1 if  y is negative, 1 if y is positive, 0 if y needs to be zeroed (the exponent of y is too small)
 
     //Correction of the interval evaluations (multiplication by 2^gamma or 2^theta)
-    eval_x[0].exp += gamma;
-    eval_x[1].exp += gamma;
-    eval_y[0].exp += theta;
-    eval_y[1].exp += theta;
+    evalx[0].exp += gamma;
+    evalx[1].exp += gamma;
+    evaly[0].exp += theta;
+    evaly[1].exp += theta;
 
     //Change the signs of the interval evaluation bounds when the number is negative
     //The signs will not change when the number is positive
     //If the number needs to be reset, then the bounds will also be reset
-    eval_x[0].frac *=  factor_x;
-    eval_x[1].frac *=  factor_x;
-    eval_y[0].frac *=  factor_y;
-    eval_y[1].frac *=  factor_y;
+    evalx[0].frac *=  factor_x;
+    evalx[1].frac *=  factor_x;
+    evaly[0].frac *=  factor_y;
+    evaly[1].frac *=  factor_y;
 
     //Interval addition
-    er_add_rd(&result->eval[0], &eval_x[sign_x], &eval_y[sign_y]);
-    er_add_ru(&result->eval[1], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
+    er_add_rd(&result->eval[0], &evalx[sx], &evaly[sy]);
+    er_add_ru(&result->eval[1], &evalx[1 - sx], &evaly[1 - sy]);
+
+    //Sign identification
+    unsigned char sr;
+    if(result->eval[0].frac * result->eval[1].frac >= 0){
+        sr = (result->eval[0].frac < 0);
+    } else{
+        //Ambiguous case, use MRC, see http://dx.doi.org/10.14569/IJACSA.2020.0110901
+        int lx[RNS_MODULI_SIZE];
+        int ly[RNS_MODULI_SIZE];
+        for(int i = 0; i < RNS_MODULI_SIZE; i++){
+            lx[i] = mod_mul(x->digits[i], RNS_POW2[gamma][i] * nzx, RNS_MODULI[i]);
+            ly[i] = mod_mul(y->digits[i], RNS_POW2[theta][i] * nzy, RNS_MODULI[i]);
+        }
+        int cmp = mrc_compare_rns(lx, ly);
+        sr = (cmp < 0 ? sy : sx) * (cmp != 0);
+        result->eval[sr].frac = RNS_EVAL_UNIT.low.frac * (1 - 2 * sr);
+        result->eval[sr].exp = RNS_EVAL_UNIT.low.exp;
+    }
+    result->sign = sr;
+
+    //Calculation of the exponent
+    result->exp = (ex == 0) ? ey : ex;
 
     //Addition of the RNS significands with multiplication by a power of two
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
         int residue = mod_axby(x->digits[i], RNS_POW2[gamma][i] * factor_x, y->digits[i], RNS_POW2[theta][i] * factor_y, RNS_MODULI[i]);
         result->digits[i] = residue < 0 ? residue + RNS_MODULI[i] : residue;
     }
-    //Calculation of the exponent
-    result->exp = (exp_x == 0) ? exp_y : exp_x;
 
     //Restoring the negative result
-    //One observation (should be proven in the future):
-    //when both plus and minus are equal to zero, the actual result is always non-negative.
-    //int plus  = result->eval[0].frac >= 0 && result->eval[1].frac >= 0;
-    int minus = result->eval[0].frac < 0 && result->eval[1].frac < 0;
-    result->sign = minus;
-    if(minus){
+    if(sr == 1){
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             result->digits[i] = (RNS_MODULI[i] - result->digits[i]) % RNS_MODULI[i];
         }
@@ -638,76 +653,90 @@ namespace cuda {
      * General routine for adding multiple-precision numbers (result = x + y)
      * The routines below call this routine
      */
-    DEVICE_CUDA_FORCEINLINE void mp_add_common(int * sign_r, int * exp_r, er_float_ptr eval0_r, er_float_ptr eval1_r, int * digits_r,
-                                               int sign_x, int exp_x, er_float_ptr eval0_x, er_float_ptr eval1_x, const int * digits_x,
-                                               int sign_y, int exp_y, er_float_ptr eval0_y, er_float_ptr eval1_y, const int * digits_y)
+    DEVICE_CUDA_FORCEINLINE void mp_add_common(int * sr, int * er, er_float_ptr levalr, er_float_ptr uevalr, int * digr,
+                                               int sx, int ex, er_float_ptr levalx, er_float_ptr uevalx, const int * digx,
+                                               int sy, int ey, er_float_ptr levaly, er_float_ptr uevaly, const int * digy)
     {
-        int moduli[RNS_MODULI_SIZE];
-        //Load data from global memory
-        for(int i = 0; i < RNS_MODULI_SIZE; i++){
-            moduli[i] = cuda::RNS_MODULI[i];
-        }
+        er_float_t evalx[2];
+        er_float_t evaly[2];
+        evalx[0] = *levalx;
+        evalx[1] = *uevalx;
+        evaly[0] = *levaly;
+        evaly[1] = *uevaly;
 
-        er_float_t eval_x[2];
-        er_float_t eval_y[2];
-        eval_x[0] = *eval0_x;
-        eval_x[1] = *eval1_x;
-        eval_y[0] = *eval0_y;
-        eval_y[1] = *eval1_y;
-
-        int dexp = exp_x - exp_y;
+        int dexp = ex - ey;
         int gamma =  dexp * (dexp > 0);
         int theta = -dexp * (dexp < 0);
 
-        int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < cuda::MP_J);
-        int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < cuda::MP_J);
+        unsigned char  nzx = ((evaly[1].frac == 0) || (theta + evaly[1].exp) < cuda::MP_J);
+        unsigned char  nzy = ((evalx[1].frac == 0) || (gamma + evalx[1].exp) < cuda::MP_J);
 
         gamma = gamma * nzy;
         theta = theta * nzx;
 
-        exp_x = (exp_x - gamma) * nzx;
-        exp_y = (exp_y - theta) * nzy;
+        ex = (ex - gamma) * nzx;
+        ey = (ey - theta) * nzy;
 
-        sign_x *= nzx;
-        sign_y *= nzy;
+        sx *= nzx;
+        sy *= nzy;
 
-        int factor_x = (1 - 2 * sign_x) * nzx;
-        int factor_y = (1 - 2 * sign_y) * nzy;
+        int factor_x = (1 - 2 * sx) * nzx;
+        int factor_y = (1 - 2 * sy) * nzy;
 
-        eval_x[0].exp += gamma;
-        eval_x[1].exp += gamma;
-        eval_y[0].exp += theta;
-        eval_y[1].exp += theta;
+        evalx[0].exp += gamma;
+        evalx[1].exp += gamma;
+        evaly[0].exp += theta;
+        evaly[1].exp += theta;
 
-        eval_x[0].frac *=  factor_x;
-        eval_x[1].frac *=  factor_x;
-        eval_y[0].frac *=  factor_y;
-        eval_y[1].frac *=  factor_y;
+        evalx[0].frac *=  factor_x;
+        evalx[1].frac *=  factor_x;
+        evaly[0].frac *=  factor_y;
+        evaly[1].frac *=  factor_y;
 
-        cuda::er_add_rd(eval0_r, &eval_x[sign_x], &eval_y[sign_y]);
-        cuda::er_add_ru(eval1_r, &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
+        cuda::er_add_rd(levalr, &evalx[sx], &evaly[sy]);
+        cuda::er_add_ru(uevalr, &evalx[1 - sx], &evaly[1 - sy]);
+
+        //Sign identification
+        unsigned char sign;
+        if(levalr->frac * uevalr->frac >= 0){
+            sign = (levalr->frac < 0);
+        } else{
+            int lx[RNS_MODULI_SIZE];
+            int ly[RNS_MODULI_SIZE];
+            for(int i = 0; i < RNS_MODULI_SIZE; i++){
+                lx[i] = mod_mul(digx[i], cuda::RNS_POW2[gamma][i] * nzx, cuda::RNS_MODULI[i]);
+                ly[i] = mod_mul(digy[i], cuda::RNS_POW2[theta][i] * nzy, cuda::RNS_MODULI[i]);
+            }
+            int cmp = mrc_compare_rns(lx, ly);
+            sign = (cmp < 0 ? sy : sx) * (cmp != 0);
+            if(sign == 0){
+                *levalr = RNS_EVAL_UNIT.low;
+            } else{
+                uevalr->frac = -1 * RNS_EVAL_UNIT.low.frac;
+                uevalr->exp = RNS_EVAL_UNIT.low.exp;
+            }
+        }
+        *sr = sign;
+        *er = (ex == 0) ? ey : ex;
 
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             int residue = cuda::mod_axby(
-                    digits_x[i], cuda::RNS_POW2[gamma][i] * factor_x,
-                    digits_y[i], cuda::RNS_POW2[theta][i] * factor_y,
-                    moduli[i],
+                    digx[i], cuda::RNS_POW2[gamma][i] * factor_x,
+                    digy[i], cuda::RNS_POW2[theta][i] * factor_y,
+                    cuda::RNS_MODULI[i],
                     cuda::RNS_MODULI_RECIPROCAL[i]);
-            digits_r[i] = residue < 0 ? residue + moduli[i] : residue;
+            digr[i] = residue < 0 ? residue + cuda::RNS_MODULI[i] : residue;
         }
-        *exp_r = (exp_x == 0) ? exp_y : exp_x;
-        //int plus  = eval0_r->frac >= 0 && eval1_r->frac >= 0; // see mp_add for CPU
-        int minus = eval0_r->frac < 0 && eval1_r->frac < 0;
-        *sign_r = minus;
-        if(minus){
+
+        if(sign == 1){
             for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-                digits_r[i] = (digits_r[i] != 0) * (moduli[i] - digits_r[i]);
+                digr[i] = (digr[i] != 0) * (cuda::RNS_MODULI[i] - digr[i]);
             }
-            er_float_t tmp = *eval0_r;
-            eval0_r->frac = -1 * eval1_r->frac;
-            eval0_r->exp  = eval1_r->exp;
-            eval1_r->frac = -1 * tmp.frac;
-            eval1_r->exp  = tmp.exp;
+            er_float_t tmp = *levalr;
+            levalr->frac = -1 * uevalr->frac;
+            levalr->exp  = uevalr->exp;
+            uevalr->frac = -1 * tmp.frac;
+            uevalr->exp  = tmp.exp;
         }
     }
 
