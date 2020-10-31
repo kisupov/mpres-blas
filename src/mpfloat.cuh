@@ -643,7 +643,7 @@ namespace cuda {
      * Parallel (n threads) rounding x by n bits
      * This function must be performed by n threads simultaneously within a single thread block
      */
-    DEVICE_CUDA_FORCEINLINE void mp_round_thread(mp_float_ptr x, int n) {
+    /*DEVICE_CUDA_FORCEINLINE void mp_round_thread(mp_float_ptr x, int n) {
         while (n > 0) {
             cuda::rns_scale2pow_thread(x->digits, x->digits, (unsigned int) n);
             if (threadIdx.x == 0) {
@@ -652,7 +652,7 @@ namespace cuda {
             }
             n = -1;
         }
-    }
+    }*/
 
     ////////////////////////////////////////////////////////////////
     // Addition routines
@@ -676,7 +676,7 @@ namespace cuda {
 
     /*!
      * General routine for adding multiple-precision numbers (result = x + y)
-     * The routines below call this routine
+     * The routines below call this procedure
      */
     DEVICE_CUDA_FORCEINLINE void mp_add_common(int * sr, int * er, er_float_ptr * evalr, int * digr,
                                                int sx, int ex, er_float_ptr * evlx, const int * digx,
@@ -778,16 +778,9 @@ namespace cuda {
      * @param result - pointer to the computed sum, result = x + y[idy]
      */
     DEVICE_CUDA_FORCEINLINE void mp_add(mp_float_ptr result, mp_float_ptr x, mp_array_t y, int idy) {
-
         er_float_ptr evalx[2] = { &x->eval[0], &x->eval[1] };
         er_float_ptr evaly[2] = { &y.eval[idy], &y.eval[idy + y.len[0]] };
         er_float_ptr evalr[2] = { &result->eval[0], &result->eval[1] };
-       /* evalx[0] = &x->eval[0];
-        evalx[1] = &x->eval[1];
-        evaly[0] = &y.eval[idy];
-        evaly[1] = &y.eval[idy + y.len[0]];
-        evalr[0] = &result->eval[0];
-        evalr[1] = &result->eval[1];*/
 
         mp_add_common(&result->sign, &result->exp, evalr, result->digits,
                       x->sign, x->exp, evalx, x->digits,
