@@ -48,6 +48,24 @@ __global__ void cump_spmv_ell_kernel(const int num_rows, const int cols_per_row,
     }
 }
 
+/*
+ * Performs the matrix-vector operation y = A * x
+ * where x and y are dense vectors and A is a sparse matrix.
+ * The matrix should be stored in the CSR format
+ */
+__global__ void cump_spmv_csr_kernel(const int num_rows, const int * cols, const int * offsets, mpf_array_t data, mpf_array_t x, mpf_array_t y, mpf_array_t tmp) {
+    using namespace cump;
+    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
+    if( row < num_rows ) {
+        int row_start = offsets[row];
+        int row_end = offsets[row+1];
+        for (int i = row_start; i < row_end; i++) {
+            mpf_mul(tmp[row], x[cols[i]], data[i]);
+            mpf_add(y[row], y[row], tmp[row]);
+        }
+    }
+}
+
 /********************* Benchmarks *********************/
 
 /*
@@ -136,6 +154,98 @@ void cump_spmv_ell_test(const int num_rows, const int num_cols, const int cols_p
     cumpf_array_clear(ddata);
     cumpf_array_clear(dtemp);
     cudaFree(dindices);
+}
+
+/*
+ * SpMV CSR test
+ */
+void cump_spmv_csr_test(const int num_rows, const int num_cols, const int nnz,  const double * data, const int * cols, const int * offsets, mpfr_t * x, const int prec, const int convert_digits){
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CUMP SpMV CSR");
+
+    //Set precision
+    mpf_set_default_prec(prec);
+    cumpf_set_default_prec(prec);
+
+    //Execution configuration
+    int threads = 32;
+    int blocks = num_rows / threads + 1;
+
+    //Host data
+    mpf_t *hx = new mpf_t[num_cols];
+    mpf_t *hy = new mpf_t[num_rows];
+    mpf_t *hdata = new mpf_t[nnz];
+
+    //GPU data
+    cumpf_array_t dx;
+    cumpf_array_t dy;
+    cumpf_array_t ddata;
+    cumpf_array_t dtemp;
+    int *dcols = new int[nnz];
+    int *doffsets = new int[num_rows + 1];
+
+    cumpf_array_init2(dx, num_cols, prec);
+    cumpf_array_init2(dy, num_rows, prec);
+    cumpf_array_init2(ddata, nnz, prec);
+    cumpf_array_init2(dtemp, num_rows, prec);
+    cudaMalloc(&dcols, sizeof(int) * nnz);
+    cudaMalloc(&doffsets, sizeof(int) * (num_rows + 1));
+
+    //Convert from MPFR
+    for(int i = 0; i < num_cols; i++){
+        mpf_init2(hx[i], prec);
+        mpf_set_str(hx[i], convert_to_string_sci(x[i], convert_digits).c_str(), 10);
+    }
+    for(int i = 0; i < num_rows; i++){
+        mpf_init2(hy[i], prec);
+        mpf_set_d(hy[i], 0.0);
+    }
+    //Convert from double
+    for(int i = 0; i < nnz; i++){
+        mpf_init2(hdata[i], prec);
+        mpf_set_d(hdata[i], data[i]);
+    }
+
+    //Copying to the GPU
+    cumpf_array_set_mpf(dx, hx, num_cols);
+    cumpf_array_set_mpf(dy, hy, num_rows);
+    cumpf_array_set_mpf(ddata, hdata, nnz);
+    cudaMemcpy(dcols, cols, sizeof(int) * nnz, cudaMemcpyHostToDevice);
+    cudaMemcpy(doffsets, offsets, sizeof(int) * (num_rows+1), cudaMemcpyHostToDevice);
+
+    //Launch
+    StartCudaTimer();
+    cump_spmv_csr_kernel<<<blocks, threads>>>(num_rows, dcols, doffsets, ddata, dx, dy, dtemp);
+    EndCudaTimer();
+    PrintCudaTimer("took");
+
+    //Copying to the host
+    mpf_array_set_cumpf(hy, dy, num_rows);
+    for(int i = 1; i < num_rows; i++){
+        mpf_add(hy[0], hy[i], hy[0]);
+    }
+    gmp_printf ("result: %.70Ff \n", hy[0]);
+
+    //Cleanup
+    for(int i = 0; i < num_cols; i++){
+        mpf_clear(hx[i]);
+    }
+    for(int i = 0; i < num_rows; i++){
+        mpf_clear(hy[i]);
+    }
+    for(int i = 0; i < nnz; i++){
+        mpf_clear(hdata[i]);
+    }
+    delete [] hx;
+    delete [] hy;
+    delete [] hdata;
+    cumpf_array_clear(dx);
+    cumpf_array_clear(dy);
+    cumpf_array_clear(ddata);
+    cumpf_array_clear(dtemp);
+    cudaFree(dcols);
+    cudaFree(doffsets);
 }
 
 #endif //MPRES_TEST_CUMP_SPARSE_CUH
