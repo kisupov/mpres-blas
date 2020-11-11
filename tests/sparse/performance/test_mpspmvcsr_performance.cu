@@ -23,7 +23,7 @@
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
-#include "../../../src/sparse/mpspmvell.cuh"
+#include "../../../src/sparse/mpspmvcsr.cuh"
 #include "../../../src/sparse/matrix_converter.cuh"
 #include "../../sparse/performance/3rdparty.cuh"
 
@@ -189,6 +189,76 @@ void taco_test(const mpfr_t * vectorX){
 }
 
 /////////
+// MPRES-BLAS (structure of arrays)
+/////////
+void mpres_test(const int num_rows, const int num_cols, const int nnz, const double * data, const int * cols, const int * offsets, const mpfr_t * x, const mpfr_t * y) {
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] MPRES-BLAS mpspmvcsr");
+
+    //Host data
+    auto hx = new mp_float_t[num_cols];
+    auto hy = new mp_float_t[num_rows];
+    auto hdata = new mp_float_t[nnz];
+
+    //GPU data
+    mp_array_t dx;
+    mp_array_t dy;
+    mp_collection_t ddata;
+    mp_collection_t dbuf;
+    int *dcols;
+    int *doffsets;
+
+    //Init data
+    cuda::mp_array_init(dx, num_cols);
+    cuda::mp_array_init(dy, num_rows);
+    cuda::mp_collection_init(ddata, nnz);
+    cuda::mp_collection_init(dbuf, nnz);
+    cudaMalloc(&dcols, sizeof(int) * nnz);
+    cudaMalloc(&doffsets, sizeof(int) * (num_rows + 1));
+
+    // Convert from MPFR and double
+    convert_vector(hx, x, num_cols);
+    convert_vector(hdata, data, nnz);
+
+    //Copying to the GPU
+    cuda::mp_array_host2device(dx, hx, num_cols);
+    cuda::mp_collection_host2device(ddata, hdata, nnz);
+    cudaMemcpy(dcols, cols, sizeof(int) * nnz, cudaMemcpyHostToDevice);
+    cudaMemcpy(doffsets, offsets, sizeof(int) * (num_rows + 1), cudaMemcpyHostToDevice);
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    StartCudaTimer();
+    cuda::mpspmvcsr<
+            MPRES_CUDA_BLOCKS_FIELDS,
+            MPRES_CUDA_THREADS_FIELDS,
+            MPRES_CUDA_BLOCKS_RESIDUES,
+            MPRES_CUDA_THREADS_REDUCE>
+            (num_rows, num_cols, nnz, dcols, doffsets, ddata, dx, dy, dbuf);
+    EndCudaTimer();
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cuda::mp_array_device2host(hy, dy, num_rows);
+    print_mp_sum(hy, num_rows);
+
+    //Cleanup
+    delete [] hx;
+    delete [] hy;
+    delete [] hdata;
+    cuda::mp_array_clear(dx);
+    cuda::mp_array_clear(dy);
+    cuda::mp_collection_clear(ddata);
+    cuda::mp_collection_clear(dbuf);
+    cudaFree(dcols);
+    cudaFree(doffsets);
+}
+
+/////////
 // MPRES-BLAS straightforward (array of structures)
 // Each multiple-precision operation is performed by a single thread
 /////////
@@ -298,7 +368,7 @@ void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, bool MATRIX_SYMMETRIC, str
         taco_test(vectorX);
     }
     //TODO main mpres test
-    //mpres_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, vectorY);
+    mpres_test(NUM_ROWS, NUM_COLS, nnz, data, cols, offsets, vectorX, vectorY);
     mpres_test_naive(NUM_ROWS, NUM_COLS, nnz, data, cols, offsets, vectorX, vectorY);
     campary_spmv_csr_test<CAMPARY_PRECISION>(NUM_ROWS, NUM_COLS, nnz, data, cols, offsets, vectorX, INP_DIGITS);
     cump_spmv_csr_test(NUM_ROWS, NUM_COLS, nnz, data, cols, offsets, vectorX, MP_PRECISION, INP_DIGITS);
