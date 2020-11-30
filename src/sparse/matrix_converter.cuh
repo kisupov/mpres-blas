@@ -149,7 +149,40 @@ void print_ellpack(const int num_rows, const int num_cols_per_row, double *data,
     }
 }
 
-/*void convert_to_coo(const char filename[], const int num_rows, const int num_lines, float *m_data, int *m_row, int *m_col, bool symmetric) {
+//сортирует 3 массива одинакового размера относительно массива rows
+void sortCOORows(double* data, int* cols, int* rows, const int nnz) {
+    struct coo {
+        double data;
+        int cols;
+        int rows;
+    };
+    vector <coo> x(nnz);
+    for (int i = 0; i < nnz; i++) {
+        x[i].data = data[i];
+        x[i].cols = cols[i];
+        x[i].rows = rows[i];
+    }
+    sort(x.begin(), x.end(), [] (const coo a, const coo b) {
+        return a.rows < b.rows;
+    });
+    for (int i = 0; i < nnz; i++) {
+        data[i] = x[i].data;
+        cols[i] = x[i].cols;
+        rows[i] = x[i].rows;
+    }
+}
+
+/*!
+ * Converts a sparse matrix to the COO format
+ * @param filename - path to the file with the matrix
+ * @param num_rows - number of rows in the matrix
+ * @param num_lines - total number of lines with data
+ * @param data - COO data: an array of size num_lines containing a matrix data in the COO format (output parameter)
+ * @param rows - COO rows: an array of size num_lines containing the row indices (output parameter)
+ * @param cols - COO cols: an array of size num_lines containing the col indices (output parameter)
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
+ */
+void convert_to_coo(const char filename[], const int num_rows, const int num_lines, double *data, int *rows, int *cols, bool symmetric) {
 
     std::ifstream file(filename);
 
@@ -158,7 +191,6 @@ void print_ellpack(const int num_rows, const int num_cols_per_row, double *data,
     //Skip one line with the matrix properties
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-    //j нужно для того, чтобы за 1 цикл заполнить весь массив
     int j = num_lines;
 
     // Iterating over the matrix
@@ -166,45 +198,82 @@ void print_ellpack(const int num_rows, const int num_cols_per_row, double *data,
         double fileData = 0.0;
         int row = 0, col = 0;
         file >> row >> col >> fileData;
-        m_data[l] = fileData;
-        m_row[l] = row;
-        m_col[l] = col;
+        data[l] = fileData;
+        cols[l] = col - 1;
+        rows[l] = row - 1;
         if (symmetric && (row != col)) {
-            m_data[j] = fileData;
-            m_row[j] = (col);
-            m_col[j] = (row);
+            data[j] = fileData;
+            cols[j] = row - 1;
+            rows[j] = col - 1;
             j++;
         }
     }
     file.close();
+
+    int nnz = 0;
+    if (symmetric){
+        nnz = (num_lines - num_rows) * 2 + num_rows;
+    } else {
+        nnz = num_lines;
+    }
+
+    sortCOORows(data, cols, rows, nnz);
 }
 
-void convert_to_csr(const char filename[], const int num_rows, const int num_lines, float *m_data, int *m_csrOffsets, int *m_col, bool symmetric) {
+//метод, формирующий массив csr-offsets из массива coo-rows
+void makeOffset(int nnz, int num_rows, int *rows, int *offset) {
+    int p = 0;
+    for (int i = 0; i < (num_rows + 1); i++) {
+        while (i > rows[p] && p < nnz) {
+            p++;
+        }
+        offset[i] = p;
+    }
+}
 
-    std::ifstream file(filename);
+/*!
+ * Converts a sparse matrix to the CSR format
+ * @param filename - path to the file with the matrix
+ * @param num_rows - number of rows in the matrix
+ * @param num_lines - total number of lines with data
+ * @param data - CSR data: an array of size num_lines containing a matrix data in the CSR format (output parameter)
+ * @param offsets - CSR offsets: an array of size num_rows + 1 containing the offset of i-th row in offsets[i] (output parameter)
+ * @param cols - CSR cols: an array of size num_lines containing the col indices (output parameter)
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
+ */
+void convert_to_csr(const char filename[], const int num_rows, const int num_lines, double *data, int *offsets, int *cols, bool symmetric) {
+    int nnz = 0;
+    if (symmetric){
+        nnz = (num_lines - num_rows) * 2 + num_rows;
+    } else {
+        nnz = num_lines;
+    }
+    int * rows = new int[nnz]();
 
-    // Ignore comments headers
-    while (file.peek() == '%') file.ignore(2048, '\n');
-    //Skip one line with the matrix properties
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    convert_to_coo(filename, num_rows, num_lines, data, rows, cols, symmetric);
+    makeOffset(nnz, num_rows, rows, offsets);
 
-    // Iterating over the matrix
-    for (int l = 0; l < num_lines; l++) {
-        double fileData = 0.0;
-        int row = 0, col = 0;
-        file >> row >> col >> fileData;
-        m_data[l] = fileData;
-        m_col[l] = col;
-        m_csrOffsets[row]++;
+    delete[] rows;
+}
+
+/*!
+ * Prints a sparse matrix represented in the CSR format
+ */
+void print_csr(const int num_rows, const int nnZ, double *data, int *offsets, int *cols) {
+    std::cout << std::endl << "data:" << std::endl;
+    for (int i = 0; i < nnZ; i++) {
+        std::cout << data[i] << "\t";
     }
 
-    for (int i = 1; i < num_rows + 1; ++i) {
-        m_csrOffsets[i] = m_csrOffsets[i - 1] + m_csrOffsets[i];
+    std::cout << std::endl << "offsets:" << std::endl;
+    for (int i = 0; i < num_rows + 1; i++) {
+        std::cout << offsets[i] << "\t";
     }
 
-    file.close();
-}*/
-
-
+    std::cout << std::endl << "cols:" << std::endl;
+    for (int i = 0; i < nnZ; i++) {
+        std::cout << cols[i] << "\t";
+    }
+}
 
 #endif //MATRIX_CONVERTER_CUH
