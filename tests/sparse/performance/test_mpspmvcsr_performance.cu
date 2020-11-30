@@ -27,13 +27,13 @@
 #include "../../../src/sparse/matrix_converter.cuh"
 #include "../../sparse/performance/3rdparty.cuh"
 
-//Execution configuration for mpspmvell
+//Execution configuration for mpspmvcsr
 #define MPRES_CUDA_BLOCKS_FIELDS 512
 #define MPRES_CUDA_THREADS_FIELDS 128
 #define MPRES_CUDA_BLOCKS_RESIDUES 32768
 #define MPRES_CUDA_THREADS_REDUCE 64
 
-#define MATRIX_PATH "../../tests/sparse/matrices/DK01R.mtx"
+#define MATRIX_PATH "../../tests/sparse/matrices/t3dl.mtx"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -280,7 +280,7 @@ __global__ static void mpspmvcsr_basic_kernel(const int num_rows, mp_float_ptr d
 void mpres_test_naive(const int num_rows, const int num_cols, const int nnz, const double * data, const int * cols, const int * offsets, const mpfr_t * x, const mpfr_t * y){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmvcsr(basic)");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmvcsr (basic)");
 
     //Execution configuration
     int threads = 32;

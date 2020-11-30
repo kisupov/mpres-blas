@@ -30,7 +30,7 @@ namespace cuda {
 
     /*!
      * Multiplication of a sparse matrix A stored in the CSR format (data) by a diagonal matrix on the right which is stored as a vector x
-     * The CSR data, cols and offsets are treated as vectors (one-dimensional arrays)
+     * The CSR data and cols are treated as vectors (one-dimensional arrays)
      * The component wise products are written into the result array of size nnz
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note The data and result arrays are assumed to be stored in the row major order, that is, [row 1] [row 2] ... [row n]
@@ -54,7 +54,7 @@ namespace cuda {
 
     /*!
      * Multiplication of a sparse matrix A stored in the CSR format (data) by a diagonal matrix on the right which is stored as a vector x
-     * The CSR data, cols and offsets are treated as vectors (one-dimensional arrays)
+     * The CSR data and cols are treated as vectors (one-dimensional arrays)
      * The component wise products are written into the result array of size nnz
      * Kernel #2 --- Computing the significands in the RNS (digits)
      * @note The data and result arrays are assumed to be stored in the row major order, that is, [row 1] [row 2] ... [row n]
@@ -111,18 +111,18 @@ namespace cuda {
      * @param num_rows - specifies the number of rows of the matrix A. The value of num_rows must be greater than zero.
      * @param num_cols - specifies the number of columns of the matrix A. The value of num_cols must be greater than zero.
      * @param nnz - specifies the number of nonzeros in matrix A. The value of nnz must be greater than zero.
-     * @param data - pointer to the multiple-precision array, size nnz, in the global GPU memory that contains matrix A in the CSR format
-     * @param cols - pointer to the array of column indices that are used to access the corresponding elements of the vector x, size nnz (the same as for data)
-     * @param offsets - pointer to the array of row offsets that are used to perform sum of elements in a row, size num_rows + 1, last element of offsets equals nnz
-     * @param x - pointer to the dense vector in the global GPU memory, size at least max(indices) + 1, where max(indices) is the maximum element from the indices array
+     * @param data - pointer to the multiple-precision array, size = nnz, in the global GPU memory that contains matrix A in the CSR format
+     * @param cols - pointer to the array of column indices that are used to access the corresponding elements of the vector x, size = nnz (the same as for data)
+     * @param offsets - pointer to the array of row offsets that are used to perform sum of elements in a row, size num_rows + 1, last element of offsets equals to nnz
+     * @param x - pointer to the dense vector in the global GPU memory, size at least num_cols
      * @param y - pointer to the result vector in the global GPU memory, size at least num_rows
-     * @param buffer - auxiliary array, size num_rows * cols_per_row, in the global GPU memory for storing the intermediate matrix
+     * @param buffer - auxiliary array in the global GPU memory for storing the intermediate matrix, size = nnz
      */
     template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
     void mpspmvcsr(const int num_rows, const int num_cols, const int nnz, const int * cols, const int * offsets, mp_collection_t &data, mp_array_t &x, mp_array_t &y, mp_collection_t &buffer) {
 
         //We consider the vector x as a diagonal matrix and perform the right diagonal scaling, buffer = A * x.
-        //The result is written to the intermediate buffer of size num_rows * cols_per_row.
+        //The result is written to the intermediate buffer of size = nnz.
 
         //Multiplication buffer = A * x - Computing the signs, exponents, and interval evaluations
         csr_scal_esi_kernel<<<gridDim1, blockDim1>>>(buffer, data, cols, x, num_cols, nnz);
