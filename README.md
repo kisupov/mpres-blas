@@ -46,7 +46,6 @@ For now, when using a custom or changing an existing moduli set or its size,
 you need to change the following #defines in `src/params.h`:
 
 * `RNS_MODULI_PRODUCT_LOG2`
-* `RNS_PARALLEL_REDUCTION_IDX`
 
 When using large moduli (like `1283742825`) to increase the precision of computations, make sure your environment has support for 8-byte `long` type.
 

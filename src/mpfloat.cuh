@@ -639,21 +639,6 @@ namespace cuda {
         }
     }
 
-    /*
-     * Parallel (n threads) rounding x by n bits
-     * This function must be performed by n threads simultaneously within a single thread block
-     */
-    /*DEVICE_CUDA_FORCEINLINE void mp_round_thread(mp_float_ptr x, int n) {
-        while (n > 0) {
-            cuda::rns_scale2pow_thread(x->digits, x->digits, (unsigned int) n);
-            if (threadIdx.x == 0) {
-                x->exp += n;
-                cuda::rns_eval_compute_fast(&x->eval[0], &x->eval[1], x->digits);
-            }
-            n = -1;
-        }
-    }*/
-
     ////////////////////////////////////////////////////////////////
     // Addition routines
     ////////////////////////////////////////////////////////////////
@@ -1100,27 +1085,6 @@ namespace cuda {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
         }
     }
-
-    /*!
-     * Parallel (n threads) multiplication of two multiple-precision numbers
-     * This function must be performed by n threads simultaneously within a single thread block
-     * result = x * y
-     */
-    /*DEVICE_CUDA_FORCEINLINE void mp_mul_thread(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y) {
-        result->digits[threadIdx.x] = cuda::mod_mul(x->digits[threadIdx.x], y->digits[threadIdx.x], cuda::RNS_MODULI[threadIdx.x]);
-        if(threadIdx.x == 0) {
-            result->exp = x->exp + y->exp;
-            result->sign = x->sign ^ y->sign;
-            cuda::er_md_rd(&result->eval[0], &x->eval[0], &y->eval[0], &cuda::RNS_EVAL_UNIT.upp);
-            cuda::er_md_ru(&result->eval[1], &x->eval[1], &y->eval[1], &cuda::RNS_EVAL_UNIT.low);
-        }
-        __syncthreads();
-        int bits = (result->eval[1].exp - cuda::MP_H + 1)*(result->eval[1].frac != 0);
-        while(bits > 0){
-            cuda::mp_round_thread(result, bits);
-            bits = -1;
-        }
-    }*/
 
     ////////////////////////////////////////////////////////////////
     // Comparison routines
