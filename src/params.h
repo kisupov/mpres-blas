@@ -31,12 +31,6 @@
 #define RNS_MODULI_SIZE (8)
 
 /*
- * Initial index for parallel reduction in loops over the RNS moduli.
- * The largest power of two which strictly less than RNS_MODULI_SIZE
- */
-#define RNS_PARALLEL_REDUCTION_IDX (4)
-
-/*
  * Binary logarithm of the full RNS moduli product
  */
 #define RNS_MODULI_PRODUCT_LOG2 (242)

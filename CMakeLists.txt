@@ -16,10 +16,11 @@
 #  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
 
 
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.9)
 project(MPRES_BLAS)
 
-set( CMAKE_VERBOSE_MAKEFILE on )
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_VERBOSE_MAKEFILE on)
 
 #####################################
 # Paths section

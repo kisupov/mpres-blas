@@ -445,7 +445,6 @@ void rns_const_print(bool briefly) {
     std::cout << "- BIT-SIZE OF MODULI PRODUCT, LOG2(M): " << mpfr_get_d(log2, MPFR_RNDN) << std::endl;
     mpfr_clear(log2);
     std::cout << "- RNS_P2_SCALING_THRESHOLD, T: " << RNS_P2_SCALING_THRESHOLD << std::endl;
-    std::cout << "- RNS_PARALLEL_REDUCTION_IDX: " << RNS_PARALLEL_REDUCTION_IDX << std::endl;
     if (!briefly) {
         std::cout << "- RNS_MODULI, m_i: ";
         for (int i = 0; i < RNS_MODULI_SIZE; i++)
@@ -484,7 +483,7 @@ void rns_eval_const_print() {
  * @param mr - pointer to the result mixed-radix representation
  * @param x - pointer to the input RNS number
  */
-GCC_FORCEINLINE void perform_mrc(int *mr, int * x) {
+GCC_FORCEINLINE void perform_mrc(int * mr, int * x) {
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
         mr[i] = x[i];
         for (int j = 0; j < i; j++) {
@@ -536,13 +535,12 @@ namespace cuda{
      * @param mr - pointer to the result mixed-radix representation
      * @param x - pointer to the input RNS number
      */
-    DEVICE_CUDA_FORCEINLINE void perform_mrc(int *mr, int * x) {
+    DEVICE_CUDA_FORCEINLINE void perform_mrc(int * mr, int * x) {
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             mr[i] = x[i];
             for (int j = 0; j < i; j++) {
                 if (mr[i] < mr[j]) {
-                    long tmp = (long)cuda::RNS_MODULI[i] - (long)mr[j] + (long)mr[i];
-                    mr[i] = (int)tmp;
+                    mr[i] = cuda::mod_psub(mr[i], mr[j], cuda::RNS_MODULI[i]);
                 } else {
                     mr[i] = mr[i] - mr[j];
                 }
@@ -585,6 +583,7 @@ namespace cuda{
 
 /*!
  * Computes the interval evaluation for a given RNS number
+ * This is an improved version of the algorithm from IEEE Access paper (for reference, see README.md)
  * @param low - pointer to the lower bound of the result interval evaluation
  * @param upp - pointer to the upper bound of the result interval evaluation
  * @param x - pointer to the input RNS number
@@ -595,6 +594,8 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     double fracu[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding up
     double suml = 0.0; //Rounded downward sum
     double sumu = 0.0; //Rounded upward sum
+    int mrd[RNS_MODULI_SIZE];
+    int mr = -1;
     //Checking for zero
     if(rns_check_zero(x)){
         er_set(low, &RNS_EVAL_ZERO_BOUND);
@@ -610,36 +611,32 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     suml = psum_rd<RNS_MODULI_SIZE>(fracl);
     sumu = psum_ru<RNS_MODULI_SIZE>(fracu);
     //Splitting into whole and fractional parts
-    unsigned int whl = (unsigned int) suml; // Whole part
-    unsigned int whu = (unsigned int) sumu; // Whole part
+    auto whl = (unsigned int) suml; // Whole part
+    auto whu = (unsigned int) sumu; // Whole part
     suml = suml - whl;    // Fractional part
     sumu = sumu - whu;    // Fractional part
-    //Checking the correctness and adjusting
-    bool huge = false;
-    bool tiny = false;
-    if (whl != whu) { //Interval evaluation is wrong
-        int mr[RNS_MODULI_SIZE];
-        perform_mrc(mr, x); //Computing the mixed-radix representation of x
-        if (mr[RNS_MODULI_SIZE - 1] == 0) {
-            tiny = true; //Number is too small, the lower bound is incorrect
-            er_set(low, &RNS_EVAL_UNIT.low);
-        } else {
-            huge = true; //Number is too large, the upper bound is incorrect
-            er_set(upp, &RNS_EVAL_INV_UNIT.upp);
-        }
+    //Assign the computed values to the result
+    er_set_d(low, suml);
+    er_set_d(upp, sumu);
+    //Check for ambiguity
+    if(whl != whu) {
+        perform_mrc(mrd, x); //Computing the mixed-radix representation of x
+        mr = mrd[RNS_MODULI_SIZE - 1];
     }
-    /*
-     * Accuracy checking
-     * If the lower bound is incorrectly calculated (the number is too small), then refinement may be required;
-     * If the upper bound is incorrectly calculated (the number is too large), no refinement is required.
-    */
-    if (huge || sumu >= RNS_EVAL_ACCURACY) { //Refinement is not required
-        if (!tiny)  er_set_d(low, suml);
-        if (!huge)  er_set_d(upp, sumu);
+    //Adjust if ambiguity was found
+    if(mr > 0){
+        er_set(upp, &RNS_EVAL_INV_UNIT.upp);
+        return;
+    }
+    if(mr == 0){
+        er_set(low, &RNS_EVAL_UNIT.low);
+    }
+    // Refinement is not required
+    if(sumu >= RNS_EVAL_ACCURACY){
         return;
     }
     //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
-    int j = 0;
+    int K = 0;
     while (sumu < RNS_EVAL_ACCURACY) {
         //The improvement is that the refinement factor depends on the value of X
         int k = MAX(-(ceil(log2(sumu))+1), RNS_EVAL_REF_FACTOR);
@@ -649,7 +646,7 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
         }
         sumu = psum_ru<RNS_MODULI_SIZE>(fracu);
         sumu -= (unsigned int) sumu;
-        j += k;
+        K += k;
     }
     //Computing the shifted lower bound
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -660,8 +657,8 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
     er_set_d(low, suml);
     er_set_d(upp, sumu);
-    low->exp -= j;
-    upp->exp -= j;
+    low->exp -= K;
+    upp->exp -= K;
 }
 
 
@@ -702,7 +699,7 @@ GCC_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, i
         return;
     }
     //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
-    int j = 0;
+    int K = 0;
     while (sumu < RNS_EVAL_ACCURACY) {
         //The improvement is that the refinement factor depends on the value of X
         int k = MAX(-(ceil(log2(sumu))+1), RNS_EVAL_REF_FACTOR);
@@ -712,7 +709,7 @@ GCC_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, i
         }
         sumu = psum_ru<RNS_MODULI_SIZE>(fracu);
         sumu -= (unsigned int) sumu;
-        j += k;
+        K += k;
     }
     //Computing the shifted lower bound
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -723,8 +720,8 @@ GCC_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, i
     //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
     er_set_d(low, suml);
     er_set_d(upp, sumu);
-    low->exp -= j;
-    upp->exp -= j;
+    low->exp -= K;
+    upp->exp -= K;
 }
 
 
@@ -736,6 +733,7 @@ namespace cuda{
 
     /*!
      * Computes the interval evaluation for a given RNS number
+     * This is an improved version of the algorithm from IEEE Access paper (for reference, see README.md)
      * @param low - pointer to the lower bound of the result interval evaluation
      * @param upp - pointer to the upper bound of the result interval evaluation
      * @param x - pointer to the input RNS number
@@ -747,6 +745,8 @@ namespace cuda{
         double fracu[RNS_MODULI_SIZE];
         double suml = 0.0;
         double sumu = 0.0;
+        int mrd[RNS_MODULI_SIZE];
+        int mr = -1;
         //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
         cuda::rns_mul(s, x, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -763,36 +763,32 @@ namespace cuda{
             return;
         }
         //Splitting into whole and fractional parts
-        unsigned int whl = (unsigned int) (suml);
-        unsigned int whu = (unsigned int) (sumu);
+        auto whl = (unsigned int) (suml);
+        auto whu = (unsigned int) (sumu);
         suml = __dsub_rd(suml, whl);    // lower bound
         sumu = __dsub_ru(sumu, whu);    // upper bound
-        //Checking the correctness and adjusting
-        bool huge = false;
-        bool tiny = false;
-        if (whl != whu) { //Interval evaluation is wrong
-            int mr[RNS_MODULI_SIZE];
-            cuda::perform_mrc(mr, x); //Computing the mixed-radix representation of x
-            if (mr[RNS_MODULI_SIZE - 1] == 0) {
-                tiny = true; //Number is too small, the lower bound is incorrect
-                cuda::er_set(low, &cuda::RNS_EVAL_UNIT.low);
-            } else {
-                huge = true;  // Number is too large, incorrect upper bound
-                cuda::er_set(upp, &cuda::RNS_EVAL_INV_UNIT.upp);
-            }
+        //Assign the computed values to the result
+        cuda::er_set_d(low, suml);
+        cuda::er_set_d(upp, sumu);
+        //Check for ambiguity
+        if(whl != whu) {
+            cuda::perform_mrc(mrd, x); //Computing the mixed-radix representation of x
+            mr = mrd[RNS_MODULI_SIZE - 1];
         }
-        /*
-         * Accuracy checking
-         * If the lower bound is incorrectly calculated (the number is too small), then refinement may be required;
-         * If the upper bound is incorrectly calculated (the number is too large), no refinement is required.
-        */
-        if (huge || sumu >= accuracy_constant) { // Refinement is not required
-            if (!tiny)  cuda::er_set_d(low, suml);
-            if (!huge)  cuda::er_set_d(upp, sumu);
+        //Adjust if ambiguity was found
+        if(mr > 0){
+            cuda::er_set(upp, &cuda::RNS_EVAL_INV_UNIT.upp);
+            return;
+        }
+        if(mr == 0){
+            cuda::er_set(low, &cuda::RNS_EVAL_UNIT.low);
+        }
+        // Refinement is not required
+        if(sumu >= accuracy_constant){
             return;
         }
         //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
-        int j = 0;
+        int K = 0;
         while (sumu < accuracy_constant) {
             //The improvement is that the refinement factor depends on the value of X
             int k = MAX(-(ceil(log2(sumu))+1), cuda::RNS_EVAL_REF_FACTOR);
@@ -802,7 +798,7 @@ namespace cuda{
             }
             sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
             sumu = __dsub_ru(sumu, (unsigned int) sumu);
-            j += k;
+            K += k;
         }
         // Computing the shifted lower bound
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -813,8 +809,8 @@ namespace cuda{
         //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
         cuda::er_set_d(low, suml);
         cuda::er_set_d(upp, sumu);
-        low->exp -= j;
-        upp->exp -= j;
+        low->exp -= K;
+        upp->exp -= K;
     }
 
 
@@ -857,7 +853,7 @@ namespace cuda{
             return;
         }
         //Need more accuracy. Performing a refinement loop with stepwise calculation of the shifted upper bound
-        int j = 0;
+        int K = 0;
         while (sumu < accuracy_constant) {
             //The improvement is that the refinement factor depends on the value of X
             int k = MAX(-(ceil(log2(sumu))+1), cuda::RNS_EVAL_REF_FACTOR);
@@ -867,7 +863,7 @@ namespace cuda{
             }
             sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
             sumu = __dsub_ru(sumu, (unsigned int) sumu);
-            j += k;
+            K += k;
         }
         // Computing the shifted lower bound
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -878,8 +874,8 @@ namespace cuda{
         //Setting the result lower and upper bounds of eval with appropriate correction (scaling by a power of two)
         cuda::er_set_d(low, suml);
         cuda::er_set_d(upp, sumu);
-        low->exp -= j;
-        upp->exp -= j;
+        low->exp -= K;
+        upp->exp -= K;
     }
 
 
@@ -1002,8 +998,6 @@ void rns_scale2pow(int * result, int * x, unsigned int D) {
  */
 namespace cuda{
 
-    ///// Single-threaded functions /////
-
     /*
      * For a given RNS number x = (x0,...,xn), this helper function computes k such that
      * X = sum( Mi * |xi * mult.inv(Mi)|_mi ) - k * M. Array c stores the computed values
@@ -1105,164 +1099,6 @@ namespace cuda{
         }
     }
 
-    ///// Multi-threaded functions /////
-
-    /*
-     * For a given RNS number x = (x0,...,xn), this helper function computes k such that
-     * X = sum( Mi * |xi * mult.inv(Mi)|_mi ) - k * M. Array c stores the computed values
-     * |xi * mult.inv(Mi)|_mi, where mult.inv(Mi) is the modulo mi multiplicative inverse of Mi, i.e. M_i^{-1} mod mi
-     * This function must be performed by n threads simultaneously within a single thread block.
-     */
-    DEVICE_CUDA_FORCEINLINE static void compute_k_thread(int * result, int * x, int c) {
-        int residueId = threadIdx.x;
-        int modulus = cuda::RNS_MODULI[residueId];
-        __shared__ double s_upp[RNS_MODULI_SIZE];
-        __shared__ double s_low[RNS_MODULI_SIZE];
-        __shared__ bool return_flag;
-        return_flag = false;
-        int k_low, k_upp;
-        s_low[residueId] = __ddiv_rd(c, (double) modulus);
-        s_upp[residueId] = __ddiv_ru(c, (double) modulus);
-        __syncthreads();
-        for (unsigned int s = RNS_PARALLEL_REDUCTION_IDX; s > 0; s >>= 1) {
-            if (residueId < s && residueId + s < RNS_MODULI_SIZE) {
-                s_low[residueId] = __dadd_rd((double) s_low[residueId], (double) s_low[residueId + s]);
-                s_upp[residueId] = __dadd_ru((double) s_upp[residueId], (double) s_upp[residueId + s]);
-            }
-            __syncthreads();
-        }
-        k_low = (int) s_low[residueId];
-        k_upp = (int) s_upp[residueId];
-        if (residueId == 0) {
-            if (k_low == k_upp) {
-                *result = k_low;
-                return_flag = true;
-            }
-        }
-        __syncthreads();
-        if (return_flag) {
-            return;
-        } else {
-            if (residueId == 0) {
-                int mr[RNS_MODULI_SIZE];
-                cuda::perform_mrc(mr, x); // parallel MRC should be used, see http://dx.doi.org/10.1109/ISCAS.2009.5117800
-                if (mr[RNS_MODULI_SIZE - 1] == 0) {
-                    *result = k_upp;
-                } else{
-                    *result = k_low;
-                }
-            }
-        }
-        __syncthreads();
-    }
-
-    /*
-     * For a given RNS number x = (x0,...,xn), which is guaranteed not to be too large, this helper function computes k such that
-     * X = sum( Mi * |xi * mult.inv(Mi)|_mi ) - k * M. Array c stores the computed values
-     * |xi * mult.inv(Mi)|_mi, where mult.inv(Mi) is the modulo mi multiplicative inverse of Mi, i.e. M_i^{-1} mod mi
-     * This function performs faster than the previous common function.
-     * This function must be performed by n threads simultaneously within a single thread block.
-     */
-    DEVICE_CUDA_FORCEINLINE static void compute_k_fast_thread(int * result, int * x, int c){
-        int residueId = threadIdx.x;
-        __shared__ double S[RNS_MODULI_SIZE];
-        S[residueId] = __ddiv_ru((double) c, (double) cuda::RNS_MODULI[residueId]);
-        __syncthreads();
-        for (unsigned int s = RNS_PARALLEL_REDUCTION_IDX; s > 0; s >>= 1) {
-            if (residueId < s && residueId + s < RNS_MODULI_SIZE) {
-                S[residueId] = __dadd_ru(S[residueId], S[residueId + s]);
-            }
-            __syncthreads();
-        }
-        if (residueId == 0)
-            *result = (int) S[0];
-        __syncthreads();
-    }
-
-    /*
-     * This helper function performs one step of scaling by a power of two
-     * This function must be performed by n threads simultaneously within a single thread block.
-     */
-    DEVICE_CUDA_FORCEINLINE static void scale2powj_thread(int * y, int k, unsigned int j, int pow2j, int * x, int c) {
-        int residueId = threadIdx.x;
-        int modulus = cuda::RNS_MODULI[residueId];
-        int multiple;
-        __shared__ int residue[RNS_MODULI_SIZE]; // X mod 2^j
-        //RNS_PART_MODULI_PRODUCT_POW2_RESIDUES[j-1][i] ->  M_i mod 2^j
-        residue[residueId] = cuda::mod_mul(cuda::RNS_PART_MODULI_PRODUCT_POW2_RESIDUES[j - 1][residueId], c, pow2j);// (cuda::RNS_PART_MODULI_PRODUCT_POW2_RESIDUES[j - 1][residueId] * terms) % pow2j;
-        __syncthreads();
-        for (unsigned int s = RNS_PARALLEL_REDUCTION_IDX; s > 0; s >>= 1) {
-            if (residueId < s && residueId + s < RNS_MODULI_SIZE) {
-                residue[residueId] = residue[residueId] + residue[residueId + s];
-            }
-            __syncthreads();
-        }
-        //RNS_MODULI_PRODUCT_POW2_RESIDUES[j-1] ->  M mod 2^j
-        if(residueId == 0){
-            residue[0] = (residue[0] - k * cuda::RNS_MODULI_PRODUCT_POW2_RESIDUES[j - 1]) % pow2j;
-            if(residue[0] < 0){
-                residue[0] += pow2j;
-            }
-        }
-        __syncthreads();
-        residue[residueId] = residue[0];
-        multiple = residue[residueId] % modulus;
-        multiple = x[residueId] - multiple;
-        if (multiple < 0) {
-            multiple += modulus;
-        }
-        //RNS_POW2_INVERSE[j-1][i] -> (2^j )^{-1} mod m_i
-        y[residueId] = cuda::mod_mul(multiple, cuda::RNS_POW2_INVERSE[j - 1][residueId], modulus);   //( multiple * cuda::RNS_POW2_INVERSE[j - 1][residueId] ) % modulus;
-    }
-
-    /*!
-     * Parallel (n threads) scaling an RNS number by a power of 2: result = x / 2^D.
-     * This function must be performed by n threads simultaneously within a single thread block.
-     * @param result - pointer to the result (scaled number)
-     * @param x - pointer to the RNS number to be scaled
-     * @param D - exponent of the scaling factor
-     */
-    DEVICE_CUDA_FORCEINLINE void rns_scale2pow_thread(int * result, int * x, unsigned int D) {
-        result[threadIdx.x] = x[threadIdx.x];
-        __shared__ int k;
-        int t;
-        int c;
-        int residueId = threadIdx.x;
-        int modulus = cuda::RNS_MODULI[residueId];
-        int inverse = cuda::RNS_PART_MODULI_PRODUCT_INVERSE[residueId];
-
-        t = D / RNS_P2_SCALING_THRESHOLD;
-        __syncthreads();
-        //first step
-        if (t > 0) {
-            c = (x[residueId] * inverse) % modulus;
-            cuda::compute_k_thread(&k, x, c);
-            cuda::scale2powj_thread(result, k, RNS_P2_SCALING_THRESHOLD, RNS_P2_SCALING_FACTOR, x, c);
-            t -= 1;
-        }
-        __syncthreads();
-        //second step
-        while (t > 0) {
-            c = (result[residueId] * inverse) % modulus;
-            cuda::compute_k_fast_thread(&k, result, c);
-            cuda::scale2powj_thread(result, k, RNS_P2_SCALING_THRESHOLD, RNS_P2_SCALING_FACTOR, result, c);
-            t -= 1;
-            __syncthreads();
-        }
-        //third step
-        unsigned int d = D % RNS_P2_SCALING_THRESHOLD;
-        if (d > 0) {
-            c =  cuda::mod_mul(result[residueId], inverse, modulus);
-            if (d < D) {
-                cuda::compute_k_fast_thread(&k, result, c);
-            } else {
-                cuda::compute_k_thread(&k, result, c);
-            }
-            cuda::scale2powj_thread(result, k, d, 1 << d, result, c);
-            __syncthreads();
-        }
-    }
-
 } //end of namespace
 
 
@@ -1278,14 +1114,14 @@ namespace cuda{
  * @param y - pointer to the number in the RNS
  */
 GCC_FORCEINLINE int rns_cmp(int *x, int *y) {
-    interval_t xeval; //Interval evaluation of x
-    interval_t yeval; //Interval evaluation of y
-    rns_eval_compute(&xeval.low, &xeval.upp, x);
-    rns_eval_compute(&yeval.low, &yeval.upp, y);
-    if(er_ucmp(&xeval.low, &yeval.upp) > 0){
+    interval_t ex; //Interval evaluation of x
+    interval_t ey; //Interval evaluation of y
+    rns_eval_compute(&ex.low, &ex.upp, x);
+    rns_eval_compute(&ey.low, &ey.upp, y);
+    if(er_ucmp(&ex.low, &ey.upp) > 0){
         return 1;
     }
-    if(er_ucmp(&yeval.low, &xeval.upp) > 0){
+    if(er_ucmp(&ey.low, &ex.upp) > 0){
         return -1;
     }
     bool equals = true;
@@ -1300,22 +1136,22 @@ GCC_FORCEINLINE int rns_cmp(int *x, int *y) {
 
 /*!
  * Given two integers x and y such that 0 \le x,y < M, represented as x = (x1 ,x2,...,xn) and y = (y1 ,y2,...,yn),
- * and their interval evaluations I(X/M) = [lxeval, uxeval], I(Y/M) = [lyeval, uyeval], this routine returns:
+ * and their interval evaluations I(X/M) = [exl, exu], I(Y/M) = [eyl, eyu], this routine returns:
  *  0, if x = y
  *  1, if x > y
  * -1, if x < y
  * @param x - pointer to the number in the RNS
- * @param lxeval - pointer to the lower bound of the interval evaluation of x
- * @param uxeval - pointer to the upper bound of the interval evaluation of x
+ * @param exl - pointer to the lower bound of the interval evaluation of x
+ * @param exu - pointer to the upper bound of the interval evaluation of x
  * @param y - pointer to the number in the RNS
- * @param lyeval - pointer to the lower bound of the interval evaluation of y
- * @param uyeval - pointer to the upper bound of the interval evaluation of y
+ * @param eyl - pointer to the lower bound of the interval evaluation of y
+ * @param eyu - pointer to the upper bound of the interval evaluation of y
  */
-GCC_FORCEINLINE int rns_cmp(int *x, er_float_ptr lxeval, er_float_ptr uxeval, int *y, er_float_ptr lyeval, er_float_ptr uyeval) {
-    if(er_ucmp(lxeval, uyeval) > 0){
+GCC_FORCEINLINE int rns_cmp(int *x, er_float_ptr exl, er_float_ptr exu, int *y, er_float_ptr eyl, er_float_ptr eyu) {
+    if(er_ucmp(exl, eyu) > 0){
         return 1;
     }
-    if(er_ucmp(lyeval, uxeval) > 0){
+    if(er_ucmp(eyl, exu) > 0){
         return -1;
     }
     bool equals = true;
@@ -1344,14 +1180,14 @@ namespace cuda {
      * @param y - pointer to the number in the RNS
      */
     DEVICE_CUDA_FORCEINLINE int rns_cmp(int *x, int *y) {
-        interval_t xeval; //Interval evaluation of x
-        interval_t yeval; //Interval evaluation of y
-        cuda::rns_eval_compute(&xeval.low, &xeval.upp, x);
-        cuda::rns_eval_compute(&yeval.low, &yeval.upp, y);
-        if(cuda::er_ucmp(&xeval.low, &yeval.upp) > 0){
+        interval_t ex; //Interval evaluation of x
+        interval_t ey; //Interval evaluation of y
+        cuda::rns_eval_compute(&ex.low, &ex.upp, x);
+        cuda::rns_eval_compute(&ey.low, &ey.upp, y);
+        if(cuda::er_ucmp(&ex.low, &ey.upp) > 0){
             return 1;
         }
-        if(cuda::er_ucmp(&yeval.low, &xeval.upp) > 0){
+        if(cuda::er_ucmp(&ey.low, &ex.upp) > 0){
             return -1;
         }
         bool equals = true;
@@ -1366,22 +1202,22 @@ namespace cuda {
 
     /*!
      * Given two integers x and y such that 0 \le x,y < M, represented as x = (x1 ,x2,...,xn) and y = (y1 ,y2,...,yn),
-     * and their interval evaluations I(X/M) = [lxeval, uxeval], I(Y/M) = [lyeval, uyeval], this routine returns:
+     * and their interval evaluations I(X/M) = [exl, exu], I(Y/M) = [eyl, eyu], this routine returns:
      *  0, if x = y
      *  1, if x > y
      * -1, if x < y
      * @param x - pointer to the number in the RNS
-     * @param lxeval - pointer to the lower bound of the interval evaluation of x
-     * @param uxeval - pointer to the upper bound of the interval evaluation of x
+     * @param exl - pointer to the lower bound of the interval evaluation of x
+     * @param exu - pointer to the upper bound of the interval evaluation of x
      * @param y - pointer to the number in the RNS
-     * @param lyeval - pointer to the lower bound of the interval evaluation of y
-     * @param uyeval - pointer to the upper bound of the interval evaluation of y
+     * @param eyl - pointer to the lower bound of the interval evaluation of y
+     * @param eyu - pointer to the upper bound of the interval evaluation of y
      */
-    DEVICE_CUDA_FORCEINLINE int rns_cmp(int *x, er_float_ptr lxeval, er_float_ptr uxeval, int *y, er_float_ptr lyeval, er_float_ptr uyeval) {
-        if(cuda::er_ucmp(lxeval, uyeval) > 0){
+    DEVICE_CUDA_FORCEINLINE int rns_cmp(int *x, er_float_ptr exl, er_float_ptr exu, int *y, er_float_ptr eyl, er_float_ptr eyu) {
+        if(cuda::er_ucmp(exl, eyu) > 0){
             return 1;
         }
-        if(cuda::er_ucmp(lyeval, uxeval) > 0){
+        if(cuda::er_ucmp(eyl, exu) > 0){
             return -1;
         }
         bool equals = true;

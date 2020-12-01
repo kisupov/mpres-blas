@@ -1,29 +1,36 @@
 # Multiple-Precision GPU Accelerated BLAS Routines based on Residue Number System (MPRES-BLAS)
-###### Version 1.1.0, released 2020-10-12
+###### Version 1.2.0, released 2020-11-30
 
 
 The MPRES-BLAS library implements a number of linear algebra operations, like the BLAS (Basic Linear Algebra Subprograms) routines, with [multiple precision](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) on CUDA-enabled graphics processing units. The library uses a residue number system ([RNS](https://en.wikipedia.org/wiki/Residue_number_system)) to represent multiple-precision floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS a good tool for high-performance computing on many-core architectures such as GPUs.
 
-The current version of MPRES-BLAS supports the following operations with multiple precision:
+1. The current version of MPRES-BLAS supports the following dense operations with multiple precision:
 
-* ASUM --- Sum of absolute values (`mpasum`)
-* DOT --- Dot product of two vectors (`mpdot`)
-* SCAL --- Vector-scalar product (`mpscal`)
-* AXPY --- Constant times a vector plus a vector (`mpaxpy`)
-* AXPY_DOT --- Combined AXPY and DOT (`mpaxpydot`)
-* WAXPBY --- Scaled vector addition (`mpwaxpby`)
-* NORM --- Vector norms (`mpnorm`)
-* ROT --- Apply a plane rotation to vectors (`mprot`)
-* GEMV --- Matrix-vector multiplication (`mpgemv`)
-* GEMM --- General matrix multiplication (`mpgemm`)
-* GER --- Rank-1 update of a general matrix (`mpger`)
-* GE_ADD --- Matrix add and scale (`mpgeadd`)
-* GE_ACC --- Matrix accumulation and scale (`mpgeacc`)
-* GE_DIAG_SCALE --- Diagonal scaling (`mpgediagscale`)
-* GE_LRSCALE --- Two-sided diagonal scaling (`mpgelrscale`)
-* GE_NORM --- Matrix norms (`mpgenorm`)
+    * ASUM --- Sum of absolute values (`mpasum`)
+    * DOT --- Dot product of two vectors (`mpdot`)
+    * SCAL --- Vector-scalar product (`mpscal`)
+    * AXPY --- Constant times a vector plus a vector (`mpaxpy`)
+    * AXPY_DOT --- Combined AXPY and DOT (`mpaxpydot`)
+    * WAXPBY --- Scaled vector addition (`mpwaxpby`)
+    * NORM --- Vector norms (`mpnorm`)
+    * ROT --- Apply a plane rotation to vectors (`mprot`)
+    * GEMV --- Matrix-vector multiplication (`mpgemv`)
+    * GEMM --- General matrix multiplication (`mpgemm`)
+    * GER --- Rank-1 update of a general matrix (`mpger`)
+    * GE_ADD --- Matrix add and scale (`mpgeadd`)
+    * GE_ACC --- Matrix accumulation and scale (`mpgeacc`)
+    * GE_DIAG_SCALE --- Diagonal scaling (`mpgediagscale`)
+    * GE_LRSCALE --- Two-sided diagonal scaling (`mpgelrscale`)
+    * GE_NORM --- Matrix norms (`mpgenorm`)
 
-Furthermore, the MPRES-BLAS library provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/mpfloat.cuh`), so it can also be considered as a general purpose multiple-precision arithmetic library. In addition, the library implements a number of optimized RNS algorithms, such as magnitude comparison and power-of-two scaling (see `src/rns.cuh`), and also supports extended-range floating-point arithmetic with working precision (see `src/extrange.cuh`), which prevents underflow and overflow in a computation involving extremely large or small quantities.
+2. The following sparse multiple-precision linear algebra operations are also currently supported:
+
+    * SpMV CSR --- Sparse matrix-vector multiplication in the CSR matrix storage format (`mpspmvcsr`)
+    * SpMV ELL --- Sparse matrix-vector multiplication in the ELLPACK matrix storage format (`mpspmvell`)
+
+3. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/mpfloat.cuh`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
+
+4. In addition, the library implements a number of optimized RNS algorithms, such as magnitude comparison and power-of-two scaling (see `src/rns.cuh`), and also supports extended-range floating-point arithmetic with working precision (see `src/extrange.cuh`), which prevents underflow and overflow in a computation involving extremely large or small quantities.
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
 Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for details.
@@ -39,7 +46,6 @@ For now, when using a custom or changing an existing moduli set or its size,
 you need to change the following #defines in `src/params.h`:
 
 * `RNS_MODULI_PRODUCT_LOG2`
-* `RNS_PARALLEL_REDUCTION_IDX`
 
 When using large moduli (like `1283742825`) to increase the precision of computations, make sure your environment has support for 8-byte `long` type.
 
