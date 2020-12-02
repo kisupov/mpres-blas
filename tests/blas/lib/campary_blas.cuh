@@ -19,6 +19,7 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifndef EXCLUDE_CAMPARY
 #ifndef MPRES_TEST_CAMPARY_BLAS_CUH
 #define MPRES_TEST_CAMPARY_BLAS_CUH
 
@@ -1345,5 +1346,5 @@ void campary_ge_lrscale_test(int m, int n,  mpfr_t *DL, int incdl, mpfr_t *DR, i
     cudaFree(dDR);
 }
 
-
 #endif //MPRES_TEST_CAMPARY_BLAS_CUH
+#endif //EXCLUDE_CAMPARY

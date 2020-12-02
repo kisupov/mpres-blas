@@ -19,13 +19,17 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+/*
+ * Exclude some benchmarks
+ */
+#define EXCLUDE_MPACK
+
 #include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/blas/mpaxpy.cuh"
 #include "3rdparty.cuh"
-
 
 #define N 1000000 //Operation size
 #define REPEAT_TEST 10 //Number of repeats
@@ -260,48 +264,6 @@ void arprec_test(mpfr_t *x, mpfr_t *y, mpfr_t alpha, int n) {
     mp_real::mp_finalize();
 }
 
-/////////
-// MPACK
-/////////
-void mpack_test(mpfr_t * x, mpfr_t *y, mpfr_t alpha, int n) {
-    Logger::printDash();
-    InitCpuTimer();
-    PrintTimerName("[CPU] MPACK axpy");
-
-    //Set precision
-    mpfr::mpreal::set_default_prec ( MP_PRECISION );
-
-    //Init
-    mpreal *mpreal_x = new mpreal[n];
-    mpreal *mpreal_y = new mpreal[n];
-    mpreal mpreal_alpha = alpha;
-    for (int j = 0; j < n; j++) {
-        mpreal_x[j] = x[j];
-    }
-
-    //Launch
-    for(int i = 0; i < REPEAT_TEST; i ++) {
-        for (int j = 0; j < n; j++) {
-            mpreal_y[j] = y[j];
-        }
-        StartCpuTimer();
-        Raxpy(n, mpreal_alpha, mpreal_x, 1, mpreal_y, 1);
-        EndCpuTimer();
-    }
-    PrintCpuTimer("took");
-
-    //Print
-    mpreal mpreal_result = 0.0;
-    for (int i = 0; i < n; i++) {
-        mpreal_result += mpreal_y[i];
-    }
-    mpfr_printf("result: %.70Rf\n", &mpreal_result);
-
-    //Cleanup
-    delete [] mpreal_x;
-    delete [] mpreal_y;
-}
-
 //////////
 // MPDECIMAL
 //////////
@@ -457,7 +419,9 @@ int main() {
     Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    #ifndef EXCLUDE_CAMPARY
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
+    #endif
     Logger::printParam("OPENBLAS_THREADS", OPENBLAS_THREADS);
     Logger::endSection(true);
 
@@ -490,13 +454,20 @@ int main() {
     // Multiple-precision tests
     mpfr_test(vectorX, vectorY, alpha[0], N);
     arprec_test(vectorX, vectorY, alpha[0], N);
-    mpack_test(vectorX, vectorY, alpha[0], N);
+    #ifndef EXCLUDE_MPACK
+    mpack_axpy_test(vectorX, vectorY, alpha[0], N, MP_PRECISION, REPEAT_TEST);
+    #endif
     mpdecimal_test(vectorX, vectorY, alpha[0], N);
     mpres_test(vectorX, vectorY, alpha[0], N);
+    #ifndef EXCLUDE_GARPREC
     garprec_axpy_test(N, alpha[0], vectorX, vectorY, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CAMPARY
     campary_axpy_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CUMP
     cump_axpy_test(N, alpha[0], vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
-
+    #endif
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 

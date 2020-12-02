@@ -19,13 +19,17 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+/*
+ * Exclude some benchmarks
+ */
+#define EXCLUDE_MPACK
+
 #include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/blas/mpdot.cuh"
 #include "3rdparty.cuh"
-
 
 #define N 1000000 //Operation size
 #define REPEAT_TEST 10 //Number of repeats
@@ -240,40 +244,6 @@ void arprec_test(mpfr_t *x, mpfr_t *y, int n){
     mp_real::mp_finalize();
 }
 
-/////////
-// MPACK
-/////////
-void mpack_test(mpfr_t *x, mpfr_t *y, int n) {
-    InitCpuTimer();
-    Logger::printDash();
-    PrintTimerName("[CPU] MPACK dot");
-
-    //Set precision
-    mpfr::mpreal::set_default_prec ( MP_PRECISION );
-
-    //Init
-    mpreal *mpreal_x = new mpreal[n];
-    mpreal *mpreal_y = new mpreal[n];
-    mpreal mpreal_result = 0;
-    for (int i = 0; i < n; i++) {
-        mpreal_x[i] = x[i];
-        mpreal_y[i] = y[i];
-    }
-
-    //Launch
-    StartCpuTimer();
-    for(int i = 0; i < REPEAT_TEST; i ++){
-        mpreal_result = Rdot(n, mpreal_x, 1, mpreal_y, 1);
-    }
-    EndCpuTimer();
-    PrintCpuTimer("took");
-    mpfr_printf("result: %.70Rf\n", &mpreal_result);
-
-    //Cleanup
-    delete [] mpreal_x;
-    delete [] mpreal_y;
-}
-
 //////////
 // MPDECIMAL
 //////////
@@ -443,7 +413,9 @@ int main() {
     Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
     Logger::printParam("MPRES_CUDA_BLOCKS_REDUCE", MPRES_CUDA_BLOCKS_REDUCE);
     Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
+    #ifndef EXCLUDE_CAMPARY
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
+    #endif
     Logger::endSection(true);
 
     //Inputs
@@ -473,12 +445,20 @@ int main() {
     // Multiple precision tests
     mpfr_test(vectorX, vectorY, N);
     arprec_test(vectorX, vectorY, N);
-    mpack_test(vectorX, vectorY, N);
+    #ifndef EXCLUDE_MPACK
+    mpack_dot_test(vectorX, vectorY, N, MP_PRECISION, REPEAT_TEST);
+    #endif
     mpdecimal_test(vectorX, vectorY, N);
     mpres_test(vectorX, vectorY, N);
+    #ifndef EXCLUDE_GARPREC
     garprec_dot_test(N, vectorX, vectorY, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CAMPARY
     campary_dot_test<CAMPARY_PRECISION>(N, vectorX, vectorY, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CUMP
     cump_dot_test(N, vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
+    #endif
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure

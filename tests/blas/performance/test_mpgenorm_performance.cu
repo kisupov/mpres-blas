@@ -19,15 +19,18 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define EXCLUDE_OPENBLAS 1
-#define EXCLUDE_XBLAS 1
-#define EXCLUDE_ARPREC 1
-#define EXCLUDE_MPACK 1
-#define EXCLUDE_MPDECIMAL 1
-#define EXCLUDE_CUMP 1
-#define EXCLUDE_GARPREC 1
-#define EXCLUDE_CAMPARY 1
-#define EXCLUDE_CUBLAS 1
+/*
+ * Exclude some benchmarks
+ */
+#define EXCLUDE_OPENBLAS
+#define EXCLUDE_XBLAS
+#define EXCLUDE_ARPREC
+#define EXCLUDE_MPACK
+#define EXCLUDE_MPDECIMAL
+#define EXCLUDE_CUMP
+#define EXCLUDE_GARPREC
+#define EXCLUDE_CAMPARY
+#define EXCLUDE_CUBLAS
 
 #include "omp.h"
 #include "../../logger.cuh"

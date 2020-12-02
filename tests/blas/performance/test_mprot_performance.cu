@@ -19,6 +19,11 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+/*
+ * Exclude some benchmarks
+ */
+#define EXCLUDE_MPACK
+
 #include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
@@ -75,52 +80,6 @@ static void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
 }
 
 /********************* Benchmarks *********************/
-
-/////////
-// MPACK
-/////////
-void mpack_test( int n, mpfr_t * x, mpfr_t *y, mpfr_t c, mpfr_t s) {
-    Logger::printDash();
-    InitCpuTimer();
-    PrintTimerName("[CPU] MPACK rot");
-
-    //Set precision
-    mpfr::mpreal::set_default_prec ( MP_PRECISION );
-
-    //Init
-    mpreal *mpreal_x = new mpreal[n];
-    mpreal *mpreal_y = new mpreal[n];
-    mpreal mpreal_c = c;
-    mpreal mpreal_s = s;
-    for (int j = 0; j < n; j++) {
-        mpreal_x[j] = x[j];
-    }
-
-    //Launch
-    for(int i = 0; i < REPEAT_TEST; i++) {
-        #pragma omp parallel for
-        for (int j = 0; j < n; j++) {
-            mpreal_x[j] = x[j];
-            mpreal_y[j] = y[j];
-        }
-        StartCpuTimer();
-        Rrot(n, mpreal_x, 1, mpreal_y, 1, mpreal_c, mpreal_s);
-        EndCpuTimer();
-    }
-    PrintCpuTimer("took");
-
-    //Print
-    for (int i = 1; i < n; i++) {
-        mpreal_x[0] += mpreal_x[i];
-        mpreal_y[0] += mpreal_y[i];
-    }
-    mpfr_printf("result x: %.70Rf\n", &mpreal_x[0]);
-    mpfr_printf("result y: %.70Rf\n", &mpreal_y[0]);
-
-    //Cleanup
-    delete [] mpreal_x;
-    delete [] mpreal_y;
-}
 
 /////////
 // MPRES-BLAS
@@ -222,7 +181,9 @@ int main() {
     Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    #ifndef EXCLUDE_CAMPARY
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
+    #endif
     Logger::endSection(true);
 
     //Inputs
@@ -239,11 +200,19 @@ int main() {
     cudaCheckErrors();
 
     // Multiple-precision tests
-    mpack_test(N, vectorX, vectorY, c[0], s[0]);
+    #ifndef EXCLUDE_MPACK
+    mpack_rot_test(N, vectorX, vectorY, c[0], s[0], MP_PRECISION, REPEAT_TEST);
+    #endif
     mpres_test(N, vectorX, vectorY, c[0], s[0]);
+    #ifndef EXCLUDE_GARPREC
     garprec_rot_test(N, vectorX, vectorY, c[0], s[0], MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CAMPARY
     campary_rot_test<CAMPARY_PRECISION>(N, vectorX, vectorY, c[0], s[0], INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CUMP
     cump_rot_test(N, vectorX, vectorY, c[0], s[0], MP_PRECISION, INP_DIGITS, REPEAT_TEST);
+    #endif
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     //cudaCheckErrors(); //CUMP gives failure
