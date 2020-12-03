@@ -23,12 +23,11 @@
 #ifndef MPRES_TEST_TSTHELPER_CUH
 #define MPRES_TEST_TSTHELPER_CUH
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <random>
-#include "mpfr.h"
+#include <chrono>
 #include <timers.cuh>
-#include "../src/mpfloat.cuh"
+#include "../src/arith/mpassign.cuh"
+#include "../src/arith/mpadd.cuh"
 
 
 /*

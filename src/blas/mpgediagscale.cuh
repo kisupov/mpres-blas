@@ -26,7 +26,7 @@
 
 #include "../mpmatrix.cuh"
 #include "../kernel_config.cuh"
-#include "../mblas_enum.cuh"
+#include "mblas_enum.cuh"
 
 namespace cuda
 {

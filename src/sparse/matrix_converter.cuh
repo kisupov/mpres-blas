@@ -23,9 +23,11 @@
 #ifndef MATRIX_CONVERTER_CUH
 #define MATRIX_CONVERTER_CUH
 
+#include <algorithm>
+#include <vector>
+#include <iostream>
 #include <fstream>
 #include "assert.h"
-#include "mparray.cuh"
 
 using namespace std;
 

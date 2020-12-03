@@ -24,10 +24,11 @@
 #define MPGEMM_CUH
 
 
-#include "../mpvector.cuh"
+#include "../arith/mpadd.cuh"
+#include "../arith/mpmul.cuh"
 #include "../mpmatrix.cuh"
 #include "../kernel_config.cuh"
-#include "../mblas_enum.cuh"
+#include "mblas_enum.cuh"
 
 namespace cuda
 {

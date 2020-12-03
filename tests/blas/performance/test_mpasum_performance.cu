@@ -19,10 +19,18 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "omp.h"
+/*
+ * Exclude some benchmarks
+ */
+#define EXCLUDE_MPACK
+#define EXCLUDE_GARPREC
+#define EXCLUDE_CAMPARY
+#define EXCLUDE_CUMP
+
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpasum.cuh"
 #include "3rdparty.cuh"
 
@@ -232,37 +240,6 @@ void arprec_test(mpfr_t *x, int n){
     mp_real::mp_finalize();
 }
 
-/////////
-// MPACK
-/////////
-void mpack_test(mpfr_t *x, int n) {
-    InitCpuTimer();
-    Logger::printDash();
-    PrintTimerName("[CPU] MPACK asum");
-
-    //Set precision
-    mpfr::mpreal::set_default_prec(MP_PRECISION);
-
-    //Init
-    mpreal *mpreal_x = new mpreal[n];
-    mpreal mpreal_result;
-    mpreal_result = 0;
-    for (int i = 0; i < n; i++) {
-        mpreal_x[i] = x[i];
-    }
-
-    //Launch
-    StartCpuTimer();
-    for (int i = 0; i < REPEAT_TEST; i++)
-        mpreal_result = Rasum(n, mpreal_x, 1); // Call MPACK
-    EndCpuTimer();
-    PrintCpuTimer("took");
-    mpfr_printf("result: %.70Rf\n", &mpreal_result);
-
-    //Clear
-    delete[] mpreal_x;
-}
-
 //////////
 // MPDECIMAL
 //////////
@@ -408,7 +385,9 @@ int main() {
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
     Logger::printParam("MPRES_CUDA_BLOCKS_REDUCE", MPRES_CUDA_BLOCKS_REDUCE);
     Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
+    #ifndef EXCLUDE_CAMPARY
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
+    #endif
     Logger::endSection(true);
 
     //Inputs
@@ -431,13 +410,20 @@ int main() {
     //Multiple-precision tests
     mpfr_test(vectorX, N);
     arprec_test(vectorX, N);
-    mpack_test(vectorX, N);
+    #ifndef EXCLUDE_MPACK
+    mpack_asum_test(vectorX, N, MP_PRECISION, REPEAT_TEST);
+    #endif
     mpdecimal_test(vectorX, N);
     mpres_test(vectorX, N);
+    #ifndef EXCLUDE_GARPREC
     garprec_sum_test(N, vectorX, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CAMPARY
     campary_asum_test<CAMPARY_PRECISION>(N, vectorX, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CUMP
     cump_sum_test(N, vectorX, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
-
+    #endif
     checkDeviceHasErrors(cudaDeviceSynchronize());
     //cudaCheckErrors(); //CUMP gives failure
 

@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <iostream>
 #include "../../src/rns.cuh"
-#include "../tsthelper.cuh"
 #include "../logger.cuh"
 
 /*

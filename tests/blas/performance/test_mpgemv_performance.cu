@@ -19,10 +19,22 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "omp.h"
+/*
+ * Exclude some benchmarks
+ */
+#define EXCLUDE_MPACK
+#define EXCLUDE_XBLAS
+#define EXCLUDE_MPDECIMAL
+#define EXCLUDE_CUBLAS
+#define EXCLUDE_GARPREC
+#define EXCLUDE_CAMPARY
+#define EXCLUDE_CUMP
+
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
+#include "../../../src/arith/mpmul.cuh"
 #include "../../../src/blas/mpgemv.cuh"
 #include "3rdparty.cuh"
 
@@ -266,57 +278,6 @@ void arprec_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr
 }
 
 /////////
-// MPACK
-/////////
-void mpack_test(const char * trans, int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy){
-    Logger::printDash();
-    InitCpuTimer();
-    PrintTimerName("[CPU] MPACK gemv");
-
-    //Set precision
-    mpfr::mpreal::set_default_prec ( MP_PRECISION );
-
-    //Init
-    mpreal *lA = new mpreal[lda * n];
-    mpreal *ly = new mpreal[leny];
-    mpreal *lx = new mpreal[lenx];
-    mpreal lalpha = alpha;
-    mpreal lbeta = beta;
-
-    #pragma omp parallel for
-    for(int i = 0; i < lda * n; i++){
-        lA[i] = A[i];
-    }
-    #pragma omp parallel for
-    for(int i = 0; i < lenx; i++){
-        lx[i] = x[i];
-    }
-
-    //Launch
-    for(int j = 0; j < REPEAT_TEST; j ++){
-        #pragma omp parallel for
-        for(int i = 0; i < leny; i++){
-            ly[i] = y[i];
-        }
-        StartCpuTimer();
-        Rgemv(trans, m, n, lalpha, lA, lda, lx, incx, lbeta, ly, incy);
-        EndCpuTimer();
-    }
-    PrintCpuTimer("took");
-
-    //Print
-    for (int i = 1; i < leny; i+= 1) {
-        ly[0] += ly[i];
-    }
-    mpfr_printf("result: %.70Rf\n", &ly[0]);
-
-    //Cleanup
-    delete [] lA;
-    delete [] lx;
-    delete [] ly;
-}
-
-/////////
 // MPRES-BLAS (structure of arrays)
 /////////
 void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy){
@@ -520,12 +481,20 @@ void testNoTrans(){
     openblas_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
     mpfr_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
     arprec_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
-    mpack_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
+    #ifndef EXCLUDE_MPACK
+    mpack_gemv_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY, MP_PRECISION, REPEAT_TEST);
+    #endif
     mpres_test(mblas_no_trans, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
     mpres_test_straightforward(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
+    #ifndef EXCLUDE_GARPREC
     garprec_gemv_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CAMPARY
     campary_gemv_test<CAMPARY_PRECISION>(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CUMP
     cump_gemv_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
+    #endif
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
@@ -572,7 +541,9 @@ void testTrans(){
 
     //Launch tests
     openblas_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
-    mpack_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
+    #ifndef EXCLUDE_MPACK
+        mpack_gemv_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY, MP_PRECISION, REPEAT_TEST);
+    #endif
     mpres_test(mblas_trans, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -619,7 +590,9 @@ int main(){
     Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
     Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
+    #ifndef EXCLUDE_CAMPARY
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
+    #endif
     Logger::endSection(true);
 
     //Run the test

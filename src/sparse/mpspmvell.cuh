@@ -23,6 +23,8 @@
 #ifndef MPSPMVELL_CUH
 #define MPSPMVELL_CUH
 
+#include "../arith/mpadd.cuh"
+#include "../arith/mpassign.cuh"
 #include "../mpvector.cuh"
 #include "../kernel_config.cuh"
 

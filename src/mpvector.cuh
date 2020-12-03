@@ -22,8 +22,7 @@
 #ifndef MPRES_MPVECTOR_CUH
 #define MPRES_MPVECTOR_CUH
 
-#include "mparray.cuh"
-#include "mpcollection.cuh"
+#include "arith/mpcommon.cuh"
 
 namespace cuda {
 

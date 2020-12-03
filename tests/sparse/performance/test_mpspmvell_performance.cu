@@ -23,9 +23,12 @@
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
+#include "../../../src/mpcollection.cuh"
+#include "../../../src/arith/mpmul.cuh"
 #include "../../../src/sparse/mpspmvell.cuh"
 #include "../../../src/sparse/matrix_converter.cuh"
-#include "../../sparse/performance/3rdparty.cuh"
+#include "3rdparty.cuh"
 
 //Execution configuration for mpspmvell
 #define MPRES_CUDA_BLOCKS_FIELDS 512

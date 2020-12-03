@@ -19,8 +19,6 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <iostream>
 #include "gmp.h"
 #include "../../src/rns.cuh"

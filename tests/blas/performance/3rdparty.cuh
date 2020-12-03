@@ -43,10 +43,7 @@
 #endif
 
 //MPACK - http://mplapack.sourceforge.net/
-#ifndef EXCLUDE_MPACK
-#include "mpack/mpreal.h"
-#include "mpack/mblas_mpfr.h"
-#endif
+#include "../lib/mplapack_blas.cuh"
 
 //libmpdec - https://www.bytereef.org/mpdecimal/
 #ifndef EXCLUDE_MPDECIMAL
@@ -54,19 +51,13 @@
 #endif
 
 //CUMP - https://github.com/skystar0227/CUMP
-#ifndef EXCLUDE_CUMP
 #include "../lib/cump_blas.cuh"
-#endif
 
 //GARPREC - https://code.google.com/archive/p/gpuprec/downloads
-#ifndef EXCLUDE_GARPREC
 #include "../lib/garprec_blas.cuh"
-#endif
 
 //CAMPARY - http://homepages.laas.fr/mmjoldes/campary/
-#ifndef EXCLUDE_CAMPARY
 #include "../lib/campary_blas.cuh"
-#endif
 
 #ifndef EXCLUDE_CUBLAS
 //cuBLAS - https://developer.nvidia.com/cublas

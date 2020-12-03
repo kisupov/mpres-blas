@@ -19,17 +19,21 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define EXCLUDE_ARPREC 1
-#define EXCLUDE_XBLAS 1
-#define EXCLUDE_MPDECIMAL 1
-#define EXCLUDE_GARPREC 1
-#define EXCLUDE_CUBLAS 1
-#define EXCLUDE_OPENBLAS 1
+/*
+ * Exclude some benchmarks
+ */
+#define EXCLUDE_MPACK
+#define EXCLUDE_ARPREC
+#define EXCLUDE_XBLAS
+#define EXCLUDE_MPDECIMAL
+#define EXCLUDE_GARPREC
+#define EXCLUDE_CUBLAS
+#define EXCLUDE_OPENBLAS
 
-#include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpgelrscale.cuh"
 #include "3rdparty.cuh"
 
@@ -206,8 +210,12 @@ void runTest(){
     //Multiple-precision tests
     mpfr_test(M, N, matrixDL, INCDL, matrixDR, INCDR, matrixA, LDA);
     mpres_test(M, N, matrixDL, INCDL, matrixDR, INCDR, matrixA, LDA);
+    #ifndef EXCLUDE_CAMPARY
     campary_ge_lrscale_test<CAMPARY_PRECISION>(M, N, matrixDL, INCDL, matrixDR, INCDR, matrixA, LDA, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CUMP
     cump_ge_lrscale_test(M, N, matrixDL, INCDL, matrixDR, INCDR, matrixA, LDA, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
+    #endif
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
 
@@ -246,7 +254,9 @@ int main(){
     Logger::printParam("MPRES_GRID_SIZE_X_ESI", MPRES_GRID_SIZE_X_ESI);
     Logger::printParam("MPRES_BLOCK_SIZE_ESI", MPRES_BLOCK_SIZE_ESI);
     Logger::printParam("MPRES_GRID_SIZE_DIGITS", MPRES_GRID_SIZE_DIGITS);
+    #ifndef EXCLUDE_CAMPARY
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
+    #endif
     Logger::endSection(true);
 
     //Run the test

@@ -28,7 +28,7 @@ The MPRES-BLAS library implements a number of linear algebra operations, like th
     * SpMV CSR --- Sparse matrix-vector multiplication in the CSR matrix storage format (`mpspmvcsr`)
     * SpMV ELL --- Sparse matrix-vector multiplication in the ELLPACK matrix storage format (`mpspmvell`)
 
-3. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/mpfloat.cuh`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
+3. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/arith/`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
 
 4. In addition, the library implements a number of optimized RNS algorithms, such as magnitude comparison and power-of-two scaling (see `src/rns.cuh`), and also supports extended-range floating-point arithmetic with working precision (see `src/extrange.cuh`), which prevents underflow and overflow in a computation involving extremely large or small quantities.
 
