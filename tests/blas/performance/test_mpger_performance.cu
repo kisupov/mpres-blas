@@ -26,14 +26,15 @@
 #define EXCLUDE_XBLAS
 #define EXCLUDE_ARPREC
 #define EXCLUDE_MPDECIMAL
+#define EXCLUDE_CUBLAS
 #define EXCLUDE_GARPREC
 #define EXCLUDE_CAMPARY
-#define EXCLUDE_CUBLAS
+#define EXCLUDE_CUMP
 
-#include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpger.cuh"
 #include "3rdparty.cuh"
 

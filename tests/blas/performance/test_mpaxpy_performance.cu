@@ -23,11 +23,15 @@
  * Exclude some benchmarks
  */
 #define EXCLUDE_MPACK
+#define EXCLUDE_GARPREC
+#define EXCLUDE_CAMPARY
+#define EXCLUDE_CUMP
 
 #include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpaxpy.cuh"
 #include "3rdparty.cuh"
 

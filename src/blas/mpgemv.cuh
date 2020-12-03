@@ -23,11 +23,11 @@
 #ifndef MPGEMV_CUH
 #define MPGEMV_CUH
 
-
+#include "../arith/mpadd.cuh"
 #include "../mpvector.cuh"
 #include "../mpmatrix.cuh"
 #include "../kernel_config.cuh"
-#include "../mblas_enum.cuh"
+#include "mblas_enum.cuh"
 
 namespace cuda
 {

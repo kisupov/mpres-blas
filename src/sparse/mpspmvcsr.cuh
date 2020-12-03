@@ -23,6 +23,8 @@
 #ifndef MPSPMVCSR_CUH
 #define MPSPMVCSR_CUH
 
+#include "../arith/mpadd.cuh"
+#include "../arith/mpassign.cuh"
 #include "../mpvector.cuh"
 #include "../kernel_config.cuh"
 

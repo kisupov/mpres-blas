@@ -35,15 +35,24 @@ enum er_test_type {
     scalbn_test
 };
 
-__host__ __device__
 static void printResult(const  char * name, er_float_ptr result){
     double d;
     er_get_d(&d, result);
     printf("%s = %.8f \t\t", name, d);
     er_print(result);
     printf("\n");
-
 }
+
+namespace cuda{
+    __device__ static void printResult(const  char * name, er_float_ptr result){
+        double d;
+        cuda::er_get_d(&d, result);
+        printf("%s = %.8f \t\t", name, d);
+        cuda::er_print(result);
+        printf("\n");
+    }
+}
+
 
 /*
  * GPU tests
@@ -51,45 +60,45 @@ static void printResult(const  char * name, er_float_ptr result){
 
 static __global__ void testCudaAdd(er_float_ptr dr, er_float_ptr dx, er_float_ptr dy){
     cuda::er_add_rd(dr, dx, dy);
-    printResult("[CUDA-rd] x + y", dr);
+    cuda::printResult("[CUDA-rd] x + y", dr);
     cuda::er_add(dr, dx, dy);
-    printResult("[CUDA]    x + y", dr);
+    cuda::printResult("[CUDA]    x + y", dr);
     cuda::er_add_ru(dr, dx, dy);
-    printResult("[CUDA-ru] x + y", dr);
+    cuda::printResult("[CUDA-ru] x + y", dr);
 }
 
 static __global__ void testCudaSub(er_float_ptr dr, er_float_ptr dx, er_float_ptr dy){
     cuda::er_sub_rd(dr, dx, dy);
-    printResult("[CUDA-rd] x - y", dr);
+    cuda::printResult("[CUDA-rd] x - y", dr);
     cuda::er_sub(dr, dx, dy);
-    printResult("[CUDA]    x - y", dr);
+    cuda::printResult("[CUDA]    x - y", dr);
     cuda::er_sub_ru(dr, dx, dy);
-    printResult("[CUDA-ru] x - y", dr);
+    cuda::printResult("[CUDA-ru] x - y", dr);
 }
 
 static __global__ void testCudaMul(er_float_ptr dr, er_float_ptr dx, er_float_ptr dy){
     cuda::er_mul_rd(dr, dx, dy);
-    printResult("[CUDA-rd] x * y", dr);
+    cuda::printResult("[CUDA-rd] x * y", dr);
     cuda::er_mul(dr, dx, dy);
-    printResult("[CUDA]    x * y", dr);
+    cuda::printResult("[CUDA]    x * y", dr);
     cuda::er_mul_ru(dr, dx, dy);
-    printResult("[CUDA-ru] x * y", dr);
+    cuda::printResult("[CUDA-ru] x * y", dr);
 }
 
 static __global__ void testCudaDiv(er_float_ptr dr, er_float_ptr dx, er_float_ptr dy){
     cuda::er_div_rd(dr, dx, dy);
-    printResult("[CUDA-rd] x / y", dr);
+    cuda::printResult("[CUDA-rd] x / y", dr);
     cuda::er_div(dr, dx, dy);
-    printResult("[CUDA]    x / y", dr);
+    cuda::printResult("[CUDA]    x / y", dr);
     cuda::er_div_ru(dr, dx, dy);
-    printResult("[CUDA-ru] x / y", dr);
+    cuda::printResult("[CUDA-ru] x / y", dr);
 }
 
 static __global__ void testCudaMulDiv(er_float_ptr dr, er_float_ptr dx, er_float_ptr dy, er_float_ptr dz){
     cuda::er_md_rd(dr, dx, dy, dz);
-    printResult("[CUDA-rd] x * y / z", dr);
+    cuda::printResult("[CUDA-rd] x * y / z", dr);
     cuda::er_md_ru(dr, dx, dy, dz);
-    printResult("[CUDA-ru] x * y / z", dr);
+    cuda::printResult("[CUDA-ru] x * y / z", dr);
 }
 
 void testCuda(er_float_ptr x, er_float_ptr y, er_float_ptr z, er_test_type type){

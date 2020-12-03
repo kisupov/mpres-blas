@@ -1,0 +1,1 @@
+This folder contains implementations of multiple-precision (MP) floating-point arithmetic operations using the residue number system

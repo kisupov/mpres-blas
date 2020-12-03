@@ -30,10 +30,10 @@
 #define EXCLUDE_CUBLAS
 #define EXCLUDE_OPENBLAS
 
-#include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpgeadd.cuh"
 #include "3rdparty.cuh"
 

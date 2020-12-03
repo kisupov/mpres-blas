@@ -23,7 +23,7 @@
 #ifndef MPRES_TEST_CUMP_BLAS_CUH
 #define MPRES_TEST_CUMP_BLAS_CUH
 
-#include "../../../src/mblas_enum.cuh"
+#include "blas/mblas_enum.cuh"
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"

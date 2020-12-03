@@ -25,7 +25,7 @@
 #define MPGENORM_CUH
 
 #include "mpnorm.cuh"
-#include "../mblas_enum.cuh"
+#include "mblas_enum.cuh"
 
 namespace cuda {
 

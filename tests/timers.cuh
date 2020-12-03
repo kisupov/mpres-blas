@@ -22,8 +22,6 @@
 #ifndef MPRES_TEST_TIMERS_CUH
 #define MPRES_TEST_TIMERS_CUH
 
-#include <iostream>
-#include <chrono>
 #include <time.h>
 
 /*

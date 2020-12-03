@@ -22,14 +22,22 @@
 /*
  * Exclude some benchmarks
  */
+#define EXCLUDE_OPENBLAS
+#define EXCLUDE_XBLAS
+#define EXCLUDE_ARPREC
 #define EXCLUDE_MPACK
+#define EXCLUDE_MPDECIMAL
+#define EXCLUDE_CUBLAS
+#define EXCLUDE_CUMP
+#define EXCLUDE_GARPREC
+#define EXCLUDE_CAMPARY
 
-#include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
-#include "3rdparty.cuh"
+#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mprot.cuh"
+#include "3rdparty.cuh"
 
 #define N 1000000 //Operation size
 #define REPEAT_TEST 10 //Number of repeats

@@ -20,7 +20,8 @@
  */
 
 
-#include "../../src/mpfloat.cuh"
+#include "../../src/arith/mpcmp.cuh"
+#include "../../src/arith/mpassign.cuh"
 
 static __global__ void performCudaCmp(mp_float_ptr dx, mp_float_ptr dy){
     printf("\n[CUDA] Result = %i", cuda::mp_cmp(dx, dy));

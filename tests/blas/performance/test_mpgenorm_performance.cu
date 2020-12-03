@@ -32,10 +32,10 @@
 #define EXCLUDE_CAMPARY
 #define EXCLUDE_CUBLAS
 
-#include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpgenorm.cuh"
 #include "3rdparty.cuh"
 
