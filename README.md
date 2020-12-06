@@ -4,7 +4,7 @@
 
 The MPRES-BLAS library implements a number of linear algebra operations, like the BLAS (Basic Linear Algebra Subprograms) routines, with [multiple precision](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) on CUDA-enabled graphics processing units. The library uses a residue number system ([RNS](https://en.wikipedia.org/wiki/Residue_number_system)) to represent multiple-precision floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS a good tool for high-performance computing on many-core architectures such as GPUs.
 
-Underlying algorithms for multiple-precision floating-point arithmetic as well as algorithms for vectors of multiple-precision numbers used in MPRES-BLAS are discussed in [this paper](http://dx.doi.org/10.1016/j.dib.2020.105506).
+Underlying algorithms for multiple-precision floating-point arithmetic as well as algorithms for vectors of multiple-precision numbers used in MPRES-BLAS are discussed in [this paper](http://dx.doi.org/10.1016/j.jpdc.2020.02.006). For further reading see References below.
 
 1. The current version of MPRES-BLAS supports the following dense operations with multiple precision:
 
@@ -53,9 +53,14 @@ When using large moduli (like `1283742825`) to increase the precision of computa
 
 ### References
 
-1. K. Isupov, V. Knyazkov, and A. Kuvaev, "Design and implementation of multiple-precision BLAS Level 1 functions for graphics processing units," Journal of Parallel and Distributed Computing, vol. 140, pp. 25-36, 2020, doi 
-10.1016/j.jpdc.2020.02.006.
-2. K. Isupov, "Using floating-point intervals for non-modular computations in residue number system," IEEE Access, vol. 8, pp. 58603-58619, 2020, doi 10.1109/ACCESS.2020.2982365.
+1. K. Isupov, V. Knyazkov, and A. Kuvaev, "Design and implementation of multiple-precision BLAS Level 1 functions for graphics processing units," Journal of Parallel and Distributed Computing, vol. 140, pp. 25-36, 2020, https://doi.org/10.1016/j.jpdc.2020.02.006.
+
+2. K. Isupov and V. Knyazkov, "Multiple-precision BLAS library for graphics processing units," in Communications in Computer and Information Science, vol. 1331, pp. 37-49, 2020, https://doi.org/10.1007/978-3-030-64616-5_4. 
+
+3. K. Isupov, "Performance data of multiple-precision scalar and vector BLAS operations on CPU and GPU," Data in Brief, vol. 30, p. 105506, 2020, https://doi.org/10.1016/j.dib.2020.105506.
+
+4. K. Isupov, "Using floating-point intervals for non-modular computations in residue number system," IEEE Access, vol. 8, pp. 58603-58619, 2020, https://doi.org/10.1109/ACCESS.2020.2982365.
+
 
 *Link: http://github.com/kisupov/mpres-blas*
 
