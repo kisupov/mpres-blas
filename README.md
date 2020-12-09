@@ -39,17 +39,14 @@ Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for 
 
 ### Details and notes
 
-The precision of computations (in bits) is specified by the RNS moduli set in `src/params.h`.
+1. MPRES-BLAS is intended for Linux and the GCC compiler. Some manipulations have to be done to run it in Windows.
+
+2. The precision of computations (in bits) is specified by the RNS moduli set in `src/params.h`.
 The subdirectory `src/params/` contains some predefined moduli sets that provide different
 levels of precision. Using these moduli sets is preferred. Just replace the content of
 `src/params.h` with the content of the file you want to use.
 
-For now, when using a custom or changing an existing moduli set or its size,
-you need to change the following #defines in `src/params.h`:
-
-* `RNS_MODULI_PRODUCT_LOG2`
-
-When using large moduli (like `1283742825`) to increase the precision of computations, make sure your environment has support for 8-byte `long` type.
+3. When using large moduli (like `1283742825`) to increase the precision, make sure your system uses LP64 programming model ('long, pointers are 64-bit').  Fortunately, all modern 64-bit Unix systems use LP64.
 
 ### References
 
