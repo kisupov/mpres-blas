@@ -48,17 +48,31 @@ GCC_FORCEINLINE void mp_mul(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y)
 namespace cuda {
 
     /*!
+     * General routine for multiply multiple-precision numbers (result = x * y)
+     * The routines below call this procedure
+     */
+    DEVICE_CUDA_FORCEINLINE void mp_mul_common(int * sr, int * er, er_float_ptr * evlr, int * digr,
+                                               int sx, int ex, er_float_ptr * evlx, const int * digx,
+                                               int sy, int ey, er_float_ptr * evly, const int * digy){
+        *er = ex + ey;
+        *sr = sx ^ sy;
+        cuda::er_md_rd(evlr[0], evlx[0], evly[0], &cuda::RNS_EVAL_UNIT.upp);
+        cuda::er_md_ru(evlr[1], evlx[1], evly[1], &cuda::RNS_EVAL_UNIT.low);
+        cuda::rns_mul(digr, digx, digy);
+    }
+    /*!
      * Multiplication of two multiple-precision numbers
      * result = x * y
      */
     DEVICE_CUDA_FORCEINLINE void mp_mul(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y) {
-        result->exp = x->exp + y->exp;
-        result->sign = x->sign ^ y->sign;
-        cuda::er_md_rd(&result->eval[0], &x->eval[0], &y->eval[0], &cuda::RNS_EVAL_UNIT.upp);
-        cuda::er_md_ru(&result->eval[1], &x->eval[1], &y->eval[1], &cuda::RNS_EVAL_UNIT.low);
-        for(int i = 0; i < RNS_MODULI_SIZE; i ++){
-            result->digits[i] = cuda::mod_mul(x->digits[i], y->digits[i], cuda::RNS_MODULI[i]);
-        }
+        er_float_ptr evalx[2] = { &x->eval[0], &x->eval[1] }; //Array of pointers to interval evaluations
+        er_float_ptr evaly[2] = { &y->eval[0], &y->eval[1] };
+        er_float_ptr evalr[2] = { &result->eval[0], &result->eval[1] };
+
+        mp_mul_common(&result->sign, &result->exp, evalr, result->digits,
+                      x->sign, x->exp, evalx, x->digits,
+                      y->sign, y->exp, evaly, y->digits);
+
         if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
         }

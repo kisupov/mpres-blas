@@ -132,7 +132,7 @@ namespace cuda {
      * General routine for adding multiple-precision numbers (result = x + y)
      * The routines below call this procedure
      */
-    DEVICE_CUDA_FORCEINLINE void mp_add_common(int * sr, int * er, er_float_ptr * evalr, int * digr,
+    DEVICE_CUDA_FORCEINLINE void mp_add_common(int * sr, int * er, er_float_ptr * evlr, int * digr,
                                                int sx, int ex, er_float_ptr * evlx, const int * digx,
                                                int sy, int ey, er_float_ptr * evly, const int * digy)
     {
@@ -172,17 +172,17 @@ namespace cuda {
         evaly[0].frac *=  factor_y;
         evaly[1].frac *=  factor_y;
 
-        cuda::er_add_rd(evalr[0], &evalx[sx], &evaly[sy]);
-        cuda::er_add_ru(evalr[1], &evalx[1 - sx], &evaly[1 - sy]);
+        cuda::er_add_rd(evlr[0], &evalx[sx], &evaly[sy]);
+        cuda::er_add_ru(evlr[1], &evalx[1 - sx], &evaly[1 - sy]);
 
         //Sign identification
         unsigned char sign;
-        if(evalr[0]->frac * evalr[1]->frac >= 0){
-            sign = (evalr[0]->frac < 0);
+        if(evlr[0]->frac * evlr[1]->frac >= 0){
+            sign = (evlr[0]->frac < 0);
         } else{
             sign = sign_estimate(digx, digy, sx, sy, gamma, theta, nzx, nzy);
-            evalr[sign]->frac = cuda::RNS_EVAL_UNIT.low.frac * (1 - 2 * sign);
-            evalr[sign]->exp =  cuda::RNS_EVAL_UNIT.low.exp;
+            evlr[sign]->frac = cuda::RNS_EVAL_UNIT.low.frac * (1 - 2 * sign);
+            evlr[sign]->exp =  cuda::RNS_EVAL_UNIT.low.exp;
         }
         *sr = sign;
         *er = (ex == 0) ? ey : ex;
@@ -200,11 +200,11 @@ namespace cuda {
             for (int i = 0; i < RNS_MODULI_SIZE; i++) {
                 digr[i] = (digr[i] != 0) * (cuda::RNS_MODULI[i] - digr[i]);
             }
-            er_float_t tmp = *evalr[0];
-            evalr[0]->frac = -evalr[1]->frac;
-            evalr[0]->exp  = evalr[1]->exp;
-            evalr[1]->frac = -1 * tmp.frac;
-            evalr[1]->exp  = tmp.exp;
+            er_float_t tmp = *evlr[0];
+            evlr[0]->frac = -evlr[1]->frac;
+            evlr[0]->exp  = evlr[1]->exp;
+            evlr[1]->frac = -1 * tmp.frac;
+            evlr[1]->exp  = tmp.exp;
         }
     }
 
