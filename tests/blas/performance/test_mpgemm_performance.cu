@@ -39,9 +39,9 @@
 #include "3rdparty.cuh"
 
 
-#define M 100  // Specifies the number of rows of the matrix op(A) and of the matrix C.
-#define N 100  // Specifies the number of columns of the matrix op(B) and the number of columns of the matrix C.
-#define K 100  // Specifies the number of columns of the matrix op(A) and the number of rows of the matrix op(B).
+#define M 300  // Specifies the number of rows of the matrix op(A) and of the matrix C.
+#define N 300  // Specifies the number of columns of the matrix op(B) and the number of columns of the matrix C.
+#define K 300  // Specifies the number of columns of the matrix op(A) and the number of rows of the matrix op(B).
 #define LDA (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
 #define LDB (K) // Specifies the leading dimension of B as declared in the calling (sub)program.
 #define LDC (M) // Specifies the leading dimension of C as declared in the calling (sub)program.
@@ -229,7 +229,7 @@ __global__ void mpgemm_straightforward_kernel(const unsigned int m, const unsign
             // if(col == 0 && row == 0)
             // cuda::mp_mul(&mul, B, (col * ldb + i), B, (col * ldb + i));
             cuda::mp_mul(&mul, A, (lda * i + row), B, (col * ldb + i) );
-            cuda::mp_mul(&mul, alpha, 0, &mul);
+            cuda::mp_mul(&mul, &mul, alpha, 0);
             cuda::mp_add(&sum, &sum, &mul);
         }
         cuda::mp_add(C, indexC, C, indexC, &sum);
