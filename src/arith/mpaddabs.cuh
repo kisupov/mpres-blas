@@ -29,44 +29,44 @@
  * result = | x | + | y |
  */
 GCC_FORCEINLINE void mp_add_abs(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y) {
-    er_float_t eval_x[2];
-    er_float_t eval_y[2];
-    eval_x[0] = x->eval[0];
-    eval_x[1] = x->eval[1];
-    eval_y[0] = y->eval[0];
-    eval_y[1] = y->eval[1];
+    er_float_t evalx[2];
+    er_float_t evaly[2];
+    evalx[0] = x->eval[0];
+    evalx[1] = x->eval[1];
+    evaly[0] = y->eval[0];
+    evaly[1] = y->eval[1];
 
-    int exp_x = x->exp;
-    int exp_y = y->exp;
+    int ex = x->exp;
+    int ey = y->exp;
 
-    int dexp = exp_x - exp_y;
+    int dexp = ex - ey;
     int gamma =  dexp  * (dexp > 0);
     int theta = -dexp * (dexp < 0);
 
-    int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < MP_J);
-    int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < MP_J);
+    unsigned char nzx = ((evaly[1].frac == 0) || (theta + evaly[1].exp) < MP_J);
+    unsigned char nzy = ((evalx[1].frac == 0) || (gamma + evalx[1].exp) < MP_J);
 
     gamma = gamma * nzy;
     theta = theta * nzx;
 
-    eval_x[0].exp += gamma;
-    eval_x[1].exp += gamma;
-    eval_y[0].exp += theta;
-    eval_y[1].exp += theta;
+    evalx[0].exp += gamma;
+    evalx[1].exp += gamma;
+    evaly[0].exp += theta;
+    evaly[1].exp += theta;
 
-    eval_x[0].frac *= nzx;
-    eval_x[1].frac *= nzx;
-    eval_y[0].frac *= nzy;
-    eval_y[1].frac *= nzy;
+    evalx[0].frac *= nzx;
+    evalx[1].frac *= nzx;
+    evaly[0].frac *= nzy;
+    evaly[1].frac *= nzy;
 
-    exp_x = (exp_x - gamma) * nzx;
-    exp_y = (exp_y - theta) * nzy;
+    ex = (ex - gamma) * nzx;
+    ey = (ey - theta) * nzy;
 
-    er_add_rd(&result->eval[0], &eval_x[0], &eval_y[0]);
-    er_add_ru(&result->eval[1], &eval_x[1], &eval_y[1]);
+    er_add_rd(&result->eval[0], &evalx[0], &evaly[0]);
+    er_add_ru(&result->eval[1], &evalx[1], &evaly[1]);
 
     result->sign = 0;
-    result->exp = (exp_x == 0) ? exp_y : exp_x;
+    result->exp = (ex == 0) ? ey : ex;
 
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
         result->digits[i] = mod_axby(x->digits[i], RNS_POW2[gamma][i] * nzx, y->digits[i], RNS_POW2[theta][i] * nzy, RNS_MODULI[i]);
