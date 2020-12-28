@@ -197,13 +197,11 @@ namespace cuda {
      * To compare the aligned significands, the mixed-radix conversion is used.
      */
     DEVICE_CUDA_FORCEINLINE int sign_estimate(const int * digx, const int * digy, const int sx, const int sy,
-                                              const int gamma, const int theta,  const unsigned char nzx, const unsigned char nzy){
+                                              const int gamma, const int theta,  const int nzx, const int nzy){
         int lx[RNS_MODULI_SIZE];
         int ly[RNS_MODULI_SIZE];
-        for(int i = 0; i < RNS_MODULI_SIZE; i++){
-            lx[i] = cuda::mod_mul(digx[i], cuda::RNS_POW2[gamma][i] * nzx, cuda::RNS_MODULI[i]);
-            ly[i] = cuda::mod_mul(digy[i], cuda::RNS_POW2[theta][i] * nzy, cuda::RNS_MODULI[i]);
-        }
+        cuda::rns_mul_c(lx, digx, cuda::RNS_POW2[gamma], nzx);
+        cuda::rns_mul_c(ly, digy, cuda::RNS_POW2[theta], nzy);
         int cmp = cuda::mrc_compare_rns(lx, ly);
         return (cmp < 0 ? sy : sx) * (cmp != 0);
     }

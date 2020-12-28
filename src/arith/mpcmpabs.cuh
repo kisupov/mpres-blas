@@ -78,6 +78,7 @@ namespace cuda {
     DEVICE_CUDA_FORCEINLINE int mp_cmp_abs_common(int ex, er_float_ptr * evlx, const int * digx,
                                                   int ey, er_float_ptr * evly, const int * digy)
     {
+        constexpr int moduli[ RNS_MODULI_SIZE ] = RNS_MODULI_VALUES;
         int digitx[RNS_MODULI_SIZE];
         int digity[RNS_MODULI_SIZE];
         er_float_t evalx[2];
@@ -107,10 +108,12 @@ namespace cuda {
         evaly[0].frac *= nzy;
         evaly[1].frac *= nzy;
 
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            digitx[i] = cuda::mod_mul(digx[i], cuda::RNS_POW2[gamma][i] * nzx, cuda::RNS_MODULI[i]);
-            digity[i] = cuda::mod_mul(digy[i], cuda::RNS_POW2[theta][i] * nzy, cuda::RNS_MODULI[i]);
-        }
+        cuda::rns_mul_c(digitx, digx, cuda::RNS_POW2[gamma], nzx);
+        cuda::rns_mul_c(digity, digy, cuda::RNS_POW2[theta], nzy);
+        /*for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            digitx[i] = cuda::mod_mul(digx[i], cuda::RNS_POW2[gamma][i] * nzx, moduli[i]);
+            digity[i] = cuda::mod_mul(digy[i], cuda::RNS_POW2[theta][i] * nzy, moduli[i]);
+        }*/
         //RNS magnitude comparison
         return cuda::rns_cmp(digitx, &evalx[0], &evalx[1], digity, &evaly[0], &evaly[1]);
     }

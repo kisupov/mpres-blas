@@ -420,7 +420,7 @@ namespace cuda {
      * @param n - operation size
      */
     __global__ void mp_vector_add_digits_kernel(mp_array_t result, const int incr, mp_array_t x, const int incx, mp_array_t y, const int incy, const int n){
-        int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
+        const int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
         int index = blockIdx.x * blockDim.x + threadIdx.x; // Индекс остатка в векторе
 
         // code for all increments equal to 1
@@ -434,7 +434,7 @@ namespace cuda {
                         intBuf.w * y.digits[index],
                         cuda::RNS_POW2[intBuf.y][threadIdx.x % RNS_MODULI_SIZE],
                         lmodul,
-                        cuda::RNS_MODULI_RECIPROCAL[threadIdx.x % RNS_MODULI_SIZE]);
+                        1.0 / lmodul);
                 //Restoring the negative result
                 if (result.sign[numberIdx] == 1) {
                     residue = cuda::mod_sub(lmodul, residue, lmodul);
@@ -459,7 +459,7 @@ namespace cuda {
                         intBuf.w * y.digits[iy],
                         cuda::RNS_POW2[intBuf.y][threadIdx.x % RNS_MODULI_SIZE],
                         lmodul,
-                        cuda::RNS_MODULI_RECIPROCAL[threadIdx.x % RNS_MODULI_SIZE]);
+                        1.0 / lmodul);
                 //Restoring the negative result
                 if (result.sign[numberIdx] == 1) {
                     residue = cuda::mod_sub(lmodul, residue, lmodul);

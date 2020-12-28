@@ -136,6 +136,7 @@ namespace cuda {
                                                int sx, int ex, er_float_ptr * evlx, const int * digx,
                                                int sy, int ey, er_float_ptr * evly, const int * digy)
     {
+        constexpr int moduli[ RNS_MODULI_SIZE ] = RNS_MODULI_VALUES;
         er_float_t evalx[2];
         er_float_t evaly[2];
         evalx[0] = *evlx[0];
@@ -147,8 +148,8 @@ namespace cuda {
         int gamma =  dexp * (dexp > 0);
         int theta = -dexp * (dexp < 0);
 
-        unsigned char  nzx = ((evaly[1].frac == 0) || (theta + evaly[1].exp) < cuda::MP_J);
-        unsigned char  nzy = ((evalx[1].frac == 0) || (gamma + evalx[1].exp) < cuda::MP_J);
+        const int nzx = ((evaly[1].frac == 0) || (theta + evaly[1].exp) < cuda::MP_J);
+        const int nzy = ((evalx[1].frac == 0) || (gamma + evalx[1].exp) < cuda::MP_J);
 
         gamma = gamma * nzy;
         theta = theta * nzx;
@@ -176,29 +177,18 @@ namespace cuda {
         cuda::er_add_ru(evlr[1], &evalx[1 - sx], &evaly[1 - sy]);
 
         //Sign identification
-        unsigned char sign;
-        if(evlr[0]->frac * evlr[1]->frac >= 0){
-            sign = (evlr[0]->frac < 0);
-        } else{
-            sign = sign_estimate(digx, digy, sx, sy, gamma, theta, nzx, nzy);
+        unsigned char sign = evlr[0]->frac < 0;
+        if(evlr[0]->frac * evlr[1]->frac < 0){
+            sign = cuda::sign_estimate(digx, digy, sx, sy, gamma, theta, nzx, nzy);
             evlr[sign]->frac = cuda::RNS_EVAL_UNIT.low.frac * (1 - 2 * sign);
             evlr[sign]->exp =  cuda::RNS_EVAL_UNIT.low.exp;
         }
         *sr = sign;
         *er = (ex == 0) ? ey : ex;
-
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            int residue = cuda::mod_axby(
-                    digx[i], cuda::RNS_POW2[gamma][i] * factor_x,
-                    digy[i], cuda::RNS_POW2[theta][i] * factor_y,
-                    cuda::RNS_MODULI[i],
-                    cuda::RNS_MODULI_RECIPROCAL[i]);
-            digr[i] = residue < 0 ? residue + cuda::RNS_MODULI[i] : residue;
-        }
-
+        cuda::rns_axby_cd(digr, cuda::RNS_POW2[gamma], digx, factor_x, cuda::RNS_POW2[theta], digy, factor_y);
         if(sign == 1){
             for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-                digr[i] = (digr[i] != 0) * (cuda::RNS_MODULI[i] - digr[i]);
+                digr[i] = (digr[i] != 0) * (moduli[i] - digr[i]);
             }
             er_float_t tmp = *evlr[0];
             evlr[0]->frac = -evlr[1]->frac;

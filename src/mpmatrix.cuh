@@ -141,7 +141,7 @@ namespace cuda {
      * @param n - specifies the number of columns of the matrices
      */
     __global__ static void mp_matrix_add_digits_kernel(mp_array_t R, const int ldr, mp_array_t A, const int lda, mp_array_t B, const int ldb, const int m, const int n) {
-        int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
+        const int lmodul = cuda::RNS_MODULI[threadIdx.x % RNS_MODULI_SIZE];
         //Iterate over the matrix columns
         int colId = blockIdx.y; // The column index
         while (colId < n){
@@ -155,8 +155,7 @@ namespace cuda {
                         cuda::RNS_POW2[intBuf.x][threadIdx.x % RNS_MODULI_SIZE],
                         intBuf.w * B.digits[ldb * RNS_MODULI_SIZE * colId + index],
                         cuda::RNS_POW2[intBuf.y][threadIdx.x % RNS_MODULI_SIZE],
-                        lmodul,
-                        cuda::RNS_MODULI_RECIPROCAL[threadIdx.x % RNS_MODULI_SIZE]);
+                        lmodul, 1.0 / lmodul);
                 //Restoring the negative result
                 if (R.sign[ldr * colId + numberIdx] == 1) {
                     residue = cuda::mod_sub(lmodul, residue, lmodul);

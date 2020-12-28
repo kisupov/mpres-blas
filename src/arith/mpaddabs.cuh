@@ -101,8 +101,8 @@ namespace cuda {
         int gamma =  dexp  * (dexp > 0);
         int theta = -dexp * (dexp < 0);
 
-        unsigned char  nzx = ((evaly[1].frac == 0) || (theta + evaly[1].exp) < cuda::MP_J);
-        unsigned char  nzy = ((evalx[1].frac == 0) || (gamma + evalx[1].exp) < cuda::MP_J);
+        const int nzx = ((evaly[1].frac == 0) || (theta + evaly[1].exp) < cuda::MP_J);
+        const int nzy = ((evalx[1].frac == 0) || (gamma + evalx[1].exp) < cuda::MP_J);
 
         gamma = gamma * nzy;
         theta = theta * nzx;
@@ -123,14 +123,7 @@ namespace cuda {
 
         cuda::er_add_rd(evlr[0], &evalx[0], &evaly[0]);
         cuda::er_add_ru(evlr[1], &evalx[1], &evaly[1]);
-
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            digr[i] = cuda::mod_axby(
-                    digx[i] * nzx, cuda::RNS_POW2[gamma][i],
-                    digy[i] * nzy, cuda::RNS_POW2[theta][i],
-                    cuda::RNS_MODULI[i],
-                    cuda::RNS_MODULI_RECIPROCAL[i]);
-        }
+        cuda::rns_axby_cd(digr, cuda::RNS_POW2[gamma], digx, nzx, cuda::RNS_POW2[theta], digy, nzy);
     }
 
     /*!
