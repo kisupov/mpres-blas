@@ -734,7 +734,8 @@ namespace cuda{
      * @param x - pointer to the input RNS number
      */
     DEVICE_CUDA_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * x) {
-        double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
+        constexpr double moduli[ RNS_MODULI_SIZE ] = RNS_MODULI_VALUES;
+        const double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
         int  s[RNS_MODULI_SIZE];
         double fracl[RNS_MODULI_SIZE];
         double fracu[RNS_MODULI_SIZE];
@@ -743,10 +744,11 @@ namespace cuda{
         int mrd[RNS_MODULI_SIZE];
         int mr = -1;
         //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
+        //1.0 / moduli[i] is evaluated at compile time
         cuda::rns_mul(s, x, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            fracl[i] = __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]);
-            fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
+            fracl[i] = __dmul_rd(s[i], 1.0 / moduli[i]);
+            fracu[i] = __dmul_ru(s[i], 1.0 / moduli[i]);
         }
         //Pairwise summation of the fractions
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
@@ -789,7 +791,7 @@ namespace cuda{
             int k = MAX(-(ceil(log2(sumu))+1), cuda::RNS_EVAL_REF_FACTOR);
             cuda::rns_mul(s, s, cuda::RNS_POW2[k]);
             for(int i = 0; i < RNS_MODULI_SIZE; i++) {
-                fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
+                fracu[i] = __dmul_ru(s[i], 1.0 / moduli[i]);
             }
             sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
             sumu = __dsub_ru(sumu, (unsigned int) sumu);
@@ -797,7 +799,7 @@ namespace cuda{
         }
         // Computing the shifted lower bound
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            fracl[i] = __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]);
+            fracl[i] = __dmul_rd(s[i], 1.0 / moduli[i]);
         }
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
         suml = __dsub_rd(suml, (unsigned int) suml);
@@ -817,7 +819,8 @@ namespace cuda{
      * @param x - pointer to the input RNS number
      */
     DEVICE_CUDA_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, int * x) {
-        double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
+        constexpr double moduli[ RNS_MODULI_SIZE ] = RNS_MODULI_VALUES;
+        const double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
         int s[RNS_MODULI_SIZE];
         double fracl[RNS_MODULI_SIZE];
         double fracu[RNS_MODULI_SIZE];
@@ -826,8 +829,8 @@ namespace cuda{
         //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
         cuda::rns_mul(s, x, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            fracl[i] = __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]);
-            fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
+            fracl[i] = __dmul_rd(s[i], 1.0 / moduli[i]);
+            fracu[i] = __dmul_ru(s[i], 1.0 / moduli[i]);
         }
         //Pairwise summation of the fractions
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
@@ -854,7 +857,7 @@ namespace cuda{
             int k = MAX(-(ceil(log2(sumu))+1), cuda::RNS_EVAL_REF_FACTOR);
             cuda::rns_mul(s, s, cuda::RNS_POW2[k]);
             for(int i = 0; i < RNS_MODULI_SIZE; i++) {
-                fracu[i] = __ddiv_ru(s[i], (double) cuda::RNS_MODULI[i]);
+                fracu[i] = __dmul_ru(s[i], 1.0 / moduli[i]);
             }
             sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
             sumu = __dsub_ru(sumu, (unsigned int) sumu);
@@ -862,7 +865,7 @@ namespace cuda{
         }
         // Computing the shifted lower bound
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            fracl[i] = __ddiv_rd(s[i], (double) cuda::RNS_MODULI[i]);
+            fracl[i] = __dmul_rd(s[i], 1.0 / moduli[i]);
         }
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
         suml = __dsub_rd(suml, (unsigned int) suml);

@@ -78,7 +78,6 @@ namespace cuda {
     DEVICE_CUDA_FORCEINLINE int mp_cmp_abs_common(int ex, er_float_ptr * evlx, const int * digx,
                                                   int ey, er_float_ptr * evly, const int * digy)
     {
-        constexpr int moduli[ RNS_MODULI_SIZE ] = RNS_MODULI_VALUES;
         int digitx[RNS_MODULI_SIZE];
         int digity[RNS_MODULI_SIZE];
         er_float_t evalx[2];
