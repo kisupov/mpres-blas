@@ -194,6 +194,7 @@ void mpres_test_1(const int m, const int n, const int nzr, const int *ja, const 
     int threads = 32;
     int blocks = m / threads + 1;
     printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
+    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * m * nzr /  double(1024 * 1024));
 
     // Host data
     auto hx = new mp_float_t[n];
@@ -260,6 +261,7 @@ void mpres_test_2(const int m, const int n, const int nzr, const int *ja, const 
     const int gridDim2 = 32768; //blocks for residues
     const int blockDim3 = 64; //threads for reduce
     printf("(exec. config: gridDim1 = %i, blockDim1 = %i, gridDim2 = %i, blockDim3 = %i)\n", gridDim1, blockDim1, gridDim2, blockDim3);
+    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * m * nzr /  double(1024 * 1024));
 
     //Host data
     auto hx = new mp_float_t[n];

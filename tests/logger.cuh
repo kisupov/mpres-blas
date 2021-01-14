@@ -50,7 +50,8 @@ namespace Logger {
         RNS_EVAL_ACCURACY_TEST,
         EXTRANGE_CORRECTNESS_TEST,
         RNS_CMP_PERFORMANCE_TEST,
-        BLAS_SPMV_ELL_PERFORMANCE_TEST
+        BLAS_SPMV_ELL_PERFORMANCE_TEST,
+        BLAS_SPMV_CSR_PERFORMANCE_TEST
     };
 
     const char *testHeaderAsString(enum TestHeader header) {
@@ -100,7 +101,9 @@ namespace Logger {
             case RNS_CMP_PERFORMANCE_TEST:
                 return "Test for measure the performance of the RNS magnitude comparison algorithms";
             case BLAS_SPMV_ELL_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using the ELLPACK matrix format";
+                return "Performance test for SpMV routines using the ELLPACK matrix storage format";
+            case BLAS_SPMV_CSR_PERFORMANCE_TEST:
+                return "Performance test for SpMV routines using the CSR matrix storage format";
         }
         return "";
     }

@@ -197,6 +197,7 @@ void mpres_test_1(const int m, const int n, const int nnz, const int *irp, const
     int threads = 32;
     int blocks = m / threads + 1;
     printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
+    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * nnz /  double(1024 * 1024));
 
     // Host data
     auto hx = new mp_float_t[n];
@@ -267,6 +268,7 @@ void mpres_test_2(const int m, const int n, const int nnz, const int *irp, const
     const int gridDim2 = 32768; //blocks for residues
     const int blockDim3 = 64; //threads for reduce
     printf("(exec. config: gridDim1 = %i, blockDim1 = %i, gridDim2 = %i, blockDim3 = %i)\n", gridDim1, blockDim1, gridDim2, blockDim3);
+    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * nnz /  double(1024 * 1024));
 
     //Host data
     auto hx = new mp_float_t[n];
@@ -376,7 +378,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::BLAS_SPMV_ELL_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::BLAS_SPMV_CSR_PERFORMANCE_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();
