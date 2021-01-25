@@ -44,10 +44,10 @@ int main() {
     mp_const_init();
 
     mp_float_t x, y;
-    mp_set_d(&x, -0.550000000);
-    mp_set_d(&y, -0.550000001);
-    printf("\n x = %lf", mp_get_d(&x));
-    printf("\n y = %lf", mp_get_d(&y));
+    mp_set_d(&x, 0.550000001);
+    mp_set_d(&y, 0.550000000);
+    printf("\n x = %.16f", mp_get_d(&x));
+    printf("\n y = %.16f", mp_get_d(&y));
     printf("\n[CPU ] Result = %i", mp_cmp(&x, &y));
     testCuda(&x, &y);
     return 0;

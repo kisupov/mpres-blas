@@ -1,6 +1,7 @@
 /*
  *  Performance test for SpMV routines using the ELLPACK matrix format
- *
+ *  Path to the matrix must be given as a command line argument, e.g., ../../tests/sparse/matrices/t3dl.mtx
+
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
  *
  *  This file is part of the MPRES-BLAS library.
@@ -25,18 +26,10 @@
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
 #include "../../../src/mpcollection.cuh"
-#include "../../../src/arith/mpmul.cuh"
-#include "../../../src/sparse/mpspmvell.cuh"
+#include "../../../src/sparse/mpspmvell1.cuh"
+#include "../../../src/sparse/mpspmvell2.cuh"
 #include "../../../src/sparse/matrix_converter.cuh"
 #include "3rdparty.cuh"
-
-//Execution configuration for mpspmvell
-#define MPRES_CUDA_BLOCKS_FIELDS 512
-#define MPRES_CUDA_THREADS_FIELDS 128
-#define MPRES_CUDA_BLOCKS_RESIDUES 32768
-#define MPRES_CUDA_THREADS_REDUCE 64
-
-#define MATRIX_PATH "../../tests/sparse/matrices/t3dl.mtx"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -79,73 +72,74 @@ void convert_vector(mp_float_ptr dest, const double *source, int width){
     }
 }
 
-/********************* SpMV ELLPACK implementations and benchmarks *********************/
+/********************* SpMV implementations and benchmarks *********************/
 
 /////////
-// double precision
+// Double precision
 /////////
-__global__ static void double_spmv_ell_kernel(const int num_rows, const int cols_per_row, const int * indices, const double * data, const double * x, double * y) {
+__global__ static void double_spmv_ell_kernel(const int m, const int nzr, const int *ja, const double *as, const double *x, double *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    if(row < num_rows){
+    if(row < m){
         double dot = 0;
-        for (int col = 0; col < cols_per_row; col++) {
-            int index = indices[col * num_rows + row];
+        for (int col = 0; col < nzr; col++) {
+            int index = ja[col * m + row];
             if(index != -1){
-                dot += data[col * num_rows + row] * x[index];
+                dot += as[col * m + row] * x[index];
             }
         }
         y[row] = dot;
     }
 }
 
-void double_test(const int num_rows, const int num_cols, const int cols_per_row, const double * data, const int * indices, const mpfr_t * x) {
+void double_test(const int m, const int n, const int nzr, const int *ja, const double *as, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] double SpMV ELLPACK");
 
     //Execution configuration
     int threads = 32;
-    int blocks = num_rows / threads + 1;
+    int blocks = m / threads + 1;
+    printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
 
     //host data
-    auto *hx = new double[num_cols];
-    auto *hy = new double[num_rows];
+    auto *hx = new double[n];
+    auto *hy = new double[m];
 
     //GPU data
-    auto *ddata = new double[num_rows * cols_per_row];
-    auto *dindices = new int[num_rows * cols_per_row];
-    auto *dx = new double[num_cols];
-    auto *dy = new double[num_rows];
+    auto *das = new double[m * nzr];
+    auto *dja = new int[m * nzr];
+    auto *dx = new double[n];
+    auto *dy = new double[m];
 
-    cudaMalloc(&ddata, sizeof(double) * num_rows * cols_per_row);
-    cudaMalloc(&dindices, sizeof(int) * num_rows * cols_per_row);
-    cudaMalloc(&dx, sizeof(double) * num_cols);
-    cudaMalloc(&dy, sizeof(double) * num_rows);
+    cudaMalloc(&das, sizeof(double) * m * nzr);
+    cudaMalloc(&dja, sizeof(int) * m * nzr);
+    cudaMalloc(&dx, sizeof(double) * n);
+    cudaMalloc(&dy, sizeof(double) * m);
 
     // Convert from MPFR
-    convert_vector(hx, x, num_cols);
+    convert_vector(hx, x, n);
 
     //Copying data to the GPU
-    cudaMemcpy(ddata, data, sizeof(double) * num_rows * cols_per_row, cudaMemcpyHostToDevice);
-    cudaMemcpy(dindices, indices, sizeof(int) * num_rows * cols_per_row, cudaMemcpyHostToDevice);
-    cudaMemcpy(dx, hx, sizeof(double) * num_cols, cudaMemcpyHostToDevice);
+    cudaMemcpy(das, as, sizeof(double) * m * nzr, cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, ja, sizeof(int) * m * nzr, cudaMemcpyHostToDevice);
+    cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();
-    double_spmv_ell_kernel<<<blocks, threads>>>(num_rows, cols_per_row, dindices, ddata, dx, dy);
+    double_spmv_ell_kernel<<<blocks, threads>>>(m, nzr, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Copying to the host
-    cudaMemcpy(hy, dy, sizeof(double) * num_rows , cudaMemcpyDeviceToHost);
-    print_double_sum(hy, num_rows);
+    cudaMemcpy(hy, dy, sizeof(double) * m , cudaMemcpyDeviceToHost);
+    print_double_sum(hy, m);
 
     delete [] hx;
     delete [] hy;
-    cudaFree(ddata);
-    cudaFree(dindices);
+    cudaFree(das);
+    cudaFree(dja);
     cudaFree(dx);
     cudaFree(dy);
 }
@@ -153,7 +147,7 @@ void double_test(const int num_rows, const int num_cols, const int cols_per_row,
 /////////
 // TACO
 /////////
-void taco_test(const mpfr_t * vectorX){
+void taco_test(const char * matrix_path, const mpfr_t * vectorX){
     using namespace taco;
     InitCpuTimer();
     Logger::printDash();
@@ -162,7 +156,7 @@ void taco_test(const mpfr_t * vectorX){
     Format csr({Dense,Sparse});
     Format  dv({Dense});
 
-    Tensor<double> A = read(MATRIX_PATH, csr, false);
+    Tensor<double> A = read(matrix_path, csr, false);
 
     Tensor<double> x({A.getDimension(1)}, dv);
     for (int i = 0; i < x.getDimension(0); ++i) {
@@ -189,237 +183,213 @@ void taco_test(const mpfr_t * vectorX){
 }
 
 /////////
-// MPRES-BLAS (structure of arrays)
+// MPRES-BLAS First SpMV ELL implementation
 /////////
-void mpres_test(const int num_rows, const int num_cols, const int cols_per_row, const double * data, const int * indices, const mpfr_t * x) {
-    Logger::printDash();
-    InitCudaTimer();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmvell");
-
-    size_t matrix_len = num_rows * cols_per_row;
-    //Host data
-    auto hx = new mp_float_t[num_cols];
-    auto hy = new mp_float_t[num_rows];
-    auto hdata = new mp_float_t[matrix_len];
-
-    //GPU data
-    mp_array_t dx;
-    mp_array_t dy;
-    mp_collection_t ddata;
-    mp_collection_t dbuf;
-    int *dindices;
-
-    //Init data
-    cuda::mp_array_init(dx, num_cols);
-    cuda::mp_array_init(dy, num_rows);
-    cuda::mp_collection_init(ddata, matrix_len);
-    cuda::mp_collection_init(dbuf, matrix_len);
-    cudaMalloc(&dindices, sizeof(int) * matrix_len);
-
-    // Convert from MPFR and double
-    convert_vector(hx, x, num_cols);
-    convert_vector(hdata, data, matrix_len);
-
-    //Copying to the GPU
-    cuda::mp_array_host2device(dx, hx, num_cols);
-    cuda::mp_collection_host2device(ddata, hdata, matrix_len);
-    cudaMemcpy(dindices, indices, sizeof(int) * matrix_len, cudaMemcpyHostToDevice);
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
-
-    //Launch
-    StartCudaTimer();
-    cuda::mpspmvell<
-            MPRES_CUDA_BLOCKS_FIELDS,
-            MPRES_CUDA_THREADS_FIELDS,
-            MPRES_CUDA_BLOCKS_RESIDUES,
-            MPRES_CUDA_THREADS_REDUCE>
-            (num_rows, num_cols, cols_per_row, dindices, ddata, dx, dy, dbuf);
-    EndCudaTimer();
-    PrintCudaTimer("took");
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
-
-    //Copying to the host
-    cuda::mp_array_device2host(hy, dy, num_rows);
-    print_mp_sum(hy, num_rows);
-
-    //Cleanup
-    delete [] hx;
-    delete [] hy;
-    delete [] hdata;
-    cuda::mp_array_clear(dx);
-    cuda::mp_array_clear(dy);
-    cuda::mp_collection_clear(ddata);
-    cuda::mp_collection_clear(dbuf);
-    cudaFree(dindices);
-}
-
-/////////
-// MPRES-BLAS straightforward (array of structures)
-// Each multiple-precision operation is performed by a single thread
-/////////
-__global__ static void mpspmvell_basic_kernel(const int num_rows, const int cols_per_row, const int * indices, mp_float_ptr data, mp_float_ptr x, mp_float_ptr y) {
-    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    if (row < num_rows) {
-        mp_float_t prod;
-        mp_float_t dot = cuda::MP_ZERO;
-        for (int col = 0; col < cols_per_row; col++) {
-            int index = indices[col * num_rows + row];
-            if(index >= 0){
-                cuda::mp_mul(&prod, &x[index], &data[col * num_rows + row]);
-                cuda::mp_add(&dot, &dot, &prod);
-            }
-        }
-        cuda::mp_set(&y[row], &dot);
-    }
-}
-
-void mpres_test_naive(const int num_rows, const int num_cols, const int cols_per_row, const double * data, int * indices, const mpfr_t * x){
+void mpres_test_1(const int m, const int n, const int nzr, const int *ja, const double *as, const mpfr_t *x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmvell (basic)");
-
-    size_t matrix_len = num_rows * cols_per_row;
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_ell1");
 
     //Execution configuration
     int threads = 32;
-    int blocks = num_rows / threads + 1;
+    int blocks = m / threads + 1;
+    printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
+    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * m * nzr /  double(1024 * 1024));
 
     // Host data
-    auto hx = new mp_float_t[num_cols];
-    auto hy = new mp_float_t[num_rows];
-    auto hdata = new mp_float_t[matrix_len];
+    auto hx = new mp_float_t[n];
+    auto hy = new mp_float_t[m];
+    auto has = new mp_float_t[m * nzr];
 
     // GPU data
     mp_float_ptr dx;
     mp_float_ptr dy;
-    mp_float_ptr ddata;
-    int *dindices;
+    mp_float_ptr das;
+    int *dja;
 
     //Init data
-    cudaMalloc(&dx, sizeof(mp_float_t) * num_cols);
-    cudaMalloc(&dy, sizeof(mp_float_t) * num_rows);
-    cudaMalloc(&ddata, sizeof(mp_float_t) * matrix_len);
-    cudaMalloc(&dindices, sizeof(int) * matrix_len);
+    cudaMalloc(&dx, sizeof(mp_float_t) * n);
+    cudaMalloc(&dy, sizeof(mp_float_t) * m);
+    cudaMalloc(&das, sizeof(mp_float_t) * m * nzr);
+    cudaMalloc(&dja, sizeof(int) * m * nzr);
 
     // Convert from MPFR
-    convert_vector(hx, x, num_cols);
-    convert_vector(hdata, data, matrix_len);
+    convert_vector(hx, x, n);
+    convert_vector(has, as, m * nzr);
 
     //Copying to the GPU
-    cudaMemcpy(dx, hx, num_cols * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(ddata, hdata, matrix_len * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(dindices, indices, matrix_len * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(das, has, m * nzr * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, ja, m * nzr * sizeof(int), cudaMemcpyHostToDevice);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Launch
     StartCudaTimer();
-    mpspmvell_basic_kernel<<<blocks, threads>>>(num_rows, cols_per_row, dindices, ddata, dx, dy);
+    cuda::mpspmv_ell1<<<blocks, threads>>>(m, nzr, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Copying to the host
-    cudaMemcpy(hy, dy, num_rows * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
-    print_mp_sum(hy, num_rows);
+    cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    print_mp_sum(hy, m);
 
     //Cleanup
     delete [] hx;
     delete [] hy;
-    delete [] hdata;
+    delete [] has;
     cudaFree(dx);
     cudaFree(dy);
-    cudaFree(ddata);
-    cudaFree(dindices);
+    cudaFree(das);
+    cudaFree(dja);
 }
 
-/********************* Main test *********************/
+/////////
+// MPRES-BLAS Second SpMV ELL implementation
+/////////
+void mpres_test_2(const int m, const int n, const int nzr, const int *ja, const double *as,  const mpfr_t *x) {
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_ell2");
 
-void test( int NUM_ROWS, int NUM_COLS, int NUM_LINES, int COLS_PER_ROW, bool MATRIX_SYMMETRIC, string DATATYPE) {
+    //Execution configuration
+    const int gridDim1 = 512;   //blocks for fields
+    const int blockDim1 = 128;  //threads for fields
+    const int gridDim2 = 32768; //blocks for residues
+    const int blockDim3 = 64; //threads for reduce
+    printf("(exec. config: gridDim1 = %i, blockDim1 = %i, gridDim2 = %i, blockDim3 = %i)\n", gridDim1, blockDim1, gridDim2, blockDim3);
+    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * m * nzr /  double(1024 * 1024));
 
-    //Inputs
-    mpfr_t *vectorX = create_random_array(NUM_COLS, INP_BITS);
-    auto * data = new double [NUM_ROWS * COLS_PER_ROW]();
-    auto * indices = new int[NUM_ROWS * COLS_PER_ROW]();
+    //Host data
+    auto hx = new mp_float_t[n];
+    auto hy = new mp_float_t[m];
+    auto has = new mp_float_t[m * nzr];
+
+    //GPU data
+    mp_array_t dx;
+    mp_array_t dy;
+    mp_collection_t das;
+    mp_collection_t dbuf;
+    int *dja;
+
+    //Init data
+    cuda::mp_array_init(dx, n);
+    cuda::mp_array_init(dy, m);
+    cuda::mp_collection_init(das, m * nzr);
+    cuda::mp_collection_init(dbuf, m * nzr);
+    cudaMalloc(&dja, sizeof(int) * m * nzr);
+
+    // Convert from MPFR and double
+    convert_vector(hx, x, n);
+    convert_vector(has, as, m * nzr);
+
+    //Copying to the GPU
+    cuda::mp_array_host2device(dx, hx, n);
+    cuda::mp_collection_host2device(das, has, m * nzr);
+    cudaMemcpy(dja, ja, sizeof(int) * m * nzr, cudaMemcpyHostToDevice);
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    StartCudaTimer();
+    cuda::mpspmv_ell2<gridDim1, blockDim1, gridDim2, blockDim3>(m, n, nzr, dja, das, dx, dy, dbuf);
+    EndCudaTimer();
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cuda::mp_array_device2host(hy, dy, m);
+    print_mp_sum(hy, m);
+
+    //Cleanup
+    delete [] hx;
+    delete [] hy;
+    delete [] has;
+    cuda::mp_array_clear(dx);
+    cuda::mp_array_clear(dy);
+    cuda::mp_collection_clear(das);
+    cuda::mp_collection_clear(dbuf);
+    cudaFree(dja);
+}
+
+/********************* Main tests *********************/
+
+void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int NZR, const bool SYMM, const string DATATYPE) {
+
+    //Input arrays
+    mpfr_t *vectorX = create_random_array(N, INP_BITS);
+    auto *AS = new double [M * NZR]();
+    auto *JA = new int[M * NZR]();
 
     //Convert a sparse matrix to the double-precision ELLPACK format
-    convert_to_ellpack(MATRIX_PATH, NUM_ROWS, COLS_PER_ROW, NUM_LINES, data, indices, MATRIX_SYMMETRIC);
+    convert_to_ellpack(MATRIX_PATH, M, NZR, LINES, SYMM, AS, JA);
 
-    //TODO: Delete after debugging
- /*
-    for (int i = 0; i < NUM_COLS; ++i) {
-        mpfr_set_si(vectorX[i], (i+1), MPFR_RNDN);
-    }
-
-    print_ellpack(NUM_ROWS,COLS_PER_ROW,data,indices);
-    int count = 0;
-    for (int i = 0; i < NUM_ROWS * COLS_PER_ROW; ++i) {
-        if (data[i] != 0) {
-            count++;
-        }
-    }
-    std::cout<<std::endl<<"NonZeros: "<<count<<std::endl;
-*/
     //Launch tests
-    double_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX);
+    double_test(M, N, NZR, JA, AS, vectorX);
     if (DATATYPE == "real") {
-        taco_test(vectorX);
+        taco_test(MATRIX_PATH, vectorX);
     }
-    mpres_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX);
-    mpres_test_naive(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX);
-    campary_spmv_ell_test<CAMPARY_PRECISION>(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, INP_DIGITS);
-    cump_spmv_ell_test(NUM_ROWS, NUM_COLS, COLS_PER_ROW, data, indices, vectorX, MP_PRECISION, INP_DIGITS);
+    mpres_test_1(M, N, NZR, JA, AS, vectorX);
+    mpres_test_2(M, N, NZR, JA, AS, vectorX);
+    campary_spmv_ell_test<CAMPARY_PRECISION>(M, N, NZR, JA, AS, vectorX, INP_DIGITS);
+    cump_spmv_ell_test(M, N, NZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
     //Cleanup
-    for(int i = 0; i < NUM_COLS; i++){
+    for(int i = 0; i < N; i++){
         mpfr_clear(vectorX[i]);
     }
     delete[] vectorX;
-    delete[] data;
-    delete[] indices;
+    delete[] AS;
+    delete[] JA;
     cudaDeviceReset();
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+
     //The operation parameters. Read from an input file that contains a sparse matrix
-    int NUM_ROWS = 0; //number of rows
-    int NUM_COLS = 0; //number of columns
-    int NUM_LINES = 0; //number of lines in the input matrix file
-    int COLS_PER_ROW = 0; //maximum number of nonzeros per row
-    bool MATRIX_SYMMETRIC = false; //true if the input matrix is to be treated as symmetrical; otherwise false
+    int M = 0; //number of rows
+    int N = 0; //number of columns
+    int NZR = 0; //number of nonzeros per row array (maximum number of nonzeros per row in the matrix A)
+    int LINES = 0; //number of lines in the input matrix file
+    bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary
 
     initialize();
 
     //Start logging
     Logger::beginTestDescription(Logger::BLAS_SPMV_ELL_PERFORMANCE_TEST);
+    if(argc<=1) {
+        printf("Matrix is not specified in command line arguments.");
+        Logger::printSpace();
+        Logger::endTestDescription();
+        exit(1);
+    }
+    const char * MATRIX_PATH = argv[1];
+
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC, DATATYPE);
-    Logger::printParam("Matrix rows, NUM_ROWS", NUM_ROWS);
-    Logger::printParam("Matrix columns, NUM_COLUMNS", NUM_COLS);
-    Logger::printParam("Maximum nonzeros per row, COLS_PER_ROW", COLS_PER_ROW);
-    Logger::printParam("Symmetry, MATRIX_SYMMETRIC", MATRIX_SYMMETRIC);
+    read_matrix_properties(MATRIX_PATH, M, N, LINES, NZR, SYMM, DATATYPE);
+    Logger::printParam("Number of rows in matrix, M", M);
+    Logger::printParam("Number of column in matrix, N", N);
+    Logger::printParam("Number of nonzeros in matrix, NNZ", SYMM ? ( (LINES - M) * 2 + M) : LINES);
+    Logger::printParam("Number of nonzeros per row array, NZR", NZR);
+    Logger::printParam("Symmetry of matrix, SYMM", SYMM);
     Logger::printParam("Data type, DATATYPE", DATATYPE);
     Logger::printDash();
     Logger::beginSection("Additional info:");
-    Logger::printParam("MP_PRECISION", MP_PRECISION);
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS", MPRES_CUDA_BLOCKS_FIELDS);
-    Logger::printParam("MPRES_CUDA_THREADS_FIELDS", MPRES_CUDA_THREADS_FIELDS);
-    Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
-    Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
+    Logger::printParam("MP_PRECISION", MP_PRECISION);
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
 
     //Run the test
-    test(NUM_ROWS, NUM_COLS, NUM_LINES, COLS_PER_ROW, MATRIX_SYMMETRIC, DATATYPE);
+    test(MATRIX_PATH, M, N, LINES, NZR, SYMM, DATATYPE);
 
     //Finalize
     finalize();

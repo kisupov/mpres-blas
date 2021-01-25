@@ -48,38 +48,49 @@ GCC_FORCEINLINE void mp_mul(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y)
 namespace cuda {
 
     /*!
+     * General routine for multiply multiple-precision numbers (result = x * y)
+     * The routines below call this procedure
+     */
+    DEVICE_CUDA_FORCEINLINE void mp_mul_common(int * sr, int * er, er_float_ptr * evlr, int * digr,
+                                               int sx, int ex, er_float_ptr * evlx, const int * digx,
+                                               int sy, int ey, er_float_ptr * evly, const int * digy){
+        *er = ex + ey;
+        *sr = sx ^ sy;
+        cuda::er_md_rd(evlr[0], evlx[0], evly[0], &cuda::RNS_EVAL_UNIT.upp);
+        cuda::er_md_ru(evlr[1], evlx[1], evly[1], &cuda::RNS_EVAL_UNIT.low);
+        cuda::rns_mul(digr, digx, digy);
+    }
+    /*!
      * Multiplication of two multiple-precision numbers
      * result = x * y
      */
     DEVICE_CUDA_FORCEINLINE void mp_mul(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y) {
-        result->exp = x->exp + y->exp;
-        result->sign = x->sign ^ y->sign;
-        cuda::er_md_rd(&result->eval[0], &x->eval[0], &y->eval[0], &cuda::RNS_EVAL_UNIT.upp);
-        cuda::er_md_ru(&result->eval[1], &x->eval[1], &y->eval[1], &cuda::RNS_EVAL_UNIT.low);
-        for(int i = 0; i < RNS_MODULI_SIZE; i ++){
-            result->digits[i] = cuda::mod_mul(x->digits[i], y->digits[i], cuda::RNS_MODULI[i]);
-        }
+        er_float_ptr evalx[2] = { &x->eval[0], &x->eval[1] }; //Array of pointers to interval evaluations
+        er_float_ptr evaly[2] = { &y->eval[0], &y->eval[1] };
+        er_float_ptr evalr[2] = { &result->eval[0], &result->eval[1] };
+
+        mp_mul_common(&result->sign, &result->exp, evalr, result->digits,
+                      x->sign, x->exp, evalx, x->digits,
+                      y->sign, y->exp, evaly, y->digits);
+
         if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
         }
     }
 
     /*!
-     * Multiplication of two multiple-precision numbers using the mp_array_t type for the first argument
-     * result = x[idx] * y
+     * Multiplication of two multiple-precision numbers using the mp_array_t type for the second argument
+     * result = x * y[idy]
      */
-    DEVICE_CUDA_FORCEINLINE void mp_mul(mp_float_ptr result, mp_array_t x, int idx, mp_float_ptr y) {
-        int digx[RNS_MODULI_SIZE]; //digits of x
-        for(int i = 0; i < RNS_MODULI_SIZE; i++){
-            digx[i] = x.digits[RNS_MODULI_SIZE * idx + i];
-        }
-        result->exp = x.exp[idx] + y->exp;
-        result->sign = x.sign[idx] ^ y->sign;
-        cuda::er_md_rd(&result->eval[0], &x.eval[idx], &y->eval[0], &cuda::RNS_EVAL_UNIT.upp);
-        cuda::er_md_ru(&result->eval[1], &x.eval[idx + x.len[0]], &y->eval[1], &cuda::RNS_EVAL_UNIT.low);
-        for(int i = 0; i < RNS_MODULI_SIZE; i ++){
-            result->digits[i] = cuda::mod_mul(digx[i], y->digits[i], cuda::RNS_MODULI[i]);
-        }
+    DEVICE_CUDA_FORCEINLINE void mp_mul(mp_float_ptr result, mp_float_ptr x, mp_array_t y, int idy) {
+        er_float_ptr evalx[2] = { &x->eval[0], &x->eval[1] };
+        er_float_ptr evaly[2] = { &y.eval[idy], &y.eval[idy + y.len[0]] };
+        er_float_ptr evalr[2] = { &result->eval[0], &result->eval[1] };
+
+        mp_mul_common(&result->sign, &result->exp, evalr, result->digits,
+                      x->sign, x->exp, evalx, x->digits,
+                      y.sign[idy], y.exp[idy], evaly,&y.digits[RNS_MODULI_SIZE * idy]);
+
         if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
         }
@@ -90,19 +101,14 @@ namespace cuda {
      * result = x[idx] * y[idy]
      */
     DEVICE_CUDA_FORCEINLINE void mp_mul(mp_float_ptr result, mp_array_t x, int idx, mp_array_t y, int idy) {
-        int digx[RNS_MODULI_SIZE]; //digits of x
-        int digy[RNS_MODULI_SIZE]; //digits of y
-        for(int i = 0; i < RNS_MODULI_SIZE; i++){
-            digx[i] = x.digits[RNS_MODULI_SIZE * idx + i];
-            digy[i] = y.digits[RNS_MODULI_SIZE * idy + i];
-        }
-        result->exp = x.exp[idx] + y.exp[idy];
-        result->sign = x.sign[idx] ^ y.sign[idy];
-        cuda::er_md_rd(&result->eval[0], &x.eval[idx], &y.eval[idy], &cuda::RNS_EVAL_UNIT.upp);
-        cuda::er_md_ru(&result->eval[1], &x.eval[idx + x.len[0]], &y.eval[idy + y.len[0]], &cuda::RNS_EVAL_UNIT.low);
-        for(int i = 0; i < RNS_MODULI_SIZE; i ++){
-            result->digits[i] = cuda::mod_mul(digx[i], digy[i], cuda::RNS_MODULI[i]);
-        }
+        er_float_ptr evalx[2] = { &x.eval[idx], &x.eval[idx + x.len[0]] };
+        er_float_ptr evaly[2] = { &y.eval[idy], &y.eval[idy + y.len[0]] };
+        er_float_ptr evalr[2] = { &result->eval[0], &result->eval[1] };
+
+        mp_mul_common(&result->sign, &result->exp, evalr, result->digits,
+                      x.sign[idx], x.exp[idx], evalx, &x.digits[RNS_MODULI_SIZE * idx],
+                      y.sign[idy], y.exp[idy], evaly, &y.digits[RNS_MODULI_SIZE * idy]);
+
         if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
         }

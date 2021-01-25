@@ -29,44 +29,44 @@
  * result = | x | + | y |
  */
 GCC_FORCEINLINE void mp_add_abs(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y) {
-    er_float_t eval_x[2];
-    er_float_t eval_y[2];
-    eval_x[0] = x->eval[0];
-    eval_x[1] = x->eval[1];
-    eval_y[0] = y->eval[0];
-    eval_y[1] = y->eval[1];
+    er_float_t evalx[2];
+    er_float_t evaly[2];
+    evalx[0] = x->eval[0];
+    evalx[1] = x->eval[1];
+    evaly[0] = y->eval[0];
+    evaly[1] = y->eval[1];
 
-    int exp_x = x->exp;
-    int exp_y = y->exp;
+    int ex = x->exp;
+    int ey = y->exp;
 
-    int dexp = exp_x - exp_y;
+    int dexp = ex - ey;
     int gamma =  dexp  * (dexp > 0);
     int theta = -dexp * (dexp < 0);
 
-    int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < MP_J);
-    int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < MP_J);
+    unsigned char nzx = ((evaly[1].frac == 0) || (theta + evaly[1].exp) < MP_J);
+    unsigned char nzy = ((evalx[1].frac == 0) || (gamma + evalx[1].exp) < MP_J);
 
     gamma = gamma * nzy;
     theta = theta * nzx;
 
-    eval_x[0].exp += gamma;
-    eval_x[1].exp += gamma;
-    eval_y[0].exp += theta;
-    eval_y[1].exp += theta;
+    evalx[0].exp += gamma;
+    evalx[1].exp += gamma;
+    evaly[0].exp += theta;
+    evaly[1].exp += theta;
 
-    eval_x[0].frac *= nzx;
-    eval_x[1].frac *= nzx;
-    eval_y[0].frac *= nzy;
-    eval_y[1].frac *= nzy;
+    evalx[0].frac *= nzx;
+    evalx[1].frac *= nzx;
+    evaly[0].frac *= nzy;
+    evaly[1].frac *= nzy;
 
-    exp_x = (exp_x - gamma) * nzx;
-    exp_y = (exp_y - theta) * nzy;
+    ex = (ex - gamma) * nzx;
+    ey = (ey - theta) * nzy;
 
-    er_add_rd(&result->eval[0], &eval_x[0], &eval_y[0]);
-    er_add_ru(&result->eval[1], &eval_x[1], &eval_y[1]);
+    er_add_rd(&result->eval[0], &evalx[0], &evaly[0]);
+    er_add_ru(&result->eval[1], &evalx[1], &evaly[1]);
 
     result->sign = 0;
-    result->exp = (exp_x == 0) ? exp_y : exp_x;
+    result->exp = (ex == 0) ? ey : ex;
 
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
         result->digits[i] = mod_axby(x->digits[i], RNS_POW2[gamma][i] * nzx, y->digits[i], RNS_POW2[theta][i] * nzy, RNS_MODULI[i]);
@@ -83,58 +83,63 @@ GCC_FORCEINLINE void mp_add_abs(mp_float_ptr result, mp_float_ptr x, mp_float_pt
 namespace cuda {
 
     /*!
-     * Addition of the absolute values of two multiple-precision numbers
+     * General routine for adding the absolute values of multiple-precision numbers (result = x + y)
      * result = | x | + | y |
      */
-    DEVICE_CUDA_FORCEINLINE void mp_add_abs(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y) {
-        er_float_t eval_x[2];
-        er_float_t eval_y[2];
-        eval_x[0] = x->eval[0];
-        eval_x[1] = x->eval[1];
-        eval_y[0] = y->eval[0];
-        eval_y[1] = y->eval[1];
+    DEVICE_CUDA_FORCEINLINE void mp_add_abs_common(int * er, er_float_ptr * evlr, int * digr,
+                                               int ex, er_float_ptr * evlx, const int * digx,
+                                               int ey, er_float_ptr * evly, const int * digy)
+    {
+        er_float_t evalx[2];
+        er_float_t evaly[2];
+        evalx[0] = *evlx[0];
+        evalx[1] = *evlx[1];
+        evaly[0] = *evly[0];
+        evaly[1] = *evly[1];
 
-        int exp_x = x->exp;
-        int exp_y = y->exp;
-
-        int dexp = exp_x - exp_y;
+        int dexp = ex - ey;
         int gamma =  dexp  * (dexp > 0);
         int theta = -dexp * (dexp < 0);
 
-        int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < cuda::MP_J);
-        int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < cuda::MP_J);
+        const int nzx = ((evaly[1].frac == 0) || (theta + evaly[1].exp) < cuda::MP_J);
+        const int nzy = ((evalx[1].frac == 0) || (gamma + evalx[1].exp) < cuda::MP_J);
 
         gamma = gamma * nzy;
         theta = theta * nzx;
 
-        eval_x[0].exp += gamma;
-        eval_x[1].exp += gamma;
-        eval_y[0].exp += theta;
-        eval_y[1].exp += theta;
+        ex = (ex - gamma) * nzx;
+        ey = (ey - theta) * nzy;
+        *er = (ex == 0) ? ey : ex;
 
-        eval_x[0].frac *= nzx;
-        eval_x[1].frac *= nzx;
-        eval_y[0].frac *= nzy;
-        eval_y[1].frac *= nzy;
+        evalx[0].exp += gamma;
+        evalx[1].exp += gamma;
+        evaly[0].exp += theta;
+        evaly[1].exp += theta;
 
-        exp_x = (exp_x - gamma) * nzx;
-        exp_y = (exp_y - theta) * nzy;
+        evalx[0].frac *= nzx;
+        evalx[1].frac *= nzx;
+        evaly[0].frac *= nzy;
+        evaly[1].frac *= nzy;
 
-        cuda::er_add_rd(&result->eval[0], &eval_x[0], &eval_y[0]);
-        cuda::er_add_ru(&result->eval[1], &eval_x[1], &eval_y[1]);
+        cuda::er_add_rd(evlr[0], &evalx[0], &evaly[0]);
+        cuda::er_add_ru(evlr[1], &evalx[1], &evaly[1]);
+        cuda::rns_axby_cd(digr, cuda::RNS_POW2[gamma], digx, nzx, cuda::RNS_POW2[theta], digy, nzy);
+    }
 
+    /*!
+     * Addition of the absolute values of two multiple-precision numbers
+     * result = | x | + | y |
+     */
+    DEVICE_CUDA_FORCEINLINE void mp_add_abs(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y) {
+        er_float_ptr evalx[2] = {&x->eval[0], &x->eval[1]}; //Array of pointers to interval evaluations
+        er_float_ptr evaly[2] = {&y->eval[0], &y->eval[1]};
+        er_float_ptr evalr[2] = {&result->eval[0], &result->eval[1]};
         result->sign = 0;
-        result->exp = (exp_x == 0) ? exp_y : exp_x;
 
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            result->digits[i] = cuda::mod_axby(
-                    x->digits[i] * nzx,
-                    cuda::RNS_POW2[gamma][i],
-                    y->digits[i] * nzy,
-                    cuda::RNS_POW2[theta][i],
-                    cuda::RNS_MODULI[i],
-                    cuda::RNS_MODULI_RECIPROCAL[i]);
-        }
+        mp_add_abs_common(&result->exp, evalr, result->digits,
+                      x->exp, evalx, x->digits,
+                      y->exp, evaly, y->digits);
+
         if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
         }
@@ -145,129 +150,18 @@ namespace cuda {
      * @param idy - index of the desired element in the vector y
      * @param result - pointer to the computed sum, result = | x | + | y[idy] |
      */
-    DEVICE_CUDA_FORCEINLINE void mp_add_abs(mp_float_ptr result, mp_float_ptr x, mp_array_t y, int idy){
-        er_float_t eval_x[2];
-        er_float_t eval_y[2];
-        eval_x[0] = x->eval[0];
-        eval_x[1] = x->eval[1];
-        eval_y[0] = y.eval[idy];
-        eval_y[1] = y.eval[idy + y.len[0]];
-
-        int exp_x = x->exp;
-        int exp_y = y.exp[idy];
-
-        int dexp = exp_x - exp_y;
-        int gamma =  dexp  * (dexp > 0);
-        int theta = -dexp * (dexp < 0);
-
-        int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < cuda::MP_J);
-        int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < cuda::MP_J);
-
-        gamma = gamma * nzy;
-        theta = theta * nzx;
-
-        eval_x[0].exp += gamma;
-        eval_x[1].exp += gamma;
-        eval_y[0].exp += theta;
-        eval_y[1].exp += theta;
-
-        eval_x[0].frac *= nzx;
-        eval_x[1].frac *= nzx;
-        eval_y[0].frac *= nzy;
-        eval_y[1].frac *= nzy;
-
-        exp_x = (exp_x - gamma) * nzx;
-        exp_y = (exp_y - theta) * nzy;
-
-        cuda::er_add_rd(&result->eval[0], &eval_x[0], &eval_y[0]);
-        cuda::er_add_ru(&result->eval[1], &eval_x[1], &eval_y[1]);
-
+    DEVICE_CUDA_FORCEINLINE void mp_add_abs(mp_float_ptr result, mp_float_ptr x, mp_array_t y, int idy) {
+        er_float_ptr evalx[2] = { &x->eval[0], &x->eval[1] };
+        er_float_ptr evaly[2] = { &y.eval[idy], &y.eval[idy + y.len[0]] };
+        er_float_ptr evalr[2] = { &result->eval[0], &result->eval[1] };
         result->sign = 0;
-        result->exp = (exp_x == 0) ? exp_y : exp_x;
 
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            result->digits[i] = cuda::mod_axby(
-                    x->digits[i] * nzx,
-                    cuda::RNS_POW2[gamma][i],
-                    y.digits[RNS_MODULI_SIZE * idy + i] * nzy,
-                    cuda::RNS_POW2[theta][i],
-                    cuda::RNS_MODULI[i],
-                    cuda::RNS_MODULI_RECIPROCAL[i]);
-        }
+        mp_add_abs_common(&result->exp, evalr, result->digits,
+                      x->exp, evalx, x->digits,
+                      y.exp[idy], evaly,&y.digits[RNS_MODULI_SIZE * idy]);
+
         if (result->eval[1].frac != 0 && result->eval[1].exp >= cuda::MP_H) {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
-        }
-    }
-
-    /*!
-     * Addition of the absolute values of two multiple-precision numbers using the mp_array_t type for the first argument and result
-     * @param idx - index of the desired element in the vector x
-     * @param idr - index in the result vector to write the computed sum
-     * @param result - pointer to the computed sum, result[idr] = | x[idx] | + | y |
-     */
-    DEVICE_CUDA_FORCEINLINE void mp_add_abs(mp_array_t result, int idr, mp_array_t x, int idx, mp_float_ptr y) {
-        int lenr = result.len[0]; //Actual length of the result vector
-        er_float_t eval_x[2];
-        er_float_t eval_y[2];
-        eval_x[0] = x.eval[idx];
-        eval_x[1] = x.eval[idx + x.len[0]];
-        eval_y[0] = y->eval[0];
-        eval_y[1] = y->eval[1];
-
-        int exp_x = x.exp[idx];
-        int exp_y = y->exp;
-
-        int dexp = exp_x - exp_y;
-        int gamma =  dexp  * (dexp > 0);
-        int theta = -dexp * (dexp < 0);
-
-        int nzx = ((eval_y[1].frac == 0) || (theta + eval_y[1].exp) < cuda::MP_J);
-        int nzy = ((eval_x[1].frac == 0) || (gamma + eval_x[1].exp) < cuda::MP_J);
-
-        gamma = gamma * nzy;
-        theta = theta * nzx;
-
-        eval_x[0].exp += gamma;
-        eval_x[1].exp += gamma;
-        eval_y[0].exp += theta;
-        eval_y[1].exp += theta;
-
-        eval_x[0].frac *= nzx;
-        eval_x[1].frac *= nzx;
-        eval_y[0].frac *= nzy;
-        eval_y[1].frac *= nzy;
-
-        exp_x = (exp_x - gamma) * nzx;
-        exp_y = (exp_y - theta) * nzy;
-
-        cuda::er_add_rd(&result.eval[idr], &eval_x[0], &eval_y[0]);
-        cuda::er_add_ru(&result.eval[idr + lenr], &eval_x[1], &eval_y[1]);
-
-        result.sign[idr] = 0;
-        result.exp[idr] = (exp_x == 0) ? exp_y : exp_x;
-
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            result.digits[RNS_MODULI_SIZE * idr + i] = cuda::mod_axby(
-                    x.digits[RNS_MODULI_SIZE * idx + i] * nzx,
-                    cuda::RNS_POW2[gamma][i],
-                    y->digits[i] * nzy,
-                    cuda::RNS_POW2[theta][i],
-                    cuda::RNS_MODULI[i],
-                    cuda::RNS_MODULI_RECIPROCAL[i]);
-        }
-        if (result.eval[idr + lenr].frac != 0 && result.eval[idr + lenr].exp >= cuda::MP_H) {
-            #if defined(DEBUG) || defined(_DEBUG)
-            if( result.eval[idr + lenr].exp != result.eval[idr].exp ){
-                    printf("\n [CUDA WARNING] Possible loss of accuracy");
-                }
-            #endif
-            int bits = result.eval[idr + lenr].exp - cuda::MP_H + 1;
-            while (bits > 0) {
-                result.exp[idr] += bits;
-                cuda::rns_scale2pow(&result.digits[idr * RNS_MODULI_SIZE], &result.digits[idr * RNS_MODULI_SIZE], bits);
-                cuda::rns_eval_compute_fast(&result.eval[idr], &result.eval[idr + lenr], &result.digits[idr * RNS_MODULI_SIZE]);
-                bits = -1;
-            }
         }
     }
 
