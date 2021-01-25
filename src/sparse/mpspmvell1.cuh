@@ -47,8 +47,8 @@ namespace cuda {
      * @param y - output vector, size at least m
      */
     __global__ void mpspmv_ell1(const int m, const int nzr, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
-        unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-        if (row < m) {
+        auto row = threadIdx.x + blockIdx.x * blockDim.x;
+        while (row < m) {
             mp_float_t prod;
             mp_float_t dot = cuda::MP_ZERO;
             for (int col = 0; col < nzr; col++) {
@@ -59,6 +59,7 @@ namespace cuda {
                 }
             }
             cuda::mp_set(&y[row], &dot);
+            row +=  gridDim.x * blockDim.x;
         }
     }
 

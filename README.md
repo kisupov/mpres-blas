@@ -1,5 +1,5 @@
 # MPRES-BLAS: Multiple-Precision GPU Accelerated BLAS Routines based on Residue Number System
-###### Version 1.2.1, released 2021-01-10
+###### Version 1.3.0, released 2021-01-25
 
 
 The MPRES-BLAS library implements a number of linear algebra operations, like the BLAS (Basic Linear Algebra Subprograms) routines, with [multiple precision](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) on CUDA-enabled graphics processing units. The library uses a residue number system ([RNS](https://en.wikipedia.org/wiki/Residue_number_system)) to represent multiple-precision floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS a good tool for high-performance computing on many-core architectures such as GPUs.
@@ -27,8 +27,8 @@ Underlying algorithms for multiple-precision floating-point arithmetic as well a
 
 2. The following sparse multiple-precision linear algebra operations are also currently supported:
 
-    * SpMV CSR --- Sparse matrix-vector multiplication in the CSR matrix storage format (`mpspmv_csr1`, `mpspmv_csr2`)
-    * SpMV ELL --- Sparse matrix-vector multiplication in the ELLPACK matrix storage format (`mpspmv_ell1`,`mpspmv_ell2`,)
+    * SpMV CSR --- Sparse matrix-vector multiplication in the CSR matrix storage format (`mpspmv_csr1`, `mpspmv_csr2`, `mpspmv_csr3`)
+    * SpMV ELL --- Sparse matrix-vector multiplication in the ELLPACK matrix storage format (`mpspmv_ell1`,`mpspmv_ell2`)
 
 3. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/arith/`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
 

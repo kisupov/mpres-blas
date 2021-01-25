@@ -1,7 +1,6 @@
 /*
- *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the CSR sparse matrix format
- *  Computes the product of a sparse matrix and a dense vector
- *  Second SpMV CSR implementation
+ *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format
+ *  Second CSR implementation (vector kernel) - one warp (32 threads) is assigned to each row of the matrix
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
@@ -25,102 +24,68 @@
 #define MPSPMVCSR2_CUH
 
 #include "../arith/mpadd.cuh"
+#include "../arith/mpmul.cuh"
 #include "../arith/mpassign.cuh"
-#include "../mpvector.cuh"
-#include "../kernel_config.cuh"
 
 namespace cuda {
 
     /*!
-     * Multiplication of a sparse matrix A stored in the CSR format by a diagonal matrix on the right which is stored as a vector x
-     * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
-     * The component wise products are written into the result array of size nnz
-     * @note The 'as' and 'result' arrays are treated as vectors (one-dimensional arrays)
-     */
-    __global__ void csr_scal_esi_kernel(const int n, const int nnz, const int *ja, mp_collection_t as, mp_array_t x, mp_collection_t result) {
-        auto numberIdx =  blockDim.x * blockIdx.x + threadIdx.x;
-        while (numberIdx < nnz) {
-            auto index = ja[numberIdx];
-            result.sign[numberIdx] = as.sign[numberIdx] ^ x.sign[index];
-            result.exp[numberIdx] = as.exp[numberIdx] + x.exp[index];
-            cuda::er_md_rd(&result.eval[numberIdx], &as.eval[numberIdx], &x.eval[index], &cuda::RNS_EVAL_UNIT.upp);
-            cuda::er_md_ru(&result.eval[nnz + numberIdx], &as.eval[nnz + numberIdx], &x.eval[n + index], &cuda::RNS_EVAL_UNIT.low);
-            numberIdx +=  gridDim.x * blockDim.x;
-        }
-    }
-
-    /*!
-     * Multiplication of a sparse matrix A stored in the CSR format by a diagonal matrix on the right which is stored as a vector x
-     * Kernel #2 --- Computing the significands in the RNS (digits) in parallel
-     * The component wise products are written into the result array of size nnz
-     * @note The 'as' and 'result' arrays are treated as vectors (one-dimensional arrays)
-     */
-    __global__ void csr_scal_digits_kernel(const int nnz, const int *ja, mp_collection_t as, mp_array_t x, mp_collection_t result){
-        auto lmodul = cuda::RNS_MODULI[threadIdx.x  % RNS_MODULI_SIZE];
-        auto digitId = blockIdx.x * blockDim.x + threadIdx.x; //Index of the current digit
-        auto numberId = (blockIdx.x * blockDim.x + threadIdx.x) / RNS_MODULI_SIZE; //Index of the current matrix element
-        while (digitId < nnz * RNS_MODULI_SIZE) {
-            result.digits[digitId] = cuda::mod_mul(as.digits[digitId], x.digits[ja[numberId] * RNS_MODULI_SIZE + threadIdx.x % RNS_MODULI_SIZE], lmodul);
-            digitId += gridDim.x * blockDim.x;
-            numberId += gridDim.x * blockDim.x / RNS_MODULI_SIZE;
-        }
-    }
-
-    /*!
-     * Kernel that computes the sum of all the elements in each row of a multiple-precision matrix and and stores it in the corresponding element of the vector y of m elements
-     * One thread calculates the sum of the elements in one row of the matrix, i.e. one element of the vector y
-     * @note Shared memory of size = sizeof(mp_float_t) * nThreads must be allocated, where nThreads is the number of threads per block
-     * @note The 'as' array is assumed to be stored in the row major order, that is, [column 1] [column 2] ... [column n]
-     */
-    __global__ static void csr_matrix_row_sum_kernel(const int m, const int nnz, const int *irp, mp_collection_t as, mp_array_t y){
-        extern __shared__ mp_float_t sum[];
-        auto row = threadIdx.x + blockIdx.x * blockDim.x;
-        if (row < m) {
-            sum[threadIdx.x] = cuda::MP_ZERO;
-            for (auto index = irp[row]; index < irp[row + 1]; index++) {
-                cuda::mp_add(&sum[threadIdx.x], &sum[threadIdx.x], as, index, nnz);
-            }
-            cuda::mp_set(y, row, &sum[threadIdx.x]);
-        }
-    }
-
-    /*!
      * Performs the matrix-vector operation y = A * x, where x and y are dense vectors and A is a sparse matrix.
-     * The matrix should be stored in the CSR format: entries are stored in a dense array of nonzeros in row major order
+     * Vector kernel - one warp (32 threads) is assigned to each row of the matrix, i.e. one element of the vector y.
+     * The matrix should be stored in the CSR format: entries are stored in a dense array of nonzeros in row major order.
      *
-     * @tparam gridDim1 - number of blocks used to compute the signs, exponents, interval evaluations in an element-wise matrix-vector operation (diagonal scaling)
-     * @tparam blockDim1 - number of threads per block used to compute the signs, exponents, interval evaluations in an element-wise matrix-vector operation (diagonal scaling)
-     * @tparam gridDim2 - number of blocks used to compute the digits of multiple-precision significands in an element-wise matrix-vector operation (diagonal scaling)
-     * @tparam blockDim3 - number of threads per block for parallel summation
-
+     * @note The matrix is represented in multiple precision
+     * @note Each operation using multiple precision is performed as a single thread
+     * @note No global memory buffer is required
+     * @note Shared memory of size sizeof(mp_float_t) * blockDim.x must be allocated
+     *
      * @param m - number of rows in matrix
-     * @param n - number of columns in matrix
-     * @param nnz - number of nonzeros in matrix
      * @param irp - row start pointers array of size m + 1, last element of irp equals to nnz (number of nonzeros in matrix)
      * @param ja - column indices array to access the corresponding elements of the vector x, size = nnz
      * @param as - multiple-precision coefficients array (entries of the matrix A in the CSR format), size = nnz
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
-     * @param buffer - auxiliary array in the global GPU memory for storing the intermediate matrix, size = nnz
      */
-    template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
-    void mpspmv_csr2(const int m, const int n, const int nnz, const int *irp, const int *ja,  mp_collection_t &as, mp_array_t &x, mp_array_t &y, mp_collection_t &buffer) {
+    __global__ void mpspmv_csr2(const int m, const int *irp, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
+        extern __shared__ mp_float_t vals[];
 
-        //We consider the vector x as a diagonal matrix and perform the right diagonal scaling, buffer = A * x.
-        //The result is written to the intermediate buffer of size = nnz.
+        auto threadId = threadIdx.x + blockIdx.x * blockDim.x; // global thread index
+        auto warpId = threadId / 32; // global warp index
+        auto lane = threadId & (32 - 1); // thread index within the warp
+        auto row = warpId; // one warp per row
 
-        //Multiplication buffer = A * x - Computing the signs, exponents, and interval evaluations
-        csr_scal_esi_kernel<<<gridDim1, blockDim1>>>(n, nnz, ja, as, x, buffer);
-
-        //Multiplication buffer = A * x - Multiplying the digits in the RNS
-        csr_scal_digits_kernel<<< gridDim2, BLOCK_SIZE_FOR_RESIDUES >>> (nnz, ja, as, x, buffer);
-
-        //Rounding the intermediate result (buffer)
-        mp_vector_round_kernel<<< 64, 64 >>> (buffer, nnz);
-
-        //The following is tne reduction of the intermediate matrix (buffer).
-        //Here, the sum of the elements in each row is calculated, and stored in the corresponding element of y
-        csr_matrix_row_sum_kernel<<<m / blockDim3 + 1, blockDim3, sizeof(mp_float_t) * blockDim3 >>>(m, nnz, irp, buffer, y);
+        while (row < m) {
+            mp_float_t prod;
+            int row_start = irp[row];
+            int row_end = irp[row + 1];
+            // compute running sum per thread
+            vals[threadIdx.x] = cuda::MP_ZERO;
+            for (int i = row_start + lane; i < row_end; i += 32) {
+                cuda::mp_mul(&prod, &as[i], &x[ja[i]]);
+                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &prod);
+            }
+            // parallel reduction in shared memory
+            if (lane < 16) {
+                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 16]);
+            }
+            if (lane < 8) {
+                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 8]);
+            }
+            if (lane < 4) {
+                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 4]);
+            }
+            if (lane < 2) {
+                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 2]);
+            }
+            if (lane < 1) {
+                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 1]);
+            }
+            // first thread writes the result
+            if (lane == 0) {
+                cuda::mp_set(&y[row], &vals[threadIdx.x]);
+            }
+            row +=  gridDim.x * blockDim.x / 32;
+        }
     }
 
 } // namespace cuda

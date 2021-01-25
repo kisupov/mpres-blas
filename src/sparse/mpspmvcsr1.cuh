@@ -1,7 +1,6 @@
 /*
- *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the CSR sparse matrix format
- *  Computes the product of a sparse matrix and a dense vector
- *  First SpMV CSR implementation
+ *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format
+ *  First CSR implementation (scalar kernel) - one thread is assigned to each row of the matrix
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
@@ -32,11 +31,11 @@ namespace cuda {
 
     /*!
      * Performs the matrix-vector operation y = A * x, where x and y are dense vectors and A is a sparse matrix.
-     * The matrix should be stored in the CSR format: entries are stored in a dense array of nonzeros in row major order
+     * Scalar kernel - one thread is assigned to each row of the matrix, i.e. one element of the vector y.
+     * The matrix should be stored in the CSR format: entries are stored in a dense array of nonzeros in row major order.
      *
      * @note The matrix is represented in multiple precision
      * @note Each operation using multiple precision is performed as a single thread
-     * @note One thread is assigned to compute one dot product, i.e. one element of the vector n (scalar kernel)
      * @note No global memory buffer is required
      *
      * @param m - number of rows in matrix
@@ -46,9 +45,9 @@ namespace cuda {
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
-    __global__ static void mpspmv_csr1(const int m, const int *irp, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
-        unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-        if (row < m) {
+    __global__ void mpspmv_csr1(const int m, const int *irp, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
+        auto row = threadIdx.x + blockIdx.x * blockDim.x;
+        while (row < m) {
             mp_float_t prod;
             mp_float_t dot = cuda::MP_ZERO;
             int row_start = irp[row];
@@ -58,6 +57,7 @@ namespace cuda {
                 cuda::mp_add(&dot, &dot, &prod);
             }
             cuda::mp_set(&y[row], &dot);
+            row +=  gridDim.x * blockDim.x;
         }
     }
 
