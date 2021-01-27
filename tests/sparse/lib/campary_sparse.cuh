@@ -68,6 +68,26 @@ __global__ void campary_spmv_csr_kernel(const int m, const int *irp, const int *
     }
 }
 
+/*
+ * Performs the matrix-vector operation y = A * x
+ * where x and y are dense vectors and A is a sparse matrix.
+ * The matrix should be stored in the DIA format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
+ */
+template<int prec>
+__global__ void campary_spmv_dia_kernel(const int m, const int n, const int ndiag, const int *offsets, const multi_prec<prec> *data, const multi_prec<prec> *x, multi_prec<prec> *y) {
+    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
+    if (row < m) {
+        multi_prec<prec> dot = 0.0;
+        for (int i = 0; i < ndiag; i++) {
+            int col = row + offsets[i];
+            multi_prec<prec> val = data[m * i + row];
+            if(col  >= 0 && col < n)
+                dot += val * x[col];
+        }
+        y[row] = dot;
+    }
+}
+
 
 /********************* Benchmarks *********************/
 
@@ -219,6 +239,80 @@ void campary_spmv_csr_test(const int m, const int n, const int nnz, const int *i
     cudaFree(dirp);
     cudaFree(dja);
     cudaFree(das);
+}
+
+
+/*
+ * SpMV ELLPACK test
+ */
+template<int prec>
+void campary_spmv_dia_test(const int m, const int n, const int ndiag, const int *offsets, const double *data,  mpfr_t *x, const int convert_prec) {
+    Logger::printDash();
+    InitCudaTimer();
+    PrintTimerName("[GPU] CAMPARY SpMV DIA");
+
+    //Execution configuration
+    int threads = 32;
+    int blocks = m / threads + 1;
+    printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
+
+    //Host data
+    multi_prec<prec> *hx = new multi_prec<prec>[n];
+    multi_prec<prec> *hy = new multi_prec<prec>[m];
+    multi_prec<prec> *hdata = new multi_prec<prec>[m * ndiag];
+
+    //GPU data
+    multi_prec<prec> *dx;
+    multi_prec<prec> *dy;
+    multi_prec<prec> *ddata;
+    int *doffsets = new int[ndiag];
+
+    cudaMalloc(&dx, sizeof(multi_prec<prec>) * n);
+    cudaMalloc(&dy, sizeof(multi_prec<prec>) * m);
+    cudaMalloc(&ddata, sizeof(multi_prec<prec>) * m * ndiag);
+    cudaMalloc(&doffsets, sizeof(int) * ndiag);
+
+    //Convert from MPFR
+#pragma omp parallel for
+    for(int i = 0; i < n; i++){
+        hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
+    }
+    //Convert from double
+#pragma omp parallel for
+    for(int i = 0; i < m * ndiag; i++){
+        hdata[i] = data[i];
+    }
+
+    //Copying to the GPU
+    cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(ddata, hdata, sizeof(multi_prec<prec>) * m * ndiag, cudaMemcpyHostToDevice);
+    cudaMemcpy(doffsets, offsets, sizeof(int) * ndiag, cudaMemcpyHostToDevice);
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    StartCudaTimer();
+    campary_spmv_dia_kernel<prec><<<blocks, threads>>>(m, n, ndiag, doffsets, ddata, dx, dy);
+    EndCudaTimer();
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hy, dy, sizeof(multi_prec<prec>) * m, cudaMemcpyDeviceToHost);
+    for(int i = 1; i < m; i++){
+        hy[0] += hy[i];
+    }
+    printResult<prec>(hy[0]);
+
+    //Cleanup
+    delete [] hx;
+    delete [] hy;
+    delete [] hdata;
+    cudaFree(dx);
+    cudaFree(dy);
+    cudaFree(ddata);
+    cudaFree(doffsets);
 }
 
 #endif //MPRES_TEST_CAMPARY_SPARSE_CUH

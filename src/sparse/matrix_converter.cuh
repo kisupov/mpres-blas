@@ -234,6 +234,65 @@ void convert_to_csr(const char filename[], const int m, const int nnz, const int
     delete[] ia;
 }
 
+void convert_to_dia(const char filename[], const int m, const int lines, bool symmetric, int &ndiag, double *&data, int *&offsets) {
+    //Create stream
+    std::ifstream file(filename);
+
+    // Ignore comments headers
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    //Skip one line with the matrix properties
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    std::vector<int> diagOffsets(lines);
+
+    for (int l = 0; l < lines; l++) {
+        double fileData = 0.0;
+        int row = 0, col = 0;
+        file >> row >> col >> fileData;
+        diagOffsets[l] = col-row;
+    }
+
+    std::sort(diagOffsets.begin(), diagOffsets.end());
+    diagOffsets.erase(std::unique(diagOffsets.begin(), diagOffsets.end()), diagOffsets.end());
+    ndiag = (int) diagOffsets.size();
+
+    if (symmetric) {
+        for (int i = ndiag-2; i > -1; i--) {
+            diagOffsets.push_back(-diagOffsets[i]);
+        }
+        ndiag = (int) diagOffsets.size();
+    }
+
+
+    data = new double[m * ndiag]();
+    offsets = new int[ndiag];
+
+    for (int i = 0; i < ndiag; ++i) {
+        offsets[i] = diagOffsets[i];
+    }
+
+    //курсор в начало
+    file.seekg(0, ios::beg);
+    // Ignore comments headers
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    //Skip one line with the matrix properties
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    for (int l = 0; l < lines; ++l) {
+        double fileData = 0.0;
+        int row = 0, col = 0, index = 0;
+        file >> row >> col >> fileData;
+        index = (int) std::distance(diagOffsets.begin(), std::find(diagOffsets.begin(), diagOffsets.end(), (col-row)));
+        data[m * index + (row-1)] = fileData;
+        if (symmetric) {
+            index = (int) std::distance(diagOffsets.begin(), std::find(diagOffsets.begin(), diagOffsets.end(), (row-col)));
+            data[m * index + (col-1)] = fileData;
+        }
+    }
+    //TODO освободить память занятую вектором
+    file.close();
+}
+
 /*!
  * Prints a sparse matrix represented in the ELLPACK format
  */
@@ -272,6 +331,26 @@ void print_csr(const int m, const int nnz, double *as, int *irp, int *ja) {
     for (int i = 0; i < nnz; i++) {
         std::cout << ja[i] << "\t";
     }
+}
+
+/*!
+ * Prints a sparse matrix represented in the DIA format
+ */
+void print_dia(const int m, const int ndiag, double *data, int *offsets) {
+    std::cout << std::endl << "offsets:";
+    std::cout << std::endl;
+    for (int j = 0; j < ndiag; j++) {
+        std::cout << offsets[j] << "\t";
+    }
+
+    std::cout << std::endl << "data:";
+    for (int i = 0; i < m; i++) {
+        std::cout << std::endl;
+        for (int j = 0; j < ndiag; j++) {
+            std::cout << data[i + m * j] << "\t";
+        }
+    }
+    std::cout << std::endl;
 }
 
 #endif //MATRIX_CONVERTER_CUH
