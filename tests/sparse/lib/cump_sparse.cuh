@@ -71,14 +71,14 @@ __global__ void cump_spmv_csr_kernel(const int m, const int *irp,  const int *ja
  * where x and y are dense vectors and A is a sparse matrix.
  * The matrix should be stored in the DIA format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
-__global__ void cump_spmv_dia_kernel(const int m, const int n, const int ndiag, const int *offsets, mpf_array_t data, mpf_array_t x, mpf_array_t y, mpf_array_t buf) {
+__global__ void cump_spmv_dia_kernel(const int m, const int n, const int ndiag, const int *offset, mpf_array_t as, mpf_array_t x, mpf_array_t y, mpf_array_t buf) {
     using namespace cump;
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if (row < m) {
         for (int i = 0; i < ndiag; i++) {
-            int col = row + offsets[i];
+            int col = row + offset[i];
             if(col  >= 0 && col < n) {
-                mpf_mul(buf[row], x[col], data[m * i + row]);
+                mpf_mul(buf[row], x[col], as[m * i + row]);
                 mpf_add(y[row], y[row], buf[row]);
             }
         }
@@ -272,7 +272,7 @@ void cump_spmv_csr_test(const int m, const int n, const int nnz, const int *irp,
 /*
  * SpMV DIA test
  */
-void cump_spmv_dia_test(const int m, const int n, const int ndiag, const int *offsets, const double *data, mpfr_t *x, const int prec, const int convert_digits){
+void cump_spmv_dia_test(const int m, const int n, const int ndiag, const int *offset, const double *as, mpfr_t *x, const int prec, const int convert_digits){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CUMP SpMV DIA");
@@ -289,20 +289,20 @@ void cump_spmv_dia_test(const int m, const int n, const int ndiag, const int *of
     //Host data
     mpf_t *hx = new mpf_t[n];
     mpf_t *hy = new mpf_t[m];
-    mpf_t *hdata = new mpf_t[m * ndiag];
+    mpf_t *has = new mpf_t[m * ndiag];
 
     //GPU data
     cumpf_array_t dx;
     cumpf_array_t dy;
-    cumpf_array_t ddata;
+    cumpf_array_t das;
     cumpf_array_t dbuf;
-    int *doffsets = new int[ndiag];
+    int *doffset = new int[ndiag];
 
     cumpf_array_init2(dx, n, prec);
     cumpf_array_init2(dy, m, prec);
-    cumpf_array_init2(ddata, m * ndiag, prec);
+    cumpf_array_init2(das, m * ndiag, prec);
     cumpf_array_init2(dbuf, m, prec);
-    cudaMalloc(&doffsets, sizeof(int) * ndiag);
+    cudaMalloc(&doffset, sizeof(int) * ndiag);
 
     //Convert from MPFR
     for(int i = 0; i < n; i++){
@@ -315,19 +315,19 @@ void cump_spmv_dia_test(const int m, const int n, const int ndiag, const int *of
     }
     //Convert from double
     for(int i = 0; i < m * ndiag; i++){
-        mpf_init2(hdata[i], prec);
-        mpf_set_d(hdata[i], data[i]);
+        mpf_init2(has[i], prec);
+        mpf_set_d(has[i], as[i]);
     }
 
     //Copying to the GPU
     cumpf_array_set_mpf(dx, hx, n);
     cumpf_array_set_mpf(dy, hy, m);
-    cumpf_array_set_mpf(ddata, hdata, m * ndiag);
-    cudaMemcpy(doffsets, offsets, sizeof(int) * ndiag, cudaMemcpyHostToDevice);
+    cumpf_array_set_mpf(das, has, m * ndiag);
+    cudaMemcpy(doffset, offset, sizeof(int) * ndiag, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();
-    cump_spmv_dia_kernel<<<blocks, threads>>>(m, n, ndiag, doffsets, ddata, dx, dy, dbuf);
+    cump_spmv_dia_kernel<<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
 
@@ -346,16 +346,16 @@ void cump_spmv_dia_test(const int m, const int n, const int ndiag, const int *of
         mpf_clear(hy[i]);
     }
     for(int i = 0; i < m * ndiag; i++){
-        mpf_clear(hdata[i]);
+        mpf_clear(has[i]);
     }
     delete [] hx;
     delete [] hy;
-    delete [] hdata;
+    delete [] has;
     cumpf_array_clear(dx);
     cumpf_array_clear(dy);
-    cumpf_array_clear(ddata);
+    cumpf_array_clear(das);
     cumpf_array_clear(dbuf);
-    cudaFree(doffsets);
+    cudaFree(doffset);
 }
 
 #endif //MPRES_TEST_CUMP_SPARSE_CUH

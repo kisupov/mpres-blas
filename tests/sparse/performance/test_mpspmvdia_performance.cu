@@ -26,7 +26,7 @@
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
 #include "../../../src/mpcollection.cuh"
-//#include "../../../src/sparse/mpspmvell1.cuh"
+#include "../../../src/sparse/mpspmvdia.cuh"
 #include "../../../src/sparse/matrix_converter.cuh"
 #include "3rdparty.cuh"
 
@@ -76,13 +76,13 @@ void convert_vector(mp_float_ptr dest, const double *source, int width){
 /////////
 // Double precision
 /////////
-__global__ static void double_spmv_dia_kernel(const int m, const int n, const int ndiag, const int *offsets, const double *data, const double *x, double *y) {
+__global__ static void double_spmv_dia_kernel(const int m, const int n, const int ndiag, const int *offset, const double *as, const double *x, double *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if(row < m) {
         double dot = 0;
         for (int i = 0; i < ndiag; i++) {
-            int col = row + offsets[i];
-            double val = data[m * i + row];
+            int col = row + offset[i];
+            double val = as[m * i + row];
             if(col  >= 0 && col < n)
                 dot += val * x[col];
         }
@@ -90,7 +90,7 @@ __global__ static void double_spmv_dia_kernel(const int m, const int n, const in
     }
 }
 
-void double_test(const int m, const int n, const int ndiag, const int *offsets, const double *data, const mpfr_t *x) {
+void double_test(const int m, const int n, const int ndiag, const int *offset, const double *as, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] double SpMV DIA");
@@ -105,13 +105,13 @@ void double_test(const int m, const int n, const int ndiag, const int *offsets, 
     auto *hy = new double[m];
 
     //GPU data
-    auto *ddata = new double[m * ndiag];
-    auto *doffsets = new int[ndiag];
+    auto *das = new double[m * ndiag];
+    auto *doffset = new int[ndiag];
     auto *dx = new double[n];
     auto *dy = new double[m];
 
-    cudaMalloc(&ddata, sizeof(double) * m * ndiag);
-    cudaMalloc(&doffsets, sizeof(int) * m * ndiag);
+    cudaMalloc(&das, sizeof(double) * m * ndiag);
+    cudaMalloc(&doffset, sizeof(int) * ndiag);
     cudaMalloc(&dx, sizeof(double) * n);
     cudaMalloc(&dy, sizeof(double) * m);
 
@@ -119,13 +119,13 @@ void double_test(const int m, const int n, const int ndiag, const int *offsets, 
     convert_vector(hx, x, n);
 
     //Copying data to the GPU
-    cudaMemcpy(ddata, data, sizeof(double) * m * ndiag, cudaMemcpyHostToDevice);
-    cudaMemcpy(doffsets, offsets, sizeof(int) * ndiag, cudaMemcpyHostToDevice);
+    cudaMemcpy(das, as, sizeof(double) * m * ndiag, cudaMemcpyHostToDevice);
+    cudaMemcpy(doffset, offset, sizeof(int) * ndiag, cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();
-    double_spmv_dia_kernel<<<blocks, threads>>>(m, n, ndiag, doffsets, ddata, dx, dy);
+    double_spmv_dia_kernel<<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -137,8 +137,8 @@ void double_test(const int m, const int n, const int ndiag, const int *offsets, 
 
     delete [] hx;
     delete [] hy;
-    cudaFree(ddata);
-    cudaFree(doffsets);
+    cudaFree(das);
+    cudaFree(doffset);
     cudaFree(dx);
     cudaFree(dy);
 }
@@ -181,29 +181,93 @@ void taco_test(const char * matrix_path, const mpfr_t * vectorX){
     printf("result: %.70f\n", sum);
 }
 
+/////////
+// MPRES-BLAS SpMV DIA implementation
+/////////
+void mpres_test(const int m, const int n, const int ndiag, const int *offset, const double *as, const mpfr_t *x) {
+    InitCudaTimer();
+    Logger::printDash();
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_dia");
+
+    //Execution configuration
+    int threads = 32;
+    int blocks = m / threads + 1;
+    printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
+    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * m * ndiag /  double(1024 * 1024));
+
+    // Host data
+    auto hx = new mp_float_t[n];
+    auto hy = new mp_float_t[m];
+    auto has = new mp_float_t[m * ndiag];
+
+    // GPU data
+    mp_float_ptr dx;
+    mp_float_ptr dy;
+    mp_float_ptr das;
+    int *doffset;
+
+    //Init data
+    cudaMalloc(&dx, sizeof(mp_float_t) * n);
+    cudaMalloc(&dy, sizeof(mp_float_t) * m);
+    cudaMalloc(&das, sizeof(mp_float_t) * m * ndiag);
+    cudaMalloc(&doffset, sizeof(int) * ndiag);
+
+    // Convert from MPFR
+    convert_vector(hx, x, n);
+    convert_vector(has, as, m * ndiag);
+
+    //Copying to the GPU
+    cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(das, has, m * ndiag * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(doffset, offset, ndiag * sizeof(int), cudaMemcpyHostToDevice);
+
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    StartCudaTimer();
+    cuda::mpspmv_dia<<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy);
+    EndCudaTimer();
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    print_mp_sum(hy, m);
+
+    //Cleanup
+    delete [] hx;
+    delete [] hy;
+    delete [] has;
+    cudaFree(dx);
+    cudaFree(dy);
+    cudaFree(das);
+    cudaFree(doffset);
+}
+
 /********************* Main tests *********************/
 
 void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const bool SYMM, const string DATATYPE) {
 
     //Input arrays
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
-    double *data;
-    int *offsets;
-    int ndiag;
+    double *AS;
+    int *OFFSET;
+    int NDIAG;
 
-    //Convert a sparse matrix to the double-precision ELLPACK format
-    convert_to_dia(MATRIX_PATH, M, LINES, SYMM, ndiag, data, offsets);
-    //print_dia(M, ndiag, data, offsets);
+    //Convert a sparse matrix to the double-precision DIA format
+    convert_to_dia(MATRIX_PATH, M, LINES, SYMM, NDIAG, AS, OFFSET);
 
     //Launch tests
-    double_test(M, N, ndiag, offsets, data, vectorX);
+    double_test(M, N, NDIAG, OFFSET, AS, vectorX);
     if (DATATYPE == "real") {
         taco_test(MATRIX_PATH, vectorX);
     }
-    //mpres_test_1(M, N, NZR, JA, AS, vectorX);
-    campary_spmv_dia_test<CAMPARY_PRECISION>(M, N, ndiag, offsets, data, vectorX, INP_DIGITS);
+    mpres_test(M, N, NDIAG, OFFSET, AS, vectorX);
+    campary_spmv_dia_test<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
     //t3dl падает на кампе
-    cump_spmv_dia_test(M, N, ndiag, offsets, data, vectorX, MP_PRECISION, INP_DIGITS);
+    cump_spmv_dia_test(M, N, NDIAG, OFFSET, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -212,8 +276,8 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
         mpfr_clear(vectorX[i]);
     }
     delete[] vectorX;
-    delete[] data;
-    delete[] offsets;
+    delete[] AS;
+    delete[] OFFSET;
     cudaDeviceReset();
 }
 

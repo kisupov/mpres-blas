@@ -234,9 +234,21 @@ void convert_to_csr(const char filename[], const int m, const int nnz, const int
     delete[] ia;
 }
 
-void convert_to_dia(const char filename[], const int m, const int lines, bool symmetric, int &ndiag, double *&data, int *&offsets) {
+/*!
+ * Converts a sparse matrix to the DIA format
+ * @param filename - path to the file with the matrix
+ * @param m - number of rows in the matrix
+ * @param lines - total number of lines with data
+ * @param ndiag - number of nonzero diagonals
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
+ * @param as - coefficients array (CSR data): an array of size lines containing a matrix data in the CSR format (output parameter)
+ * @param offset - offset for diagonals
+ */
+void convert_to_dia(const char filename[], const int m, const int lines, bool symmetric, int &ndiag, double *&as, int *&offset) {
     //Create stream
     std::ifstream file(filename);
+
+    //TODO читаем файл дважды в методе. Вкупе с методом read_matrix_properties получается 3
 
     // Ignore comments headers
     while (file.peek() == '%') file.ignore(2048, '\n');
@@ -264,14 +276,14 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
     }
 
 
-    data = new double[m * ndiag]();
-    offsets = new int[ndiag];
+    as = new double[m * ndiag]();
+    offset = new int[ndiag];
 
     for (int i = 0; i < ndiag; ++i) {
-        offsets[i] = diagOffsets[i];
+        offset[i] = diagOffsets[i];
     }
 
-    //курсор в начало
+    //again from beginning of file
     file.seekg(0, ios::beg);
     // Ignore comments headers
     while (file.peek() == '%') file.ignore(2048, '\n');
@@ -283,13 +295,13 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
         int row = 0, col = 0, index = 0;
         file >> row >> col >> fileData;
         index = (int) std::distance(diagOffsets.begin(), std::find(diagOffsets.begin(), diagOffsets.end(), (col-row)));
-        data[m * index + (row-1)] = fileData;
+        as[m * index + (row-1)] = fileData;
         if (symmetric) {
             index = (int) std::distance(diagOffsets.begin(), std::find(diagOffsets.begin(), diagOffsets.end(), (row-col)));
-            data[m * index + (col-1)] = fileData;
+            as[m * index + (col-1)] = fileData;
         }
     }
-    //TODO освободить память занятую вектором
+    //TODO освободить память занятую вектором если это нужно
     file.close();
 }
 
@@ -336,18 +348,18 @@ void print_csr(const int m, const int nnz, double *as, int *irp, int *ja) {
 /*!
  * Prints a sparse matrix represented in the DIA format
  */
-void print_dia(const int m, const int ndiag, double *data, int *offsets) {
-    std::cout << std::endl << "offsets:";
+void print_dia(const int m, const int ndiag, double *as, int *offset) {
+    std::cout << std::endl << "OFFSET:";
     std::cout << std::endl;
     for (int j = 0; j < ndiag; j++) {
-        std::cout << offsets[j] << "\t";
+        std::cout << offset[j] << "\t";
     }
 
-    std::cout << std::endl << "data:";
+    std::cout << std::endl << "AS:";
     for (int i = 0; i < m; i++) {
         std::cout << std::endl;
         for (int j = 0; j < ndiag; j++) {
-            std::cout << data[i + m * j] << "\t";
+            std::cout << as[i + m * j] << "\t";
         }
     }
     std::cout << std::endl;
