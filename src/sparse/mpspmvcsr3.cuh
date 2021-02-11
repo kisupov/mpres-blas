@@ -1,6 +1,7 @@
 /*
  *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format
- *  Third SpMV CSR implementation (two-stage approach) - first, the array of component-wise products is calculated and then its segment reduction is performed.
+ *  Calculates the product of a sparse multiple precision matrix and a multiple precision vector
+ *  Two-stage CSR implementation - first, the array of component-wise products is calculated and then its segment reduction is performed.
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *

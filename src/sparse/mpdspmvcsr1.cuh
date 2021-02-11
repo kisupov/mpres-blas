@@ -1,6 +1,6 @@
 /*
  *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format
- *  Calculates the product of a sparse multiple precision matrix and a multiple precision vector
+ *  Calculates the product of a sparse double precision matrix and a multiple precision vector
  *  Vector CSR kernel - multiple threads (up to 32) assigned to each row of the matrix
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
@@ -21,8 +21,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPSPMVCSR1_CUH
-#define MPSPMVCSR1_CUH
+#ifndef MPDSPMVCSR1_CUH
+#define MPDSPMVCSR1_CUH
 
 #include "../arith/mpadd.cuh"
 #include "../arith/mpmul.cuh"
@@ -35,7 +35,7 @@ namespace cuda {
      * Vector kernel - a group of threads (up to 32 threads) are assigned to each row of the matrix, i.e. one element of the vector y.
      * The matrix should be stored in the CSR format: entries are stored in a dense array of nonzeros in row major order.
      *
-     * @note The matrix and vectors are in multiple precision
+     * @note The matrix is in double precision and the vectors are in multiple precision
      * @note Each operation using multiple precision is performed as a single thread
      * @note No global memory buffer is required
      * @note Shared memory of size sizeof(mp_float_t) * blockDim.x must be allocated
@@ -49,7 +49,7 @@ namespace cuda {
      * @param y - output vector, size at least m
      */
     template<int threadsPerRow>
-    __global__ void mpspmv_csr1(const int m, const int *irp, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpdspmv_csr1(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
         extern __shared__ mp_float_t vals[];
 
         auto threadId = threadIdx.x + blockIdx.x * blockDim.x; // global thread index
@@ -64,7 +64,7 @@ namespace cuda {
             // compute running sum per thread
             vals[threadIdx.x] = cuda::MP_ZERO;
             for (auto i = row_start + lane; i < row_end; i += threadsPerRow) {
-                cuda::mp_mul(&prod, &as[i], &x[ja[i]]);
+                cuda::mp_mul_d(&prod, &x[ja[i]], as[i]);
                 cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &prod);
             }
             // parallel reduction in shared memory
@@ -93,4 +93,4 @@ namespace cuda {
 
 } // namespace cuda
 
-#endif //MPSPMVCSR1_CUH
+#endif //MPDSPMVCSR1_CUH

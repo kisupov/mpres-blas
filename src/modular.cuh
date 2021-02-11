@@ -256,6 +256,17 @@ namespace cuda {
     }
 
     /*!
+     * Multiplication of an RNS number by an integer.
+     */
+    DEVICE_CUDA_FORCEINLINE void rns_mul_l(int * result, const int * x, const long y){
+        constexpr int moduli[ RNS_MODULI_SIZE ] = RNS_MODULI_VALUES;
+        #pragma unroll
+        for(int i = 0; i < RNS_MODULI_SIZE; i++){
+            result[i] = cuda::mod_mul(x[i], (y % moduli[i]), moduli[i]);
+        }
+    }
+
+    /*!
       * Addition of two RNS numbers.
       */
     DEVICE_CUDA_FORCEINLINE void rns_add(int * result, int * x, int * y){

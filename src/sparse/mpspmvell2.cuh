@@ -1,7 +1,7 @@
 /*
  *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the ELLPACK sparse matrix format
  *  Computes the product of a sparse matrix and a dense vector
- *  Second SpMV ELL implementation (two-stage approach) - first, the array of component-wise products is calculated and then its segment reduction is performed.
+ *  Two-stage ELLPACK implementation - first, the array of component-wise products is calculated and then its segment reduction is performed.
 
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *

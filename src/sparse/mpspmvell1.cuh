@@ -1,7 +1,7 @@
 /*
  *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the ELLPACK sparse matrix format
  *  Computes the product of a sparse matrix and a dense vector
- *  First SpMV ELL implementation
+ *  Scalar ELLPACK kernel - one thread is assigned to each row of the matrix
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
