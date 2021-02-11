@@ -21,8 +21,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPDSPMVCSR1_CUH
-#define MPDSPMVCSR1_CUH
+#ifndef MPDSPMV_CSR_VECTOR_CUH
+#define MPDSPMV_CSR_VECTOR_CUH
 
 #include "../arith/mpadd.cuh"
 #include "../arith/mpmul.cuh"
@@ -49,7 +49,7 @@ namespace cuda {
      * @param y - output vector, size at least m
      */
     template<int threadsPerRow>
-    __global__ void mpdspmv_csr1(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpdspmv_csr_vector(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
         extern __shared__ mp_float_t vals[];
 
         auto threadId = threadIdx.x + blockIdx.x * blockDim.x; // global thread index
@@ -93,4 +93,4 @@ namespace cuda {
 
 } // namespace cuda
 
-#endif //MPDSPMVCSR1_CUH
+#endif //MPDSPMV_CSR_VECTOR_CUH

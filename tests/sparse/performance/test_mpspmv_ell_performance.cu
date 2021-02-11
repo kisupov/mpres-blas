@@ -26,8 +26,8 @@
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
 #include "../../../src/mpcollection.cuh"
-#include "../../../src/sparse/mpspmvell1.cuh"
-#include "../../../src/sparse/mpspmvell2.cuh"
+#include "../../../src/sparse/mpspmv_ell_scalar.cuh"
+#include "../../../src/sparse/mpspmv_ell_2stage.cuh"
 #include "../../../src/sparse/matrix_converter.cuh"
 #include "3rdparty.cuh"
 
@@ -183,12 +183,12 @@ void taco_test(const char * matrix_path, const mpfr_t * vectorX){
 }
 
 /////////
-// MPRES-BLAS First SpMV ELL implementation
+// MPRES-BLAS SpMV ELL scalar kernel
 /////////
-void mpres_test_1(const int m, const int n, const int nzr, const int *ja, const double *as, const mpfr_t *x){
+void mpres_test_scalar(const int m, const int n, const int nzr, const int *ja, const double *as, const mpfr_t *x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmv_ell1");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_ell_scalar");
 
     //Execution configuration
     int threads = 32;
@@ -227,7 +227,7 @@ void mpres_test_1(const int m, const int n, const int nzr, const int *ja, const 
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_ell1<<<blocks, threads>>>(m, nzr, dja, das, dx, dy);
+    cuda::mpspmv_ell_scalar<<<blocks, threads>>>(m, nzr, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -248,12 +248,12 @@ void mpres_test_1(const int m, const int n, const int nzr, const int *ja, const 
 }
 
 /////////
-// MPRES-BLAS Second SpMV ELL implementation
+// MPRES-BLAS SpMV two-stage implementation
 /////////
-void mpres_test_2(const int m, const int n, const int nzr, const int *ja, const double *as,  const mpfr_t *x) {
+void mpres_test_2stage(const int m, const int n, const int nzr, const int *ja, const double *as,  const mpfr_t *x) {
     Logger::printDash();
     InitCudaTimer();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmv_ell2");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_ell_2stage");
 
     //Execution configuration
     const int gridDim1 = 512;   //blocks for fields
@@ -295,7 +295,7 @@ void mpres_test_2(const int m, const int n, const int nzr, const int *ja, const 
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_ell2<gridDim1, blockDim1, gridDim2, blockDim3>(m, n, nzr, dja, das, dx, dy, dbuf);
+    cuda::mpspmv_ell_2stage<gridDim1, blockDim1, gridDim2, blockDim3>(m, n, nzr, dja, das, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -333,8 +333,8 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     if (DATATYPE == "real") {
         taco_test(MATRIX_PATH, vectorX);
     }
-    mpres_test_1(M, N, NZR, JA, AS, vectorX);
-    mpres_test_2(M, N, NZR, JA, AS, vectorX);
+    mpres_test_scalar(M, N, NZR, JA, AS, vectorX);
+    mpres_test_2stage(M, N, NZR, JA, AS, vectorX);
     campary_spmv_ell_test<CAMPARY_PRECISION>(M, N, NZR, JA, AS, vectorX, INP_DIGITS);
     cump_spmv_ell_test(M, N, NZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());

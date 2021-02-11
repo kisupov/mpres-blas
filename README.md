@@ -27,8 +27,8 @@ Underlying algorithms for multiple-precision floating-point arithmetic as well a
 
 2. The following sparse multiple-precision linear algebra operations are also currently supported:
 
-    * SpMV CSR --- Sparse matrix-vector multiplication in the CSR matrix storage format (`mpspmv_csr1`, `mpspmv_csr2`, `mpspmv_csr3`)
-    * SpMV ELL --- Sparse matrix-vector multiplication in the ELLPACK matrix storage format (`mpspmv_ell1`,`mpspmv_ell2`)
+    * SpMV CSR --- Sparse matrix-vector multiplication in the CSR matrix storage format (`mpdspmv_csr_vector`,`mpspmv_csr_vector`, `mpspmv_csr_scalar`, `mpspmv_csr_2stage`)
+    * SpMV ELL --- Sparse matrix-vector multiplication in the ELLPACK matrix storage format (`mpspmv_ell_scalar`,`mpspmv_ell_2stage`)
 
 3. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/arith/`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
 

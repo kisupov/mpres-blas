@@ -114,14 +114,14 @@ target_compile_options(test_mpgenorm_performance PRIVATE  $<${cuda_lang}:$<BUILD
 target_link_libraries(test_mpgenorm_performance gmp mpfr OpenMP::OpenMP_CXX)
 
 # Performance test for SPMV using ELLPACK
-add_executable(test_mpspmvell_performance sparse/performance/test_mpspmvell_performance.cu)
-target_compile_options(test_mpspmvell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmvell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+add_executable(test_mpspmv_ell_performance sparse/performance/test_mpspmv_ell_performance.cu)
+target_compile_options(test_mpspmv_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpspmv_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 # Performance test for SPMV using CSR
-add_executable(test_mpspmvcsr_performance sparse/performance/test_mpspmvcsr_performance.cu)
-target_compile_options(test_mpspmvcsr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmvcsr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+add_executable(test_mpspmv_csr_performance sparse/performance/test_mpspmv_csr_performance.cu)
+target_compile_options(test_mpspmv_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpspmv_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 
 #########################

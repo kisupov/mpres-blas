@@ -26,9 +26,9 @@
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
 #include "../../../src/mpcollection.cuh"
-#include "../../../src/sparse/mpspmvcsr1.cuh"
-#include "../../../src/sparse/mpspmvcsr2.cuh"
-#include "../../../src/sparse/mpspmvcsr3.cuh"
+#include "../../../src/sparse/mpspmv_csr_vector.cuh"
+#include "../../../src/sparse/mpspmv_csr_scalar.cuh"
+#include "../../../src/sparse/mpspmv_csr_2stage.cuh"
 #include "../../../src/sparse/matrix_converter.cuh"
 #include "3rdparty.cuh"
 
@@ -187,156 +187,12 @@ void taco_test(const char * matrix_path, const mpfr_t * vectorX){
 }
 
 /////////
-//  First SpMV CSR implementation - vector kernel with multiple threads per matrix row (32 threads = one warp)
+//  SpMV CSR vector kernel with multiple threads per matrix row (8 threads = one fourth warp)
 /////////
-void mpres_test_1_1(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
+void mpres_test_vector_8(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmv_csr1 - vector kernel (32 threads)");
-
-    //Execution configuration
-    const int threadsPerRow = 32;
-    const int threads = 256;
-    const int blocks = m / (threads/threadsPerRow) + 1;
-    //int blocks = 32;
-    printf("(threads per row = %i)\n", threadsPerRow);
-    printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
-    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * nnz /  double(1024 * 1024));
-
-    // Host data
-    auto hx = new mp_float_t[n];
-    auto hy = new mp_float_t[m];
-    auto has = new mp_float_t[nnz];
-
-    // GPU data
-    mp_float_ptr dx;
-    mp_float_ptr dy;
-    mp_float_ptr das;
-    int *dirp;
-    int *dja;
-
-    //Init data
-    cudaMalloc(&dx, sizeof(mp_float_t) * n);
-    cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    cudaMalloc(&das, sizeof(mp_float_t) * nnz);
-    cudaMalloc(&dirp, sizeof(int) * (m + 1));
-    cudaMalloc(&dja, sizeof(int) * nnz);
-
-    // Convert from MPFR
-    convert_vector(hx, x, n);
-    convert_vector(has, as, nnz);
-
-    //Copying to the GPU
-    cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(das, has, nnz * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(dirp, irp, (m + 1) * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
-
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
-
-    //Launch
-    StartCudaTimer();
-    cuda::mpspmv_csr1<threadsPerRow><<<blocks, threads, sizeof(mp_float_t) * threads>>>(m, dirp, dja, das, dx, dy);
-    EndCudaTimer();
-    PrintCudaTimer("took");
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
-
-    //Copying to the host
-    cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
-    print_mp_sum(hy, m);
-
-    //Cleanup
-    delete [] hx;
-    delete [] hy;
-    delete [] has;
-    cudaFree(dx);
-    cudaFree(dy);
-    cudaFree(das);
-    cudaFree(dirp);
-    cudaFree(dja);
-}
-
-/////////
-//  First SpMV CSR implementation - vector kernel with multiple threads per matrix row (16 threads = half-warp)
-/////////
-void mpres_test_1_2(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
-    InitCudaTimer();
-    Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmv_csr1 - vector kernel (16 threads)");
-
-    //Execution configuration
-    const int threadsPerRow = 16;
-    const int threads = 256;
-    const int blocks = m / (threads/threadsPerRow) + 1;
-    //int blocks = 32;
-    printf("(threads per row = %i)\n", threadsPerRow);
-    printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
-    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * nnz /  double(1024 * 1024));
-
-    // Host data
-    auto hx = new mp_float_t[n];
-    auto hy = new mp_float_t[m];
-    auto has = new mp_float_t[nnz];
-
-    // GPU data
-    mp_float_ptr dx;
-    mp_float_ptr dy;
-    mp_float_ptr das;
-    int *dirp;
-    int *dja;
-
-    //Init data
-    cudaMalloc(&dx, sizeof(mp_float_t) * n);
-    cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    cudaMalloc(&das, sizeof(mp_float_t) * nnz);
-    cudaMalloc(&dirp, sizeof(int) * (m + 1));
-    cudaMalloc(&dja, sizeof(int) * nnz);
-
-    // Convert from MPFR
-    convert_vector(hx, x, n);
-    convert_vector(has, as, nnz);
-
-    //Copying to the GPU
-    cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(das, has, nnz * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(dirp, irp, (m + 1) * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
-
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
-
-    //Launch
-    StartCudaTimer();
-    cuda::mpspmv_csr1<threadsPerRow><<<blocks, threads, sizeof(mp_float_t) * threads>>>(m, dirp, dja, das, dx, dy);
-    EndCudaTimer();
-    PrintCudaTimer("took");
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
-
-    //Copying to the host
-    cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
-    print_mp_sum(hy, m);
-
-    //Cleanup
-    delete [] hx;
-    delete [] hy;
-    delete [] has;
-    cudaFree(dx);
-    cudaFree(dy);
-    cudaFree(das);
-    cudaFree(dirp);
-    cudaFree(dja);
-}
-
-/////////
-//  Second SpMV CSR implementation - vector kernel with multiple threads per matrix row (8 threads = one fourth warp)
-/////////
-void mpres_test_1_3(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
-    InitCudaTimer();
-    Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmv_csr1 - vector kernel (8 threads)");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_csr_vector (8 threads)");
 
     //Execution configuration
     const int threadsPerRow = 8;
@@ -381,7 +237,7 @@ void mpres_test_1_3(const int m, const int n, const int nnz, const int *irp, con
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_csr1<threadsPerRow><<<blocks, threads, sizeof(mp_float_t) * threads>>>(m, dirp, dja, das, dx, dy);
+    cuda::mpspmv_csr_vector<threadsPerRow><<<blocks, threads, sizeof(mp_float_t) * threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -403,12 +259,156 @@ void mpres_test_1_3(const int m, const int n, const int nnz, const int *irp, con
 }
 
 /////////
-//  Second SpMV CSR implementation - scalar kernel
+//  SpMV CSR vector kernel with multiple threads per matrix row (16 threads = half-warp)
 /////////
-void mpres_test_2(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
+void mpres_test_vector_16(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmv_csr2 - scalar kernel");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_csr_vector (16 threads)");
+
+    //Execution configuration
+    const int threadsPerRow = 16;
+    const int threads = 256;
+    const int blocks = m / (threads/threadsPerRow) + 1;
+    //int blocks = 32;
+    printf("(threads per row = %i)\n", threadsPerRow);
+    printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
+    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * nnz /  double(1024 * 1024));
+
+    // Host data
+    auto hx = new mp_float_t[n];
+    auto hy = new mp_float_t[m];
+    auto has = new mp_float_t[nnz];
+
+    // GPU data
+    mp_float_ptr dx;
+    mp_float_ptr dy;
+    mp_float_ptr das;
+    int *dirp;
+    int *dja;
+
+    //Init data
+    cudaMalloc(&dx, sizeof(mp_float_t) * n);
+    cudaMalloc(&dy, sizeof(mp_float_t) * m);
+    cudaMalloc(&das, sizeof(mp_float_t) * nnz);
+    cudaMalloc(&dirp, sizeof(int) * (m + 1));
+    cudaMalloc(&dja, sizeof(int) * nnz);
+
+    // Convert from MPFR
+    convert_vector(hx, x, n);
+    convert_vector(has, as, nnz);
+
+    //Copying to the GPU
+    cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(das, has, nnz * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(dirp, irp, (m + 1) * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
+
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    StartCudaTimer();
+    cuda::mpspmv_csr_vector<threadsPerRow><<<blocks, threads, sizeof(mp_float_t) * threads>>>(m, dirp, dja, das, dx, dy);
+    EndCudaTimer();
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    print_mp_sum(hy, m);
+
+    //Cleanup
+    delete [] hx;
+    delete [] hy;
+    delete [] has;
+    cudaFree(dx);
+    cudaFree(dy);
+    cudaFree(das);
+    cudaFree(dirp);
+    cudaFree(dja);
+}
+
+/////////
+//  SpMV CSR vector kernel with multiple threads per matrix row (32 threads = one warp)
+/////////
+void mpres_test_vector_32(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
+    InitCudaTimer();
+    Logger::printDash();
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_csr_vector (32 threads)");
+
+    //Execution configuration
+    const int threadsPerRow = 32;
+    const int threads = 256;
+    const int blocks = m / (threads/threadsPerRow) + 1;
+    //int blocks = 32;
+    printf("(threads per row = %i)\n", threadsPerRow);
+    printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
+    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * nnz /  double(1024 * 1024));
+
+    // Host data
+    auto hx = new mp_float_t[n];
+    auto hy = new mp_float_t[m];
+    auto has = new mp_float_t[nnz];
+
+    // GPU data
+    mp_float_ptr dx;
+    mp_float_ptr dy;
+    mp_float_ptr das;
+    int *dirp;
+    int *dja;
+
+    //Init data
+    cudaMalloc(&dx, sizeof(mp_float_t) * n);
+    cudaMalloc(&dy, sizeof(mp_float_t) * m);
+    cudaMalloc(&das, sizeof(mp_float_t) * nnz);
+    cudaMalloc(&dirp, sizeof(int) * (m + 1));
+    cudaMalloc(&dja, sizeof(int) * nnz);
+
+    // Convert from MPFR
+    convert_vector(hx, x, n);
+    convert_vector(has, as, nnz);
+
+    //Copying to the GPU
+    cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(das, has, nnz * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(dirp, irp, (m + 1) * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
+
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Launch
+    StartCudaTimer();
+    cuda::mpspmv_csr_vector<threadsPerRow><<<blocks, threads, sizeof(mp_float_t) * threads>>>(m, dirp, dja, das, dx, dy);
+    EndCudaTimer();
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    print_mp_sum(hy, m);
+
+    //Cleanup
+    delete [] hx;
+    delete [] hy;
+    delete [] has;
+    cudaFree(dx);
+    cudaFree(dy);
+    cudaFree(das);
+    cudaFree(dirp);
+    cudaFree(dja);
+}
+
+/////////
+//  SpMV CSR scalar kernel
+/////////
+void mpres_test_scalar(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
+    InitCudaTimer();
+    Logger::printDash();
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_csr_scalar");
 
     //Execution configuration
     int threads = 32;
@@ -450,7 +450,7 @@ void mpres_test_2(const int m, const int n, const int nnz, const int *irp, const
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_csr2<<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
+    cuda::mpspmv_csr_scalar<<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -472,12 +472,12 @@ void mpres_test_2(const int m, const int n, const int nnz, const int *irp, const
 }
 
 /////////
-// MPRES-BLAS Third SpMV CSR implementation - two-stage approach
+// SpMV CSR two-stage implementation
 /////////
-void mpres_test_3(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
+void mpres_test_2stage(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
     Logger::printDash();
     InitCudaTimer();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmv_csr3 - two-stage approach");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_csr_2stage");
 
     //Execution configuration
     const int gridDim1 = 512;   //blocks for fields
@@ -522,7 +522,7 @@ void mpres_test_3(const int m, const int n, const int nnz, const int *irp, const
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_csr3<gridDim1, blockDim1, gridDim2, blockDim3> (m, n, nnz, dirp, dja, das, dx, dy, dbuf);
+    cuda::mpspmv_csr_2stage<gridDim1, blockDim1, gridDim2, blockDim3>(m, n, nnz, dirp, dja, das, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -561,13 +561,13 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     //Launch tests
     double_test(M, N, NNZ, IRP, JA, AS, vectorX);
     if (DATATYPE == "real") {
- //       taco_test(MATRIX_PATH, vectorX);
+        taco_test(MATRIX_PATH, vectorX);
     }
-    mpres_test_1_1(M, N, NNZ, IRP, JA, AS, vectorX);
-    mpres_test_1_2(M, N, NNZ, IRP, JA, AS, vectorX);
-    mpres_test_1_3(M, N, NNZ, IRP, JA, AS, vectorX);
-    mpres_test_2(M, N, NNZ, IRP, JA, AS, vectorX);
-    mpres_test_3(M, N, NNZ, IRP, JA, AS, vectorX);
+    mpres_test_vector_8(M, N, NNZ, IRP, JA, AS, vectorX);
+    mpres_test_vector_16(M, N, NNZ, IRP, JA, AS, vectorX);
+    mpres_test_vector_32(M, N, NNZ, IRP, JA, AS, vectorX);
+    mpres_test_scalar(M, N, NNZ, IRP, JA, AS, vectorX);
+    mpres_test_2stage(M, N, NNZ, IRP, JA, AS, vectorX);
     campary_spmv_csr_test<CAMPARY_PRECISION>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
     cump_spmv_csr_test(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());

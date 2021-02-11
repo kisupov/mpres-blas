@@ -1,7 +1,7 @@
 /*
- *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format
- *  Calculates the product of a sparse multiple precision matrix and a multiple precision vector
- *  Scalar CSR kernel - one thread is assigned to each row of the matrix
+ *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the ELLPACK sparse matrix format
+ *  Computes the product of a sparse matrix and a dense vector
+ *  Scalar ELLPACK kernel - one thread is assigned to each row of the matrix
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
@@ -21,8 +21,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPSPMVCSR2_CUH
-#define MPSPMVCSR2_CUH
+#ifndef MPSPMV_ELL_SCALAR_CUH
+#define MPSPMV_ELL_SCALAR_CUH
 
 #include "../arith/mpadd.cuh"
 #include "../arith/mpmul.cuh"
@@ -32,30 +32,31 @@ namespace cuda {
 
     /*!
      * Performs the matrix-vector operation y = A * x, where x and y are dense vectors and A is a sparse matrix.
-     * Scalar kernel - one thread is assigned to each row of the matrix, i.e. one element of the vector y.
-     * The matrix should be stored in the CSR format: entries are stored in a dense array of nonzeros in row major order.
+     * The matrix should be stored in the ELLPACK format: entries are stored in a dense array 'as' in column major order and explicit zeros are stored if necessary (zero padding)
      *
      * @note The matrix is represented in multiple precision
      * @note Each operation using multiple precision is performed as a single thread
+     * @note One thread is assigned to compute one dot product, i.e. one element of the vector n
      * @note No global memory buffer is required
      *
      * @param m - number of rows in matrix
-     * @param irp - row start pointers array of size m + 1, last element of irp equals to nnz (number of nonzeros in matrix)
-     * @param ja - column indices array to access the corresponding elements of the vector x, size = nnz
-     * @param as - multiple-precision coefficients array (entries of the matrix A in the CSR format), size = nnz
+     * @param nzr - number of nonzeros per row array (maximum number of nonzeros per row in the matrix A)
+     * @param ja - column indices array to access the corresponding elements of the vector x, size m * nzr (the same as for A)
+     * @param as - multiple-precision coefficients array (entries of the matrix A in the ELLPACK format), size m * nzr
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
-    __global__ void mpspmv_csr2(const int m, const int *irp, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_ell_scalar(const int m, const int nzr, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         while (row < m) {
             mp_float_t prod;
             mp_float_t dot = cuda::MP_ZERO;
-            int row_start = irp[row];
-            int row_end = irp[row+1];
-            for (int i = row_start; i < row_end; i++) {
-                cuda::mp_mul(&prod, &x[ja[i]], &as[i]);
-                cuda::mp_add(&dot, &dot, &prod);
+            for (int col = 0; col < nzr; col++) {
+                int index = ja[col * m + row];
+                if(index >= 0){
+                    cuda::mp_mul(&prod, &x[index], &as[col * m + row]);
+                    cuda::mp_add(&dot, &dot, &prod);
+                }
             }
             cuda::mp_set(&y[row], &dot);
             row +=  gridDim.x * blockDim.x;
@@ -64,4 +65,4 @@ namespace cuda {
 
 } // namespace cuda
 
-#endif //MPSPMVCSR2_CUH
+#endif //MPSPMV_ELL_SCALAR_CUH
