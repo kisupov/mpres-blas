@@ -21,12 +21,12 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPSPMVDIA_CUH
-#define MPSPMVDIA_CUH
+#ifndef MPSPMV_DIA_SCALAR_CUH
+#define MPSPMV_DIA_SCALAR_CUH
 
-#include "../arith/mpadd.cuh"
-#include "../arith/mpmul.cuh"
-#include "../arith/mpassign.cuh"
+#include "../../arith/mpadd.cuh"
+#include "../../arith/mpmul.cuh"
+#include "../../arith/mpassign.cuh"
 
 namespace cuda {
 
@@ -46,7 +46,7 @@ namespace cuda {
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
-    __global__ void mpspmv_dia(const int m, const int n, const int ndiag, const int *offset, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_dia_scalar(const int m, const int n, const int ndiag, const int *offset, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         while (row < m) {
             mp_float_t prod;
@@ -65,4 +65,4 @@ namespace cuda {
 
 } // namespace cuda
 
-#endif //MPSPMVDIA_CUH
+#endif //MPSPMV_DIA_SCALAR_CUH
