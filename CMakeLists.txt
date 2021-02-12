@@ -19,7 +19,6 @@
 cmake_minimum_required(VERSION 3.9)
 project(MPRES_BLAS)
 
-set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_VERBOSE_MAKEFILE on)
 
 #####################################
@@ -27,7 +26,6 @@ set(CMAKE_VERBOSE_MAKEFILE on)
 #####################################
 set(MPRES_BLAS_HOME_DIR "${PROJECT_SOURCE_DIR}") # MPRES-BLAS home directory, should be fixed since PROJECT_SOURCE_DIR is changed
 list(APPEND CMAKE_MODULE_PATH "${MPRES_BLAS_HOME_DIR}/cmake/") # CMake modules
-set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc") # Path to nvcc
 
 #####################################
 # CUDA

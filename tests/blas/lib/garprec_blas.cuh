@@ -19,6 +19,7 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifndef EXCLUDE_GARPREC
 #ifndef MPRES_TEST_GARPREC_BLAS_CUH
 #define MPRES_TEST_GARPREC_BLAS_CUH
 
@@ -742,3 +743,4 @@ void garprec_gemv_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x
 }
 
 #endif //MPRES_TEST_GARPREC_BLAS_CUH
+#endif //EXCLUDE_GARPREC

@@ -19,9 +19,10 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "../../../src/mparray.cuh"
+#include "../../../src/blas/mpscal.cuh"
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
-#include "../../../src/blas/mpscal.cuh"
 
 #define SIZE 1000000 //Operation size
 //Execution configuration for mpscal

@@ -19,17 +19,22 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define EXCLUDE_XBLAS 1
-#define EXCLUDE_ARPREC 1
-#define EXCLUDE_MPDECIMAL 1
-#define EXCLUDE_GARPREC 1
-#define EXCLUDE_CAMPARY 1
-#define EXCLUDE_CUBLAS 1
+/*
+ * Exclude some benchmarks
+ */
+#define EXCLUDE_MPACK
+#define EXCLUDE_XBLAS
+#define EXCLUDE_ARPREC
+#define EXCLUDE_MPDECIMAL
+#define EXCLUDE_CUBLAS
+#define EXCLUDE_GARPREC
+#define EXCLUDE_CAMPARY
+#define EXCLUDE_CUMP
 
-#include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpger.cuh"
 #include "3rdparty.cuh"
 
@@ -69,20 +74,6 @@ void initialize(){
 
 void finalize(){
 }
-
-static void convert_vector(mp_float_ptr dest, mpfr_t *source, int width){
-    for( int i = 0; i < width; i++ ){
-        mp_set_mpfr(&dest[i], source[i]);
-    }
-}
-
-static void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
-    int width = rows * cols;
-    for( int i = 0; i < width; i++ ){
-        mp_set_mpfr(&dest[i], source[i]);
-    }
-}
-
 
 /********************* GER implementations and benchmarks *********************/
 
@@ -132,56 +123,6 @@ void openblas_test(int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, in
     delete [] dy;
     delete [] dr;
     delete [] dA;
-}
-
-/////////
-// MPACK
-/////////
-void mpack_test(int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t *y, int incy){
-    Logger::printDash();
-    InitCpuTimer();
-    PrintTimerName("[CPU] MPACK ger");
-
-    //Set precision
-    mpfr::mpreal::set_default_prec ( MP_PRECISION );
-
-    //Init
-    mpreal *lA = new mpreal[lda * n];
-    mpreal *ly = new mpreal[leny];
-    mpreal *lx = new mpreal[lenx];
-    mpreal lalpha = alpha;
-
-    #pragma omp parallel for
-    for(int i = 0; i < lenx; i++){
-        lx[i] = x[i];
-    }
-    #pragma omp parallel for
-    for(int i = 0; i < leny; i++){
-        ly[i] = y[i];
-    }
-
-    //Launch
-    for(int j = 0; j < REPEAT_TEST; j ++){
-        #pragma omp parallel for
-        for(int i = 0; i < lda * n; i++){
-            lA[i] = A[i];
-        }
-        StartCpuTimer();
-        Rger(m, n, lalpha, lx, incx, ly, incy, lA, lda);
-        EndCpuTimer();
-    }
-    PrintCpuTimer("took");
-
-    //Print
-    for (int i = 1; i < lda * n; i+= 1) {
-        lA[0] += lA[i];
-    }
-    mpfr_printf("result: %.70Rf\n", &lA[0]);
-
-    //Cleanup
-    delete [] lA;
-    delete [] lx;
-    delete [] ly;
 }
 
 /////////
@@ -282,9 +223,13 @@ void test(){
 
     //Tests
     openblas_test(M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, vectorY, INCY);
-    mpack_test(M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, vectorY, INCY);
+    #ifndef EXCLUDE_MPACK
+    mpack_ger_test(M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, vectorY, INCY, MP_PRECISION, REPEAT_TEST);
+    #endif
     mpres_test(M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, vectorY, INCY);
+    #ifndef EXCLUDE_CUMP
     cump_ger_test(M, N, alpha[0], matrixA, LDA, vectorX, vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
+    #endif
 
 
     checkDeviceHasErrors(cudaDeviceSynchronize());

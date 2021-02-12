@@ -1,5 +1,5 @@
 /*
- *  Test for validating the mp_add routine
+ *  Test for validating the mp_add routines
  *
  *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
  *
@@ -20,7 +20,8 @@
  */
 
 
-#include "../../src/mpfloat.cuh"
+#include "../../src/arith/mpadd.cuh"
+#include "../../src/arith/mpassign.cuh"
 #include "../../src/mparray.cuh"
 
 static __global__ void testCudaAdd(mp_float_ptr dz, mp_float_ptr dx, mp_float_ptr dy){

@@ -19,22 +19,29 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define EXCLUDE_XBLAS 1
-#define EXCLUDE_ARPREC 1
-#define EXCLUDE_MPDECIMAL 1
-#define EXCLUDE_GARPREC 1
+/*
+ * Exclude some benchmarks
+ */
+#define EXCLUDE_MPACK
+#define EXCLUDE_XBLAS
+#define EXCLUDE_ARPREC
+#define EXCLUDE_MPDECIMAL
+#define EXCLUDE_CUBLAS
+#define EXCLUDE_GARPREC
+#define EXCLUDE_CAMPARY
+#define EXCLUDE_CUMP
 
-#include "omp.h"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpgemm.cuh"
 #include "3rdparty.cuh"
 
 
-#define M 100  // Specifies the number of rows of the matrix op(A) and of the matrix C.
-#define N 100  // Specifies the number of columns of the matrix op(B) and the number of columns of the matrix C.
-#define K 100  // Specifies the number of columns of the matrix op(A) and the number of rows of the matrix op(B).
+#define M 300  // Specifies the number of rows of the matrix op(A) and of the matrix C.
+#define N 300  // Specifies the number of columns of the matrix op(B) and the number of columns of the matrix C.
+#define K 300  // Specifies the number of columns of the matrix op(A) and the number of rows of the matrix op(B).
 #define LDA (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
 #define LDB (K) // Specifies the leading dimension of B as declared in the calling (sub)program.
 #define LDC (M) // Specifies the leading dimension of C as declared in the calling (sub)program.
@@ -125,58 +132,6 @@ void openblas_test(CBLAS_TRANSPOSE transA, CBLAS_TRANSPOSE transB, const int m, 
     delete [] dA;
     delete [] dB;
     delete [] dC;
-}
-
-/////////
-// MPACK
-/////////
-void mpack_test(const char *transA, const char *transB, const int m, const int n, const int k, mpfr_t alpha, mpfr_t *A, const int lda, mpfr_t *B, const int ldb, mpfr_t beta, mpfr_t *C, const int ldc){
-    Logger::printDash();
-    InitCpuTimer();
-    PrintTimerName("[CPU] MPACK gemm");
-
-    //Set precision
-    mpfr::mpreal::set_default_prec ( MP_PRECISION );
-
-    //Init
-    mpreal *lA = new mpreal[lda * k];
-    mpreal *lB = new mpreal[ldb * n];
-    mpreal *lC = new mpreal[ldc * n];
-    mpreal lalpha = alpha;
-    mpreal lbeta = beta;
-
-    #pragma omp parallel for
-    for (int i = 0; i < lda * k; i++) {
-        lA[i] = A[i];
-    }
-
-    #pragma omp parallel for
-    for (int i = 0; i < ldb * n; i++) {
-        lB[i] = B[i];
-    }
-
-    //Launch
-    for(int j = 0; j < REPEAT_TEST; j ++){
-        #pragma omp parallel for
-        for(int i = 0; i < ldc * n; i++){
-            lC[i] = C[i];
-        }
-        StartCpuTimer();
-        Rgemm(transA, transB, m, n, k, lalpha, lA, lda, lB, ldb, lbeta, lC, ldc);
-        EndCpuTimer();
-    }
-    PrintCpuTimer("took");
-
-    //Print
-    for (int i = 1; i < ldc * n; i+= 1) {
-        lC[0] += lC[i];
-    }
-    mpfr_printf("result: %.70Rf\n", &lC[0]);
-
-    //Cleanup
-    delete [] lA;
-    delete [] lB;
-    delete [] lC;
 }
 
 /////////
@@ -274,7 +229,7 @@ __global__ void mpgemm_straightforward_kernel(const unsigned int m, const unsign
             // if(col == 0 && row == 0)
             // cuda::mp_mul(&mul, B, (col * ldb + i), B, (col * ldb + i));
             cuda::mp_mul(&mul, A, (lda * i + row), B, (col * ldb + i) );
-            cuda::mp_mul(&mul, alpha, 0, &mul);
+            cuda::mp_mul(&mul, &mul, alpha, 0);
             cuda::mp_add(&sum, &sum, &mul);
         }
         cuda::mp_add(C, indexC, C, indexC, &sum);
@@ -413,11 +368,17 @@ void testNoTrans(){
     mpfr_t *beta = create_random_array(1, INP_BITS);
 
     openblas_test(CblasNoTrans, CblasNoTrans, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
-    mpack_test(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
+    #ifndef EXCLUDE_MPACK
+    mpack_gemm_test(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, MP_PRECISION, REPEAT_TEST);
+    #endif
     mpres_test_notrans(M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
     mpres_test_straightforward(M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC);
+    #ifndef EXCLUDE_CAMPARY
     campary_gemm_test<CAMPARY_PRECISION>(M, N, K, alpha[0], matrixA, LDA,  matrixB, LDB, beta[0], matrixC, LDC, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CUMP
     cump_gemm_test(M, N, K, alpha[0], matrixA, LDA,  matrixB, LDB, beta[0], matrixC, LDC, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
+    #endif
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure

@@ -23,12 +23,12 @@
 #ifndef MPRES_TEST_TSTHELPER_CUH
 #define MPRES_TEST_TSTHELPER_CUH
 
-#include <stdio.h>
-#include <stdlib.h>
+#include "omp.h"
 #include <random>
-#include "mpfr.h"
+#include <chrono>
 #include <timers.cuh>
-#include "../src/mpfloat.cuh"
+#include "../src/arith/mpassign.cuh"
+#include "../src/arith/mpadd.cuh"
 
 
 /*
@@ -164,6 +164,44 @@ void print_mpfr_sum(mpfr_t *arr, int n) {
     }
     mpfr_printf("result: %.70Rf\n", sum);
     mpfr_clear(sum);
+}
+
+/*
+ * Converts a multiple precision mpfr_t vector to a double precision vector
+ */
+void convert_vector(double * dest, const mpfr_t *source, int width){
+    #pragma omp parallel for
+    for( int i = 0; i < width; i++ ){
+        dest[i] = mpfr_get_d(source[i], MPFR_RNDN);
+    }
+}
+
+/*
+ * Converts a multiple-precision mpfr_t vector to a multiple precision mp_float_ptr vector
+ */
+void convert_vector(mp_float_ptr dest, const mpfr_t *source, int width){
+    #pragma omp parallel for
+    for( int i = 0; i < width; i++ ){
+        mp_set_mpfr(&dest[i], source[i]);
+    }
+}
+
+/*
+ * Converts a double precision vector to a multiple precision mp_float_ptr vector
+ */
+void convert_vector(mp_float_ptr dest, const double *source, int width){
+    #pragma omp parallel for
+    for( int i = 0; i < width; i++ ){
+        mp_set_d(&dest[i], source[i]);
+    }
+}
+
+static void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
+    int width = rows * cols;
+    #pragma omp parallel for
+    for( int i = 0; i < width; i++ ){
+        mp_set_mpfr(&dest[i], source[i]);
+    }
 }
 
 

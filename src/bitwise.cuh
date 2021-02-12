@@ -96,6 +96,63 @@ GCC_FORCEINLINE double fast_scalbn(const double x, const int n) {
     return diu.dvalue * (x != 0 && n >= -1023);
 }
 
+/**
+ * Returns the sign of a floating-point variable x
+ * NaNs, infinities, and denormals unhandled
+ * @param x - input value
+ * @return - sign of x
+ */
+GCC_FORCEINLINE int dbl_get_sign(const double x) {
+    RealIntUnion u = {x};
+    return (int) (u.ivalue >> DBL_SIGN_OFFSET);
+}
+
+/**
+ * Returns the unbiased exponent of a floating-point variable x corresponding to the integral significand
+ * NaNs, infinities, and denormals unhandled
+ * @param x - input value
+ * @return - exponent of x
+ */
+GCC_FORCEINLINE int dbl_get_exp(const double x) {
+    RealIntUnion u = {x};
+    return ( (u.ivalue >> DBL_EXP_OFFSET) & (DBL_EXP_BIAS * 2 + 1) ) - (DBL_EXP_BIAS + DBL_EXP_OFFSET) * (x != 0);
+}
+
+/**
+ * Returns the integral significand of a floating-point variable x
+ * NaNs, infinities, and denormals unhandled
+ * @param x - input value
+ * @return - integral significand of x
+ */
+GCC_FORCEINLINE long dbl_get_significand(const double x) {
+    RealIntUnion u = {x};
+    return (u.ivalue & ((long) 1 << DBL_EXP_OFFSET) - 1 | (long) 1 << DBL_EXP_OFFSET) * (x != 0);
+    //TODO: Проверить, может быть на CUDA быстрее будет так как ниже
+    /*
+        long significand;
+        int exp = (u.ivalue >> DBL_EXP_OFFSET) & (DBL_EXP_BIAS * 2 + 1);
+          if (exp == 0) {
+            significand = (u.ivalue & ((long) 1 << DBL_EXP_OFFSET) - 1);
+        } else {
+            significand = (u.ivalue & ((long) 1 << DBL_EXP_OFFSET) - 1 | (long) 1 << DBL_EXP_OFFSET);
+        }
+        return significand;
+     */
+}
+
+/**
+ * Returns the sign, exponent, and integral significand (mantissa) of x
+ * such that x = -1^s * significand * 2^exp, where significand is an integer
+ * NaNs, infinities, and denormals unhandled
+ */
+GCC_FORCEINLINE void dbl_decompose(const double x, int& sign, int& exp, long& significand) {
+    RealIntUnion u = {x};
+    //Extraction of the sign, exponent and significand from the union
+    sign = (int) (u.ivalue >> DBL_SIGN_OFFSET);
+    exp  = ( (u.ivalue >> DBL_EXP_OFFSET) & (DBL_EXP_BIAS * 2 + 1) ) - (DBL_EXP_BIAS + DBL_EXP_OFFSET) * (x != 0);
+    significand = (u.ivalue & ((long) 1 << DBL_EXP_OFFSET) - 1 | (long) 1 << DBL_EXP_OFFSET) * (x != 0);
+}
+
 namespace cuda {
 
     /*!
@@ -112,6 +169,62 @@ namespace cuda {
         diu.dvalue = x;
         diu.ivalue += (uint64_t) n << DBL_EXP_OFFSET;        // Add pow to exponent
         return diu.dvalue * (x != 0 && n >= -1023);
+    }
+
+    /**
+     * Returns the sign of a floating-point variable x
+     * NaNs, infinities, and denormals unhandled
+     * @param x - input value
+     * @return - sign of x
+     */
+    DEVICE_CUDA_FORCEINLINE int dbl_get_sign(const double x) {
+        RealIntUnion u = {x};
+        return (int) (u.ivalue >> DBL_SIGN_OFFSET);
+    }
+
+    /**
+     * Returns the unbiased exponent of a floating-point variable x corresponding to the integral significand
+     * NaNs, infinities, and denormals unhandled
+     * @param x - input value
+     * @return - exponent of x
+     */
+    DEVICE_CUDA_FORCEINLINE int dbl_get_exp(const double x) {
+        RealIntUnion u = {x};
+        return ( (u.ivalue >> DBL_EXP_OFFSET) & (DBL_EXP_BIAS * 2 + 1) ) - (DBL_EXP_BIAS + DBL_EXP_OFFSET) * (x != 0);
+    }
+
+    /**
+     * Returns the integral significand of a floating-point variable x
+     * NaNs, infinities, and denormals unhandled
+     * @param x - input value
+     * @return - integral significand of x
+     */
+    DEVICE_CUDA_FORCEINLINE long dbl_get_significand(const double x) {
+        RealIntUnion u = {x};
+        return (u.ivalue & ((long) 1 << DBL_EXP_OFFSET) - 1 | (long) 1 << DBL_EXP_OFFSET) * (x != 0);
+        /*
+            long significand;
+            int exp = (u.ivalue >> DBL_EXP_OFFSET) & (DBL_EXP_BIAS * 2 + 1);
+              if (exp == 0) {
+                significand = (u.ivalue & ((long) 1 << DBL_EXP_OFFSET) - 1);
+            } else {
+                significand = (u.ivalue & ((long) 1 << DBL_EXP_OFFSET) - 1 | (long) 1 << DBL_EXP_OFFSET);
+            }
+            return significand;
+         */
+    }
+
+    /**
+     * Returns the sign, exponent, and integral significand (mantissa) of x
+     * such that x = -1^s * significand * 2^exp, where significand is an integer
+     * NaNs, infinities, and denormals unhandled
+     */
+    DEVICE_CUDA_FORCEINLINE void dbl_decompose(const double x, int& sign, int& exp, long& significand) {
+        RealIntUnion u = {x};
+        //Extraction of the sign, exponent and significand from the union
+        sign = (int) (u.ivalue >> DBL_SIGN_OFFSET);
+        exp  = ( (u.ivalue >> DBL_EXP_OFFSET) & (DBL_EXP_BIAS * 2 + 1) ) - (DBL_EXP_BIAS + DBL_EXP_OFFSET) * (x != 0);
+        significand = (u.ivalue & ((long) 1 << DBL_EXP_OFFSET) - 1 | (long) 1 << DBL_EXP_OFFSET) * (x != 0);
     }
 
 } //end of namespace

@@ -19,13 +19,20 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "omp.h"
+/*
+ * Exclude some benchmarks
+ */
+#define EXCLUDE_MPACK
+#define EXCLUDE_GARPREC
+#define EXCLUDE_CAMPARY
+#define EXCLUDE_CUMP
+
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
+#include "../../../src/mparray.cuh"
 #include "../../../src/blas/mpscal.cuh"
 #include "3rdparty.cuh"
-
 
 #define N 1000000 //Operation size
 #define REPEAT_TEST 10 //Number of repeats
@@ -216,44 +223,6 @@ void arprec_test(mpfr_t *x, mpfr_t alpha, int n) {
     mp_real::mp_finalize();
 }
 
-
-/////////
-// MPACK
-/////////
-void mpack_test(mpfr_t *x, mpfr_t alpha, int n) {
-    Logger::printDash();
-    InitCpuTimer();
-    PrintTimerName("[CPU] MPACK scal");
-
-    //Set precision
-    mpfr::mpreal::set_default_prec ( MP_PRECISION );
-
-    //Init
-    mpreal *lx = new mpreal[n];
-    mpreal lalpha = alpha;
-
-    //Launch
-    for(int i = 0; i < REPEAT_TEST; i ++) {
-        for (int j = 0; j < n; j++) {
-            lx[j] = x[j];
-        }
-        StartCpuTimer();
-        Rscal(n, lalpha, lx, 1);
-        EndCpuTimer();
-    }
-    PrintCpuTimer("took");
-
-    //Print
-    mpreal result = 0.0;
-    for (int i = 0; i < n; i++) {
-        result += lx[i];
-    }
-    mpfr_printf("result: %.70Rf\n", &result);
-
-    //Cleanup
-    delete [] lx;
-}
-
 /////////
 // arbitraire, https://github.com/hlibc/arbitraire
 /////////
@@ -433,7 +402,9 @@ int main() {
     Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
     Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
+    #ifndef EXCLUDE_CAMPARY
     Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
+    #endif
     Logger::printParam("OPENBLAS_THREADS", OPENBLAS_THREADS);
     Logger::endSection(true);
 
@@ -460,14 +431,21 @@ int main() {
     // Multiple-precision tests
     mpfr_test(vectorX, alpha[0], N);
     arprec_test(vectorX, alpha[0], N);
-    mpack_test(vectorX, alpha[0], N);
+    #ifndef EXCLUDE_MPACK
+    mpack_scal_test(vectorX, alpha[0], N, MP_PRECISION, REPEAT_TEST);
+    #endif
     mpdecimal_test(vectorX, alpha[0], N);
     //arbitraire_test(N, vectorX, alpha[0], INP_BITS, REPEAT_TEST); // performs too long
     mpres_test(vectorX, alpha[0], N);
+    #ifndef EXCLUDE_GARPREC
     garprec_scal_test(N, alpha[0], vectorX, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CAMPARY
     campary_scal_test<CAMPARY_PRECISION>(N, alpha[0], vectorX, INP_DIGITS, REPEAT_TEST);
+    #endif
+    #ifndef EXCLUDE_CUMP
     cump_scal_test(N, alpha[0], vectorX, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
-    
+    #endif
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 

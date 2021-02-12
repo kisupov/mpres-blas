@@ -22,7 +22,9 @@
 #ifndef MPRES_MPCOLLECTION_CUH
 #define MPRES_MPCOLLECTION_CUH
 
-#include "mpfloat.cuh"
+#include "omp.h"
+#include "types.cuh"
+#include "common.cuh"
 
 namespace cuda {
 
