@@ -1,6 +1,6 @@
 /*
- *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format
- *  Second CSR implementation (vector kernel) - multiple threads (up to 32) assigned to each row of the matrix
+ *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format (mutiple precision matrix, multiple precision vectors)
+ *  Vector CSR kernel - multiple threads (up to 32) assigned to each row of the matrix
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
@@ -20,12 +20,12 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPSPMVCSR2_CUH
-#define MPSPMVCSR2_CUH
+#ifndef MPSPMV_CSR_VECTOR_CUH
+#define MPSPMV_CSR_VECTOR_CUH
 
-#include "../arith/mpadd.cuh"
-#include "../arith/mpmul.cuh"
-#include "../arith/mpassign.cuh"
+#include "arith/mpadd.cuh"
+#include "arith/mpmul.cuh"
+#include "arith/mpassign.cuh"
 
 namespace cuda {
 
@@ -34,7 +34,7 @@ namespace cuda {
      * Vector kernel - a group of threads (up to 32 threads) are assigned to each row of the matrix, i.e. one element of the vector y.
      * The matrix should be stored in the CSR format: entries are stored in a dense array of nonzeros in row major order.
      *
-     * @note The matrix is represented in multiple precision
+     * @note The matrix and vectors are in multiple precision
      * @note Each operation using multiple precision is performed as a single thread
      * @note No global memory buffer is required
      * @note Shared memory of size sizeof(mp_float_t) * blockDim.x must be allocated
@@ -48,7 +48,7 @@ namespace cuda {
      * @param y - output vector, size at least m
      */
     template<int threadsPerRow>
-    __global__ void mpspmv_csr2(const int m, const int *irp, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_csr_vector(const int m, const int *irp, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
         extern __shared__ mp_float_t vals[];
 
         auto threadId = threadIdx.x + blockIdx.x * blockDim.x; // global thread index
@@ -62,7 +62,7 @@ namespace cuda {
             int row_end = irp[row + 1];
             // compute running sum per thread
             vals[threadIdx.x] = cuda::MP_ZERO;
-            for (int i = row_start + lane; i < row_end; i += threadsPerRow) {
+            for (auto i = row_start + lane; i < row_end; i += threadsPerRow) {
                 cuda::mp_mul(&prod, &as[i], &x[ja[i]]);
                 cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &prod);
             }
@@ -92,4 +92,4 @@ namespace cuda {
 
 } // namespace cuda
 
-#endif //MPSPMVCSR2_CUH
+#endif //MPSPMV_CSR_VECTOR_CUH

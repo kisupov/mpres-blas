@@ -1,7 +1,6 @@
 /*
- *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the ELLPACK sparse matrix format
- *  Computes the product of a sparse matrix and a dense vector
- *  Second SpMV ELL implementation (two-stage approach) - first, the array of component-wise products is calculated and then its segment reduction is performed.
+ *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the ELLPACK sparse matrix format (mutiple precision matrix, multiple precision vectors)
+ *  Two-stage ELLPACK implementation - first, the array of component-wise products is calculated and then its segment reduction is performed.
 
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
@@ -21,13 +20,13 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPSPMVELL2_CUH
-#define MPSPMVELL2_CUH
+#ifndef MPSPMV_ELL_2STAGE_CUH
+#define MPSPMV_ELL_2STAGE_CUH
 
-#include "../arith/mpadd.cuh"
-#include "../arith/mpassign.cuh"
-#include "../mpvector.cuh"
-#include "../kernel_config.cuh"
+#include "arith/mpadd.cuh"
+#include "arith/mpassign.cuh"
+#include "mpvector.cuh"
+#include "kernel_config.cuh"
 
 namespace cuda {
 
@@ -117,7 +116,7 @@ namespace cuda {
      * @param buffer - auxiliary global memory array for storing the intermediate matrix, size = m * nzr
      */
     template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
-    void mpspmv_ell2(const int m, const int n, const int nzr, const int *ja, mp_collection_t &as, mp_array_t &x, mp_array_t &y, mp_collection_t &buffer) {
+    void mpspmv_ell_2stage(const int m, const int n, const int nzr, const int *ja, mp_collection_t &as, mp_array_t &x, mp_array_t &y, mp_collection_t &buffer) {
 
         //We consider the vector x as a diagonal matrix and perform the right diagonal scaling, buffer = A * x.
         //The result is written to the intermediate buffer of size m * nzr.
@@ -138,4 +137,4 @@ namespace cuda {
 
 } // namespace cuda
 
-#endif //MPSPMVELL2_CUH
+#endif //MPSPMV_ELL_2STAGE_CUH

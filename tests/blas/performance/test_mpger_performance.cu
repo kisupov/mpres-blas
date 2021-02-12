@@ -75,20 +75,6 @@ void initialize(){
 void finalize(){
 }
 
-static void convert_vector(mp_float_ptr dest, mpfr_t *source, int width){
-    for( int i = 0; i < width; i++ ){
-        mp_set_mpfr(&dest[i], source[i]);
-    }
-}
-
-static void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
-    int width = rows * cols;
-    for( int i = 0; i < width; i++ ){
-        mp_set_mpfr(&dest[i], source[i]);
-    }
-}
-
-
 /********************* GER implementations and benchmarks *********************/
 
 /////////

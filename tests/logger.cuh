@@ -50,9 +50,10 @@ namespace Logger {
         RNS_EVAL_ACCURACY_TEST,
         EXTRANGE_CORRECTNESS_TEST,
         RNS_CMP_PERFORMANCE_TEST,
-        BLAS_SPMV_ELL_PERFORMANCE_TEST,
-        BLAS_SPMV_CSR_PERFORMANCE_TEST,
-        BLAS_SPMV_DIA_PERFORMANCE_TEST
+        SPMV_MP_CSR_PERFORMANCE_TEST,
+        SPMV_MPD_CSR_PERFORMANCE_TEST,
+        SPMV_MP_ELLPACK_PERFORMANCE_TEST,
+        SPMV_MPD_ELLPACK_PERFORMANCE_TEST
     };
 
     const char *testHeaderAsString(enum TestHeader header) {
@@ -101,12 +102,14 @@ namespace Logger {
                 return "Test for checking the correctness of the extended-range floating-point routines";
             case RNS_CMP_PERFORMANCE_TEST:
                 return "Test for measure the performance of the RNS magnitude comparison algorithms";
-            case BLAS_SPMV_ELL_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using the ELLPACK matrix storage format";
-            case BLAS_SPMV_CSR_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using the CSR matrix storage format";
-            case BLAS_SPMV_DIA_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using the DIA matrix storage format";
+            case SPMV_MP_CSR_PERFORMANCE_TEST:
+                return "Performance test for SpMV routines using the CSR matrix storage format (multiple precision matrix)";
+            case SPMV_MPD_CSR_PERFORMANCE_TEST:
+                return "Performance test for SpMV routines using the CSR matrix storage format (double precision matrix)";
+            case SPMV_MP_ELLPACK_PERFORMANCE_TEST:
+                return "Performance test for SpMV routines using the ELLPACK matrix storage format (multiple precision matrix)";
+            case SPMV_MPD_ELLPACK_PERFORMANCE_TEST:
+                return "Performance test for SpMV routines using the ELLPACK matrix storage format (double precision matrix)";
         }
         return "";
     }

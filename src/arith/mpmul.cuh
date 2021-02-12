@@ -41,7 +41,6 @@ GCC_FORCEINLINE void mp_mul(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y)
     }
 }
 
-
 /*
  * GPU functions
  */
@@ -113,7 +112,6 @@ namespace cuda {
             cuda::mp_round(result, cuda::mp_get_rnd_bits(result));
         }
     }
-
 
 } //namespace cuda
 

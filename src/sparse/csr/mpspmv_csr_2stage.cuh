@@ -1,6 +1,6 @@
 /*
- *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format
- *  Third SpMV CSR implementation (two-stage approach) - first, the array of component-wise products is calculated and then its segment reduction is performed.
+ *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format (mutiple precision matrix, multiple precision vectors)
+ *  Two-stage CSR implementation - first, the array of component-wise products is calculated and then its segment reduction is performed.
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
@@ -20,13 +20,13 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPSPMVCSR3_CUH
-#define MPSPMVCSR3_CUH
+#ifndef MPSPMV_CSR_2STAGE_CUH
+#define MPSPMV_CSR_2STAGE_CUH
 
-#include "../arith/mpadd.cuh"
-#include "../arith/mpassign.cuh"
-#include "../mpvector.cuh"
-#include "../kernel_config.cuh"
+#include "arith/mpadd.cuh"
+#include "arith/mpassign.cuh"
+#include "mpvector.cuh"
+#include "kernel_config.cuh"
 
 namespace cuda {
 
@@ -103,7 +103,7 @@ namespace cuda {
      * @param buffer - auxiliary array in the global GPU memory for storing the intermediate matrix, size = nnz
      */
     template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
-    void mpspmv_csr3(const int m, const int n, const int nnz, const int *irp, const int *ja,  mp_collection_t &as, mp_array_t &x, mp_array_t &y, mp_collection_t &buffer) {
+    void mpspmv_csr_2stage(const int m, const int n, const int nnz, const int *irp, const int *ja, mp_collection_t &as, mp_array_t &x, mp_array_t &y, mp_collection_t &buffer) {
 
         //We consider the vector x as a diagonal matrix and perform the right diagonal scaling, buffer = A * x.
         //The result is written to the intermediate buffer of size = nnz.
@@ -124,4 +124,4 @@ namespace cuda {
 
 } // namespace cuda
 
-#endif //MPSPMVCSR3_CUH
+#endif //MPSPMV_CSR_2STAGE_CUH
