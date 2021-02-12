@@ -79,21 +79,6 @@ void finalize(){
     mp_real::mp_finalize();
 }
 
-void convert_vector(mp_float_ptr dest, mpfr_t *source, int width){
-    for( int i = 0; i < width; i++ ){
-        mp_set_mpfr(&dest[i], source[i]);
-    }
-}
-
-void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
-    int width = rows * cols;
-    for( int i = 0; i < width; i++ ){
-        mp_set_mpfr(&dest[i], source[i]);
-    }
-}
-
-
-
 /********************* GEMV implementations and benchmarks *********************/
 
 /////////

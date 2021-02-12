@@ -1,5 +1,5 @@
 # MPRES-BLAS: Multiple-Precision GPU Accelerated BLAS Routines based on Residue Number System
-###### Version 1.3.0, released 2021-01-25
+###### Version 1.4.0, released 2021-02-12
 
 
 The MPRES-BLAS library implements a number of linear algebra operations, like the BLAS (Basic Linear Algebra Subprograms) routines, with [multiple precision](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) on CUDA-enabled graphics processing units. The library uses a residue number system ([RNS](https://en.wikipedia.org/wiki/Residue_number_system)) to represent multiple-precision floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS a good tool for high-performance computing on many-core architectures such as GPUs.
@@ -25,10 +25,18 @@ Underlying algorithms for multiple-precision floating-point arithmetic as well a
     * GE_LRSCALE --- Two-sided diagonal scaling (`mpgelrscale`)
     * GE_NORM --- Matrix norms (`mpgenorm`)
 
-2. The following sparse multiple-precision linear algebra operations are also currently supported:
+2. In addition, the following sparse matrix-vector multiplication (SpMV) routines are supported:
+    
+    * Multiple-precision CSR kernel for double-precision matrix using one thread per matrix row (`mpdspmv_csr_scalar`)
+    * Multiple-precision CSR kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_csr_scalar`)
+    * Multiple-precision CSR kernel for double-precision matrix using a group (up to 32) of threads per matrix row (`mpdspmv_csr_vector`)
+    * Multiple-precision CSR kernel for multiple-precision matrix using a group (up to 32) of threads per matrix row (`mpspmv_csr_vector`)
+    * Multiple-precision two-step CSR implementation (`mpspmv_csr_2stage`)
+    * Multiple-precision ELLPACK kernel for double-precision matrix using one thread per matrix row (`mpdspmv_ell_scalar`)
+    * Multiple-precision ELLPACK kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_ell_scalar`)
+    * Multiple-precision two-step ELLPACK implementation (`mpspmv_ell_2stage`)
 
-    * SpMV CSR --- Sparse matrix-vector multiplication in the CSR matrix storage format (`mpdspmv_csr_vector`,`mpspmv_csr_vector`, `mpspmv_csr_scalar`, `mpspmv_csr_2stage`)
-    * SpMV ELL --- Sparse matrix-vector multiplication in the ELLPACK matrix storage format (`mpspmv_ell_scalar`,`mpspmv_ell_2stage`)
+The corresponding benchmarks are also provided.
 
 3. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/arith/`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
 
@@ -63,4 +71,4 @@ levels of precision. Using these moduli sets is preferred. Just replace the cont
 
 *Link: http://github.com/kisupov/mpres-blas*
 
-*Copyright 2018, 2019, 2020 by Konstantin Isupov and the MPRES-BLAS team*
+*Copyright 2018, 2019, 2020, 2021 by Konstantin Isupov and the MPRES-BLAS team*

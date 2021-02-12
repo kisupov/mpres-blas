@@ -1,6 +1,5 @@
 /*
- *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format
- *  Calculates the product of a sparse multiple precision matrix and a multiple precision vector
+ *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format (mutiple precision matrix, multiple precision vectors)
  *  Two-stage CSR implementation - first, the array of component-wise products is calculated and then its segment reduction is performed.
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
@@ -24,10 +23,10 @@
 #ifndef MPSPMV_CSR_2STAGE_CUH
 #define MPSPMV_CSR_2STAGE_CUH
 
-#include "../arith/mpadd.cuh"
-#include "../arith/mpassign.cuh"
-#include "../mpvector.cuh"
-#include "../kernel_config.cuh"
+#include "arith/mpadd.cuh"
+#include "arith/mpassign.cuh"
+#include "mpvector.cuh"
+#include "kernel_config.cuh"
 
 namespace cuda {
 

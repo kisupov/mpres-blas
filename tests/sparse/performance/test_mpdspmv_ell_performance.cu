@@ -1,5 +1,5 @@
 /*
- *  Performance test for SpMV routines using the ELLPACK matrix format (multiple precision matrix)
+ *  Performance test for SpMV routines using the ELLPACK matrix format (double precision matrix)
  *  Path to the matrix must be given as a command line argument, e.g., ../../tests/sparse/matrices/t3dl.mtx
 
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
@@ -23,9 +23,8 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/ellpack/test_mpres_mpspmv_ellpack_scalar.cuh"
-#include "sparse/performance/ellpack/test_mpres_mpspmv_ellpack_2stage.cuh"
-#include "sparse/performance/ellpack/test_campary_mpspmv_ellpack.cuh"
+#include "sparse/performance/ellpack/test_mpres_mpdspmv_ellpack_scalar.cuh"
+#include "sparse/performance/ellpack/test_campary_mpdspmv_ellpack.cuh"
 #include "sparse/performance/ellpack/test_cump_mpspmv_ellpack.cuh"
 #include "sparse/performance/ellpack/test_double_spmv_ellpack.cuh"
 #include "sparse/performance/ellpack/test_taco_spmv_ellpack.cuh"
@@ -60,9 +59,8 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     //Launch tests
     test_double_spmv_ellpack(M, N, NZR, JA, AS, vectorX);
     test_taco_spmv_ellpack(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_ellpack_scalar(M, N, NZR, JA, AS, vectorX);
-    test_mpres_mpspmv_ellpack_2stage(M, N, NZR, JA, AS, vectorX);
-    test_campary_mpspmv_ellpack<CAMPARY_PRECISION>(M, N, NZR, JA, AS, vectorX, INP_DIGITS);
+    test_mpres_mpdspmv_ellpack_scalar(M, N, NZR, JA, AS, vectorX);
+    test_campary_mpdspmv_ellpack<CAMPARY_PRECISION>(M, N, NZR, JA, AS, vectorX, INP_DIGITS);
     test_cump_mpspmv_ellpack(M, N, NZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
@@ -89,7 +87,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::SPMV_MP_ELLPACK_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::SPMV_MPD_ELLPACK_PERFORMANCE_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();

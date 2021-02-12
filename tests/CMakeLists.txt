@@ -113,16 +113,26 @@ add_executable(test_mpgenorm_performance blas/performance/test_mpgenorm_performa
 target_compile_options(test_mpgenorm_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpgenorm_performance gmp mpfr OpenMP::OpenMP_CXX)
 
-# Performance test for SPMV using ELLPACK
-add_executable(test_mpspmv_ell_performance sparse/performance/test_mpspmv_ell_performance.cu)
-target_compile_options(test_mpspmv_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
-# Performance test for SPMV using CSR
+# Performance test for SPMV using CSR (multiple precision matrix)
 add_executable(test_mpspmv_csr_performance sparse/performance/test_mpspmv_csr_performance.cu)
 target_compile_options(test_mpspmv_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpspmv_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
+# Performance test for SPMV using CSR (double precision matrix)
+add_executable(test_mpdspmv_csr_performance sparse/performance/test_mpdspmv_csr_performance.cu)
+target_compile_options(test_mpdspmv_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdspmv_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+
+# Performance test for SPMV using ELLPACK (multiple precision matrix)
+add_executable(test_mpspmv_ell_performance sparse/performance/test_mpspmv_ell_performance.cu)
+target_compile_options(test_mpspmv_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpspmv_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+
+# Performance test for SPMV using ELLPACK (double precision matrix)
+add_executable(test_mpdspmv_ell_performance sparse/performance/test_mpdspmv_ell_performance.cu)
+target_compile_options(test_mpdspmv_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdspmv_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 #########################
 ## Accuracy tests for BLAS routines

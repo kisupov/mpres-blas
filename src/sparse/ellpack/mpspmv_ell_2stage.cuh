@@ -1,6 +1,5 @@
 /*
- *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the ELLPACK sparse matrix format
- *  Computes the product of a sparse matrix and a dense vector
+ *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the ELLPACK sparse matrix format (mutiple precision matrix, multiple precision vectors)
  *  Two-stage ELLPACK implementation - first, the array of component-wise products is calculated and then its segment reduction is performed.
 
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
@@ -24,10 +23,10 @@
 #ifndef MPSPMV_ELL_2STAGE_CUH
 #define MPSPMV_ELL_2STAGE_CUH
 
-#include "../arith/mpadd.cuh"
-#include "../arith/mpassign.cuh"
-#include "../mpvector.cuh"
-#include "../kernel_config.cuh"
+#include "arith/mpadd.cuh"
+#include "arith/mpassign.cuh"
+#include "mpvector.cuh"
+#include "kernel_config.cuh"
 
 namespace cuda {
 
