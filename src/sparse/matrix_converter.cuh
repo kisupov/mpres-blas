@@ -39,10 +39,11 @@ using namespace std;
  * @param n - number of columns in matrix (output parameter)
  * @param lines - total number of lines with data (output parameter)
  * @param nzr - maximum number of nonzeros per row in the matrix (output parameter)
+ * @param nzmd - number of nonzeros in main diagonal of the matrix (output parameter)
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  * @param datatype - type of data according to the matrix market format - real, integer, binary
  */
-void read_matrix_properties(const char filename[], int &m, int &n, int &lines, int &nzr, bool &symmetric, string &datatype) {
+void read_matrix_properties(const char filename[], int &m, int &n, int &lines, int &nzr, int &nzmd, bool &symmetric, string &datatype) {
 
     //Create stream
     std::ifstream file(filename);
@@ -72,6 +73,7 @@ void read_matrix_properties(const char filename[], int &m, int &n, int &lines, i
     // Array for storing the number of non-zero elements in each row
     // For zero-initializing the array, we use value initialization in the constructor initialization list
     int *nonZeros = new int[m]();
+    nzmd = 0;
 
     // Iterating over the matrix
     for (int l = 0; l < lines; l++) {
@@ -79,6 +81,9 @@ void read_matrix_properties(const char filename[], int &m, int &n, int &lines, i
         int row = 0, col = 0;
         file >> row >> col >> fileData;
         nonZeros[(row - 1)] = nonZeros[(row - 1)] + 1;
+        if (row == col){
+            nzmd++;
+        }
         if (symmetric && (row != col)) {
             nonZeros[(col - 1)] = nonZeros[(col - 1)] + 1;
         }
@@ -144,6 +149,7 @@ void convert_to_coo(const char filename[], const int m, const int lines, bool sy
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
     int j = lines;
+    int nzmd = 0;
 
     // Iterating over the matrix
     for (int l = 0; l < lines; l++) {
@@ -153,6 +159,9 @@ void convert_to_coo(const char filename[], const int m, const int lines, bool sy
         as[l] = fileData;
         ja[l] = col - 1;
         ia[l] = row - 1;
+        if (col == row) {
+            nzmd++;
+        }
         if (symmetric && (row != col)) {
             as[j] = fileData;
             ja[j] = row - 1;
@@ -164,7 +173,7 @@ void convert_to_coo(const char filename[], const int m, const int lines, bool sy
 
     int nnz = 0;
     if (symmetric){
-        nnz = (lines - m) * 2 + m;
+        nnz = (lines - nzmd) * 2 + nzmd;
     } else {
         nnz = lines;
     }

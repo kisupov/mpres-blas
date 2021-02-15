@@ -83,7 +83,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
 
     //Launch tests
     test_double_spmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
-    test_taco_spmv_dia(MATRIX_PATH, vectorX, DATATYPE);
+    //test_taco_spmv_dia(MATRIX_PATH, vectorX, DATATYPE);
     test_mpres_mpspmv_dia_scalar(M, N, NDIAG, OFFSET, AS, vectorX);
     test_campary_mpspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
     //t3dl падает на кампе
@@ -107,6 +107,7 @@ int main(int argc, char *argv[]) {
     int M = 0; //number of rows
     int N = 0; //number of columns
     int NZR = 0; //number of nonzeros per row array (maximum number of nonzeros per row in the matrix A)
+    int NZMD = 0; //number of nonzeros in main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary
@@ -125,10 +126,10 @@ int main(int argc, char *argv[]) {
 
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, M, N, LINES, NZR, SYMM, DATATYPE);
+    read_matrix_properties(MATRIX_PATH, M, N, LINES, NZR, NZMD, SYMM, DATATYPE);
     Logger::printParam("Number of rows in matrix, M", M);
     Logger::printParam("Number of column in matrix, N", N);
-    Logger::printParam("Number of nonzeros in matrix, NNZ", SYMM ? ( (LINES - M) * 2 + M) : LINES);
+    Logger::printParam("Number of nonzeros in matrix, NNZ", SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES);
     Logger::printParam("Number of nonzeros per row array, NZR", NZR);
     Logger::printParam("Symmetry of matrix, SYMM", SYMM);
     Logger::printParam("Data type, DATATYPE", DATATYPE);

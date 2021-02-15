@@ -62,7 +62,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     convert_to_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, AS, IRP, JA);
     //Launch tests
     test_double_spmv_csr(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
+    //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
     Logger::printStars();
     test_mpres_mpspmv_csr_vector<2>(M, N, NNZ, IRP, JA, AS, vectorX);
     test_mpres_mpspmv_csr_vector<4>(M, N, NNZ, IRP, JA, AS, vectorX);
@@ -100,6 +100,7 @@ int main(int argc, char *argv[]) {
     int N = 0; //number of columns
     int NNZ = 0; //number of nonzeros in matrix
     int NZR = 0; //number of nonzeros per row array (maximum number of nonzeros per row in the matrix A)
+    int NZMD = 0; //number of nonzeros in main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary
@@ -118,8 +119,8 @@ int main(int argc, char *argv[]) {
 
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, M, N, LINES, NZR, SYMM, DATATYPE);
-    NNZ = SYMM ? ( (LINES - M) * 2 + M) : LINES;
+    read_matrix_properties(MATRIX_PATH, M, N, LINES, NZR, NZMD, SYMM, DATATYPE);
+    NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
     Logger::printParam("Number of rows in matrix, M", M);
     Logger::printParam("Number of column in matrix, N", N);
     Logger::printParam("Number of nonzeros in matrix, NNZ", NNZ);
