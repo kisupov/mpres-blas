@@ -1,5 +1,5 @@
 /*
- *  Performance test for SpMV routines using the DIA matrix format (multiple precision matrix)
+ *  Performance test for SpMV routines using the DIA matrix format (double precision matrix)
  *  Path to the matrix must be given as a command line argument, e.g., ../../tests/sparse/matrices/t3dl.mtx
 
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
@@ -23,8 +23,8 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/dia/test_mpres_mpspmv_dia_scalar.cuh"
-#include "sparse/performance/dia/test_campary_mpspmv_dia.cuh"
+#include "sparse/performance/dia/test_mpres_mpdspmv_dia_scalar.cuh"
+#include "sparse/performance/dia/test_campary_mpdspmv_dia.cuh"
 #include "sparse/performance/dia/test_cump_mpspmv_dia.cuh"
 #include "sparse/performance/dia/test_double_spmv_dia.cuh"
 #include "sparse/performance/dia/test_taco_spmv_dia.cuh"
@@ -49,6 +49,7 @@ void initialize() {
 void finalize() {
 }
 
+
 void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const bool SYMM, const string DATATYPE) {
 
     //Input arrays
@@ -63,8 +64,9 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     //Launch tests
     test_double_spmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
     test_taco_spmv_dia(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_dia_scalar(M, N, NDIAG, OFFSET, AS, vectorX);
-    test_campary_mpspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
+    test_mpres_mpdspmv_dia_scalar(M, N, NDIAG, OFFSET, AS, vectorX);
+    test_campary_mpdspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
+    //t3dl падает на кампе
     test_cump_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
@@ -93,7 +95,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::SPMV_MP_DIA_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::SPMV_MPD_DIA_PERFORMANCE_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();

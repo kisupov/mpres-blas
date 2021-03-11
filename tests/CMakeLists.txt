@@ -139,6 +139,11 @@ add_executable(test_mpspmv_dia_performance sparse/performance/test_mpspmv_dia_pe
 target_compile_options(test_mpspmv_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpspmv_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
+# Performance test for SPMV using DIA (double precision matrix)
+add_executable(test_mpdspmv_dia_performance sparse/performance/test_mpdspmv_dia_performance.cu)
+target_compile_options(test_mpdspmv_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdspmv_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+
 
 #########################
 ## Accuracy tests for BLAS routines
