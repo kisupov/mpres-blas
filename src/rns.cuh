@@ -477,7 +477,7 @@ void rns_eval_const_print() {
  * @param mr - pointer to the result mixed-radix representation
  * @param x - pointer to the input RNS number
  */
-GCC_FORCEINLINE void perform_mrc(int * mr, int * x) {
+GCC_FORCEINLINE void mrc(int * mr, int * x) {
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
         mr[i] = x[i];
         for (int j = 0; j < i; j++) {
@@ -513,8 +513,8 @@ GCC_FORCEINLINE static int mrs_cmp(int * x, int * y) {
 int mrc_compare_rns(int * x, int * y) {
     int mx[RNS_MODULI_SIZE];
     int my[RNS_MODULI_SIZE];
-    perform_mrc(mx, x);
-    perform_mrc(my, y);
+    mrc(mx, x);
+    mrc(my, y);
     return mrs_cmp(mx, my);
 }
 
@@ -529,7 +529,7 @@ namespace cuda{
      * @param mr - pointer to the result mixed-radix representation
      * @param x - pointer to the input RNS number
      */
-    DEVICE_CUDA_FORCEINLINE void perform_mrc(int * mr, int * x) {
+    DEVICE_CUDA_FORCEINLINE void mrc(int * mr, int * x) {
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             mr[i] = x[i];
             for (int j = 0; j < i; j++) {
@@ -564,8 +564,8 @@ namespace cuda{
     DEVICE_CUDA_FORCEINLINE int mrc_compare_rns(int * x, int * y) {
         int mx[RNS_MODULI_SIZE];
         int my[RNS_MODULI_SIZE];
-        cuda::perform_mrc(mx, x);
-        cuda::perform_mrc(my, y);
+        cuda::mrc(mx, x);
+        cuda::mrc(my, y);
         return cuda::mrs_cmp(mx, my);
     }
 
@@ -614,7 +614,7 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     er_set_d(upp, sumu);
     //Check for ambiguity
     if(whl != whu) {
-        perform_mrc(mrd, x); //Computing the mixed-radix representation of x
+        mrc(mrd, x); //Computing the mixed-radix representation of x
         mr = mrd[RNS_MODULI_SIZE - 1];
     }
     //Adjust if ambiguity was found
@@ -768,7 +768,7 @@ namespace cuda{
         cuda::er_set_d(upp, sumu);
         //Check for ambiguity
         if(whl != whu) {
-            cuda::perform_mrc(mrd, x); //Computing the mixed-radix representation of x
+            cuda::mrc(mrd, x); //Computing the mixed-radix representation of x
             mr = mrd[RNS_MODULI_SIZE - 1];
         }
         //Adjust if ambiguity was found
@@ -908,7 +908,7 @@ GCC_FORCEINLINE int rns_rank_compute(int * x, int * s) {
     if(whl == whu) {
         return whl;
     } else {
-        perform_mrc(mrd, x); //Computing the mixed-radix representation of x
+        mrc(mrd, x); //Computing the mixed-radix representation of x
         mr = mrd[RNS_MODULI_SIZE - 1];
         return mr == 0 ? whu : whl;
     }
@@ -1021,7 +1021,7 @@ namespace cuda{
         if(whl == whu) {
             return whl;
         } else {
-            cuda::perform_mrc(mrd, x);
+            cuda::mrc(mrd, x);
             mr = mrd[RNS_MODULI_SIZE - 1];
             return mr == 0 ? whu : whl;
         }
