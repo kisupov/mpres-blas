@@ -144,6 +144,16 @@ add_executable(test_mpdspmv_dia_performance sparse/performance/test_mpdspmv_dia_
 target_compile_options(test_mpdspmv_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpdspmv_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
+# Performance test for SPMV using JAD (JDS) (multiple precision matrix)
+add_executable(test_mpspmv_jad_performance sparse/performance/test_mpspmv_jad_performance.cu)
+target_compile_options(test_mpspmv_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpspmv_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+
+# Performance test for SPMV using JAD (JDS) (double precision matrix)
+add_executable(test_mpdspmv_jad_performance sparse/performance/test_mpdspmv_jad_performance.cu)
+target_compile_options(test_mpdspmv_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdspmv_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+
 
 #########################
 ## Accuracy tests for BLAS routines
