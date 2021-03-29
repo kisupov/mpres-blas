@@ -1,5 +1,5 @@
 /*
- *  Performance test for SpMV routines using the JAD (JDS) matrix format (double precision matrix)
+ *  Performance test for SpMV routines using the JAD (JDS) matrix format (multiple precision matrix)
  *  Path to the matrix must be given as a command line argument, e.g., ../../tests/sparse/matrices/t3dl.mtx
 
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
@@ -23,8 +23,8 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/jad/test_mpres_mpdspmv_jad_scalar.cuh"
-#include "sparse/performance/jad/test_campary_mpdspmv_jad.cuh"
+#include "sparse/performance/jad/test_mpres_mpspmv_jad_scalar.cuh"
+#include "sparse/performance/jad/test_campary_mpspmv_jad.cuh"
 #include "sparse/performance/jad/test_cump_mpspmv_jad.cuh"
 #include "sparse/performance/jad/test_double_spmv_jad.cuh"
 #include "sparse/performance/jad/test_taco_spmv_jad.cuh"
@@ -49,7 +49,6 @@ void initialize() {
 void finalize() {
 }
 
-
 void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int NZR, const int NNZ, const bool SYMM, const string DATATYPE) {
 
     //Input arrays
@@ -65,8 +64,8 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     //Launch tests
     test_double_spmv_jad(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
     test_taco_spmv_jad(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpdspmv_jad_scalar(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
-    test_campary_mpdspmv_jad<CAMPARY_PRECISION>(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
+    test_mpres_mpspmv_jad_scalar(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
+    test_campary_mpspmv_jad<CAMPARY_PRECISION>(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
     test_cump_mpspmv_jad(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
@@ -98,7 +97,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::SPMV_MPD_JAD_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::SPMV_MP_DIA_PERFORMANCE_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();
