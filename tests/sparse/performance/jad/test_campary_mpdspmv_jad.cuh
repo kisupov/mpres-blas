@@ -38,7 +38,7 @@ __global__ void campary_mpdspmv_jad_kernel(const int m, const int nzr, const int
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if (row < m) {
         multi_prec<prec> dot = 0.0;
-        int j =0;
+        int j = 0;
         int index = row;
 
         while (j < nzr && index < jcp[j + 1]) {
@@ -51,7 +51,7 @@ __global__ void campary_mpdspmv_jad_kernel(const int m, const int nzr, const int
 }
 
 template<int prec>
-void test_campary_mpdspmv_jad(const int m, const int n, const int nzr, const int nnz, const int *ja, const int *jcp, const double *as,  const int *perm_rows, mpfr_t *x, const int convert_prec) {
+void test_campary_mpdspmv_jad(const int m, const int n, const int nzr, const int nnz, const int *ja, const int *jcp, const double *as, const int *perm_rows, mpfr_t *x, const int convert_prec) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY SpMV JAD (JDS) (double precision matrix)");
