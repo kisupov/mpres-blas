@@ -37,6 +37,8 @@ Underlying algorithms for multiple-precision floating-point arithmetic as well a
     * Multiple-precision two-step ELLPACK implementation (`mpspmv_ell_2stage`)
     * Multiple-precision DIA kernel for double-precision matrix using one thread per matrix row (`mpdspmv_dia`)
     * Multiple-precision DIA kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_dia`)
+    * Multiple-precision JAD kernel for double-precision matrix using one thread per matrix row (`mpdspmv_jad`)
+    * Multiple-precision JAD kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_jad`)
    
 The corresponding benchmarks are also provided.
 
