@@ -21,8 +21,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPSPMV_JAD_SCALAR_CUH
-#define MPSPMV_JAD_SCALAR_CUH
+#ifndef MPSPMV_JAD_CUH
+#define MPSPMV_JAD_CUH
 
 #include "../../arith/mpadd.cuh"
 #include "../../arith/mpmul.cuh"
@@ -41,7 +41,6 @@ namespace cuda {
      *
      * @param m - number of rows in matrix
      * @param nzr - maximum number of nonzeros per row
-     * @param offset - offset for diagonals
      * @param as - multiple-precision coefficients array (entries of the matrix A in the JAD (JDS) format), size nnz (number of nonzeros in matrix)
      * @param ja - column indices array to access the corresponding elements of the vector x, size = nnz
      * @param jcp - col start pointers array of size nzr + 1, last element of jcp equals to nnz
@@ -49,7 +48,7 @@ namespace cuda {
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
-    __global__ void mpspmv_jad_scalar(const int m, const int nzr, const mp_float_ptr as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_jad(const int m, const int nzr, const mp_float_ptr as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         while (row < m) {
             int j = 0;
@@ -71,4 +70,4 @@ namespace cuda {
 
 } // namespace cuda
 
-#endif //MPSPMV_JAD_SCALAR_CUH
+#endif //MPSPMV_JAD_CUH

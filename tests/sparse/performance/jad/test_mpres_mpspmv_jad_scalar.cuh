@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_jad_scalar (multiple precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_jad (multiple precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,23 +19,22 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_MPSPMV_JAD_SCALAR_CUH
-#define TEST_MPRES_MPSPMV_JAD_SCALAR_CUH
+#ifndef TEST_MPRES_MPSPMV_JAD_CUH
+#define TEST_MPRES_MPSPMV_JAD_CUH
 
 #include "tsthelper.cuh"
 #include "logger.cuh"
 #include "timers.cuh"
-#include "sparse/jad/mpspmv_jad_scalar.cuh"
+#include "sparse/jad/mpspmv_jad.cuh"
 
 /////////
 //  SpMV jad scalar kernel
 /////////
-void
-test_mpres_mpspmv_jad_scalar(const int m, const int n, const int nzr, const int nnz, const int *ja, const int *jcp,
-                              const double *as, const int *perm_rows, const mpfr_t *x) {
+void test_mpres_mpspmv_jad(const int m, const int n, const int nzr, const int nnz, const int *ja, const int *jcp,
+                      const double *as, const int *perm_rows, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmv_jad_scalar");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_jad");
 
     //Execution configuration
     int threads = 32;
@@ -80,7 +79,7 @@ test_mpres_mpspmv_jad_scalar(const int m, const int n, const int nzr, const int 
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_jad_scalar<<<blocks, threads>>>(m, nzr, das, dja, djcp, dperm_rows, dx, dy);
+    cuda::mpspmv_jad<<<blocks, threads>>>(m, nzr, das, dja, djcp, dperm_rows, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -102,4 +101,4 @@ test_mpres_mpspmv_jad_scalar(const int m, const int n, const int nzr, const int 
     cudaFree(dperm_rows);
 }
 
-#endif //TEST_MPRES_MPSPMV_JAD_SCALAR_CUH
+#endif //TEST_MPRES_MPSPMV_JAD_CUH
