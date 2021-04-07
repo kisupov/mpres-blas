@@ -39,10 +39,11 @@ using namespace std;
  * @param n - number of columns in matrix (output parameter)
  * @param lines - total number of lines with data (output parameter)
  * @param nzr - maximum number of nonzeros per row in the matrix (output parameter)
+ * @param nzmd - number of nonzeros in main diagonal of the matrix (output parameter)
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  * @param datatype - type of data according to the matrix market format - real, integer, binary
  */
-void read_matrix_properties(const char filename[], int &m, int &n, int &lines, int &nzr, bool &symmetric, string &datatype) {
+void read_matrix_properties(const char filename[], int &m, int &n, int &lines, int &nzr, int &nzmd, bool &symmetric, string &datatype) {
 
     //Create stream
     std::ifstream file(filename);
@@ -72,6 +73,7 @@ void read_matrix_properties(const char filename[], int &m, int &n, int &lines, i
     // Array for storing the number of non-zero elements in each row
     // For zero-initializing the array, we use value initialization in the constructor initialization list
     int *nonZeros = new int[m]();
+    nzmd = 0;
 
     // Iterating over the matrix
     for (int l = 0; l < lines; l++) {
@@ -79,6 +81,9 @@ void read_matrix_properties(const char filename[], int &m, int &n, int &lines, i
         int row = 0, col = 0;
         file >> row >> col >> fileData;
         nonZeros[(row - 1)] = nonZeros[(row - 1)] + 1;
+        if (row == col){
+            nzmd++;
+        }
         if (symmetric && (row != col)) {
             nonZeros[(col - 1)] = nonZeros[(col - 1)] + 1;
         }
@@ -144,6 +149,7 @@ void convert_to_coo(const char filename[], const int m, const int lines, bool sy
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
     int j = lines;
+    int nzmd = 0;
 
     // Iterating over the matrix
     for (int l = 0; l < lines; l++) {
@@ -153,6 +159,9 @@ void convert_to_coo(const char filename[], const int m, const int lines, bool sy
         as[l] = fileData;
         ja[l] = col - 1;
         ia[l] = row - 1;
+        if (col == row) {
+            nzmd++;
+        }
         if (symmetric && (row != col)) {
             as[j] = fileData;
             ja[j] = row - 1;
@@ -164,7 +173,7 @@ void convert_to_coo(const char filename[], const int m, const int lines, bool sy
 
     int nnz = 0;
     if (symmetric){
-        nnz = (lines - m) * 2 + m;
+        nnz = (lines - nzmd) * 2 + nzmd;
     } else {
         nnz = lines;
     }
@@ -235,6 +244,76 @@ void convert_to_csr(const char filename[], const int m, const int nnz, const int
 }
 
 /*!
+ * Converts a sparse matrix to the DIA format
+ * @param filename - path to the file with the matrix
+ * @param m - number of rows in the matrix
+ * @param lines - total number of lines with data
+ * @param ndiag - number of nonzero diagonals
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
+ * @param as - coefficients array (CSR data): an array of size lines containing a matrix data in the CSR format (output parameter)
+ * @param offset - offset for diagonals
+ */
+void convert_to_dia(const char filename[], const int m, const int lines, bool symmetric, int &ndiag, double *&as, int *&offset) {
+    //Create stream
+    std::ifstream file(filename);
+
+    //TODO читаем файл дважды в методе. Вкупе с методом read_matrix_properties получается 3
+
+    // Ignore comments headers
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    //Skip one line with the matrix properties
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    std::vector<int> diagOffsets(lines);
+
+    for (int l = 0; l < lines; l++) {
+        double fileData = 0.0;
+        int row = 0, col = 0;
+        file >> row >> col >> fileData;
+        diagOffsets[l] = col-row;
+    }
+
+    std::sort(diagOffsets.begin(), diagOffsets.end());
+    diagOffsets.erase(std::unique(diagOffsets.begin(), diagOffsets.end()), diagOffsets.end());
+    ndiag = (int) diagOffsets.size();
+
+    if (symmetric) {
+        for (int i = ndiag-2; i > -1; i--) {
+            diagOffsets.push_back(-diagOffsets[i]);
+        }
+        ndiag = (int) diagOffsets.size();
+    }
+
+
+    as = new double[m * ndiag]();
+    offset = new int[ndiag];
+
+    for (int i = 0; i < ndiag; ++i) {
+        offset[i] = diagOffsets[i];
+    }
+
+    //again from beginning of file
+    file.seekg(0, ios::beg);
+    // Ignore comments headers
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    //Skip one line with the matrix properties
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    for (int l = 0; l < lines; ++l) {
+        double fileData = 0.0;
+        int row = 0, col = 0, index = 0;
+        file >> row >> col >> fileData;
+        index = (int) std::distance(diagOffsets.begin(), std::find(diagOffsets.begin(), diagOffsets.end(), (col-row)));
+        as[m * index + (row-1)] = fileData;
+        if (symmetric) {
+            index = (int) std::distance(diagOffsets.begin(), std::find(diagOffsets.begin(), diagOffsets.end(), (row-col)));
+            as[m * index + (col-1)] = fileData;
+        }
+    }
+    file.close();
+}
+
+/*!
  * Prints a sparse matrix represented in the ELLPACK format
  */
 void print_ellpack(const int m, const int nzr, double *as, int *ja) {
@@ -272,6 +351,26 @@ void print_csr(const int m, const int nnz, double *as, int *irp, int *ja) {
     for (int i = 0; i < nnz; i++) {
         std::cout << ja[i] << "\t";
     }
+}
+
+/*!
+ * Prints a sparse matrix represented in the DIA format
+ */
+void print_dia(const int m, const int ndiag, double *as, int *offset) {
+    std::cout << std::endl << "OFFSET:";
+    std::cout << std::endl;
+    for (int j = 0; j < ndiag; j++) {
+        std::cout << offset[j] << "\t";
+    }
+
+    std::cout << std::endl << "AS:";
+    for (int i = 0; i < m; i++) {
+        std::cout << std::endl;
+        for (int j = 0; j < ndiag; j++) {
+            std::cout << as[i + m * j] << "\t";
+        }
+    }
+    std::cout << std::endl;
 }
 
 #endif //MATRIX_CONVERTER_CUH

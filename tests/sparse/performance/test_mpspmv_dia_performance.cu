@@ -1,7 +1,7 @@
 /*
- *  Performance test for SpMV routines using the CSR matrix format (multiple precision matrix)
+ *  Performance test for SpMV routines using the DIA matrix format (multiple precision matrix)
  *  Path to the matrix must be given as a command line argument, e.g., ../../tests/sparse/matrices/t3dl.mtx
- *
+
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
  *
  *  This file is part of the MPRES-BLAS library.
@@ -20,16 +20,13 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "mpfr.h"
 #include "logger.cuh"
+#include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/csr/test_mpres_mpspmv_csr_2stage.cuh"
-#include "sparse/performance/csr/test_mpres_mpspmv_csr_scalar.cuh"
-#include "sparse/performance/csr/test_mpres_mpspmv_csr_vector.cuh"
-#include "sparse/performance/csr/test_campary_mpspmv_csr_scalar.cuh"
-#include "sparse/performance/csr/test_campary_mpspmv_csr_vector.cuh"
-#include "sparse/performance/csr/test_cump_mpspmv_csr_scalar.cuh"
-#include "sparse/performance/csr/test_double_spmv_csr.cuh"
+#include "sparse/performance/dia/test_mpres_mpspmv_dia.cuh"
+#include "sparse/performance/dia/test_campary_mpspmv_dia.cuh"
+#include "sparse/performance/dia/test_cump_mpspmv_dia.cuh"
+#include "sparse/performance/dia/test_double_spmv_dia.cuh"
 #include "sparse/performance/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
@@ -52,44 +49,33 @@ void initialize() {
 void finalize() {
 }
 
-void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int NNZ, const bool SYMM, const string DATATYPE) {
-    //Inputs
+void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const bool SYMM, const string DATATYPE) {
+
+    //Input arrays
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
-    auto *AS = new double [NNZ]();
-    auto *JA = new int[NNZ]();
-    auto *IRP = new int[M + 1]();
-    //Convert a sparse matrix to the double-precision CSR format
-    convert_to_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, AS, IRP, JA);
+    double *AS;
+    int *OFFSET;
+    int NDIAG;
+
+    //Convert a sparse matrix to the double-precision DIA format
+    convert_to_dia(MATRIX_PATH, M, LINES, SYMM, NDIAG, AS, OFFSET);
+
     //Launch tests
-    test_double_spmv_csr(M, N, NNZ, IRP, JA, AS, vectorX);
-    //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    Logger::printStars();
-    test_mpres_mpspmv_csr_vector<2>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<4>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<8>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<16>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<32>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_scalar(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_2stage(M, N, NNZ, IRP, JA, AS, vectorX);
-    Logger::printStars();
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 2>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 4>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 8>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 16>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 32>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_scalar<CAMPARY_PRECISION>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    Logger::printStars();
-    test_cump_mpspmv_csr_scalar(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_double_spmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
+    test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
+    test_mpres_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
+    test_campary_mpspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
+    test_cump_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
+
     //Cleanup
     for(int i = 0; i < N; i++){
         mpfr_clear(vectorX[i]);
     }
     delete[] vectorX;
     delete[] AS;
-    delete[] JA;
-    delete[] IRP;
+    delete[] OFFSET;
     cudaDeviceReset();
 }
 
@@ -98,7 +84,6 @@ int main(int argc, char *argv[]) {
     //The operation parameters. Read from an input file that contains a sparse matrix
     int M = 0; //number of rows
     int N = 0; //number of columns
-    int NNZ = 0; //number of nonzeros in matrix
     int NZR = 0; //number of nonzeros per row array (maximum number of nonzeros per row in the matrix A)
     int NZMD = 0; //number of nonzeros in the main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
@@ -108,7 +93,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::SPMV_MP_CSR_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::SPMV_MP_DIA_PERFORMANCE_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();
@@ -120,10 +105,9 @@ int main(int argc, char *argv[]) {
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
     read_matrix_properties(MATRIX_PATH, M, N, LINES, NZR, NZMD, SYMM, DATATYPE);
-    NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
     Logger::printParam("Number of rows in matrix, M", M);
     Logger::printParam("Number of column in matrix, N", N);
-    Logger::printParam("Number of nonzeros in matrix, NNZ", NNZ);
+    Logger::printParam("Number of nonzeros in matrix, NNZ", SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES);
     Logger::printParam("Number of nonzeros per row array, NZR", NZR);
     Logger::printParam("Symmetry of matrix, SYMM", SYMM);
     Logger::printParam("Data type, DATATYPE", DATATYPE);
@@ -135,7 +119,7 @@ int main(int argc, char *argv[]) {
     Logger::endSection(true);
 
     //Run the test
-    test(MATRIX_PATH, M, N, LINES, NNZ, SYMM, DATATYPE);
+    test(MATRIX_PATH, M, N, LINES, SYMM, DATATYPE);
 
     //Finalize
     finalize();
