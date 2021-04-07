@@ -63,7 +63,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
 
     //Launch tests
     test_double_spmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
-    test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
+    //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
     test_mpres_mpdspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
     test_campary_mpdspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
     test_cump_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX, MP_PRECISION, INP_DIGITS);
