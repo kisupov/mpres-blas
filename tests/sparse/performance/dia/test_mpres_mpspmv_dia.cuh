@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_dia_scalar (multiple precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_dia (multiple precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,21 +19,21 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_MPSPMV_DIA_SCALAR_CUH
-#define TEST_MPRES_MPSPMV_DIA_SCALAR_CUH
+#ifndef TEST_MPRES_MPSPMV_DIA_CUH
+#define TEST_MPRES_MPSPMV_DIA_CUH
 
 #include "tsthelper.cuh"
 #include "logger.cuh"
 #include "timers.cuh"
-#include "sparse/dia/mpspmv_dia_scalar.cuh"
+#include "sparse/dia/mpspmv_dia.cuh"
 
 /////////
 //  SpMV DIA scalar kernel
 /////////
-void test_mpres_mpspmv_dia_scalar(const int m, const int n, const int ndiag, const int *offset, const double *as, const mpfr_t *x) {
+void test_mpres_mpspmv_dia(const int m, const int n, const int ndiag, const int *offset, const double *as, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpspmv_dia_scalar");
+    PrintTimerName("[GPU] MPRES-BLAS mpdspmv_dia");
 
     //Execution configuration
     int threads = 32;
@@ -72,7 +72,7 @@ void test_mpres_mpspmv_dia_scalar(const int m, const int n, const int ndiag, con
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_dia_scalar<<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy);
+    cuda::mpspmv_dia<<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -92,4 +92,4 @@ void test_mpres_mpspmv_dia_scalar(const int m, const int n, const int ndiag, con
     cudaFree(doffset);
 }
 
-#endif //TEST_MPRES_MPSPMV_DIA_SCALAR_CUH
+#endif //TEST_MPRES_MPSPMV_DIA_CUH

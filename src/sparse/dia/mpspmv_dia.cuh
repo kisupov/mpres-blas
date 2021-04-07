@@ -1,7 +1,7 @@
 /*
- *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the DIA sparse matrix format (double precision matrix)
+ *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the DIA sparse matrix format (multiple precision matrix)
  *  Computes the product of a sparse matrix and a dense vector
- *  First SpMV DIA implementation
+ *  SpMV DIA implementation
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
@@ -21,12 +21,12 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPDSPMV_DIA_SCALAR_CUH
-#define MPDSPMV_DIA_SCALAR_CUH
+#ifndef MPSPMV_DIA_CUH
+#define MPSPMV_DIA_CUH
 
-#include "arith/mpadd.cuh"
-#include "arith/mpmuld.cuh"
-#include "arith/mpassign.cuh"
+#include "../../arith/mpadd.cuh"
+#include "../../arith/mpmul.cuh"
+#include "../../arith/mpassign.cuh"
 
 namespace cuda {
 
@@ -34,27 +34,28 @@ namespace cuda {
      * Performs the matrix-vector operation y = A * x, where x and y are dense vectors and A is a sparse matrix.
      * The matrix should be stored in the DIA format: entries are stored in a dense array 'as' in column major order and explicit zeros are stored if necessary (zero padding)
      *
-     * @note The matrix is represented in double precision
+     * @note The matrix is represented in multiple precision
      * @note Each operation using multiple precision is performed as a single thread
      * @note One thread is assigned to compute one dot product, i.e. one element of the vector n
      * @note No global memory buffer is required
      *
      * @param m - number of rows in matrix
+     * @param n - number of columns in matrix
      * @param ndiag - number of nonzero diagonals
      * @param offset - offset for diagonals
      * @param as - multiple-precision coefficients array (entries of the matrix A in the DIA format), size m * ndiag
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
-    __global__ void mpdspmv_dia_scalar(const int m, const int n, const int ndiag, const int *offset, const double *as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_dia(const int m, const int n, const int ndiag, const int *offset, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         while (row < m) {
             mp_float_t prod;
             mp_float_t dot = cuda::MP_ZERO;
             for (int i = 0; i < ndiag; i++) {
                 int col = row + offset[i];
-                if(col >= 0 && col < n) {
-                    cuda::mp_mul_d(&prod, &x[col], as[m * i + row]);
+                if(col  >= 0 && col < n) {
+                    cuda::mp_mul(&prod, &x[col], &as[m * i + row]);
                     cuda::mp_add(&dot, &dot, &prod);
                 }
             }
@@ -65,4 +66,4 @@ namespace cuda {
 
 } // namespace cuda
 
-#endif //MPDSPMV_DIA_SCALAR_CUH
+#endif //MPSPMV_DIA_CUH

@@ -310,7 +310,6 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
             as[m * index + (col-1)] = fileData;
         }
     }
-    //TODO освободить память занятую вектором если это нужно
     file.close();
 }
 
