@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
     int N = 0; //number of columns
     int NNZ = 0; //number of nonzeros in matrix
     int NZR = 0; //number of nonzeros per row array (maximum number of nonzeros per row in the matrix A)
-    int NZMD = 0; //number of nonzeros in main diagonal of the matrix
+    int NZMD = 0; //number of nonzeros in the main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary

@@ -23,11 +23,11 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/dia/test_mpres_mpspmv_dia_scalar.cuh"
+#include "sparse/performance/dia/test_mpres_mpspmv_dia.cuh"
 #include "sparse/performance/dia/test_campary_mpspmv_dia.cuh"
 #include "sparse/performance/dia/test_cump_mpspmv_dia.cuh"
 #include "sparse/performance/dia/test_double_spmv_dia.cuh"
-#include "sparse/performance/dia/test_taco_spmv_dia.cuh"
+#include "sparse/performance/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -62,8 +62,8 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
 
     //Launch tests
     test_double_spmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
-    test_taco_spmv_dia(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_dia_scalar(M, N, NDIAG, OFFSET, AS, vectorX);
+    test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
+    test_mpres_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
     test_campary_mpspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
     test_cump_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
     int M = 0; //number of rows
     int N = 0; //number of columns
     int NZR = 0; //number of nonzeros per row array (maximum number of nonzeros per row in the matrix A)
-    int NZMD = 0; //number of nonzeros in main diagonal of the matrix
+    int NZMD = 0; //number of nonzeros in the main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary

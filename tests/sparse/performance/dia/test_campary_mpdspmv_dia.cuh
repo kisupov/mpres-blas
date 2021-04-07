@@ -74,7 +74,7 @@ void test_campary_mpdspmv_dia(const int m, const int n, const int ndiag, const i
     cudaMalloc(&doffset, sizeof(int) * ndiag);
 
     //Convert from MPFR
-#pragma omp parallel for
+    #pragma omp parallel for
     for(int i = 0; i < n; i++){
         hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
     }
