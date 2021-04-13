@@ -59,8 +59,7 @@ namespace cuda {
             while (j < nzr && index < jcp[j + 1]) {
                 cuda::mp_mul(&prod, &x[ja[index]], &as[index]);
                 cuda::mp_add(&dot, &dot, &prod);
-                index += jcp[j+1] - jcp[j];
-                j++;
+                index = row + jcp[++j];
             }
 
             cuda::mp_set(&y[perm_rows[row]], &dot);

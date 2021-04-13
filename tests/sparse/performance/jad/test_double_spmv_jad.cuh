@@ -38,8 +38,7 @@ __global__ static void double_spmv_jad_kernel(const int m, const int nzr, const 
 
         while (j < nzr && index < jcp[j + 1]) {
             dot += as[index] * x[ja[index]];
-            index += jcp[j+1] - jcp[j];
-            j++;
+            index = row + jcp[++j];
         }
         y[perm_rows[row]] = dot;
     }
