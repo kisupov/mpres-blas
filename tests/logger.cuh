@@ -55,7 +55,9 @@ namespace Logger {
         SPMV_MP_ELLPACK_PERFORMANCE_TEST,
         SPMV_MPD_ELLPACK_PERFORMANCE_TEST,
         SPMV_MP_DIA_PERFORMANCE_TEST,
-        SPMV_MPD_DIA_PERFORMANCE_TEST
+        SPMV_MPD_DIA_PERFORMANCE_TEST,
+        SPMV_MP_JAD_PERFORMANCE_TEST,
+        SPMV_MPD_JAD_PERFORMANCE_TEST
     };
 
     const char *testHeaderAsString(enum TestHeader header) {
@@ -116,6 +118,10 @@ namespace Logger {
                 return "Performance test for SpMV routines using the DIA matrix storage format (multiple precision matrix)";
             case SPMV_MPD_DIA_PERFORMANCE_TEST:
                 return "Performance test for SpMV routines using the DIA matrix storage format (double precision matrix)";
+            case SPMV_MP_JAD_PERFORMANCE_TEST:
+                return "Performance test for SpMV routines using the JAD matrix storage format (multiple precision matrix)";
+            case SPMV_MPD_JAD_PERFORMANCE_TEST:
+                return "Performance test for SpMV routines using the JAD matrix storage format (double precision matrix)";
         }
         return "";
     }

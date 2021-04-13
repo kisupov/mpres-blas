@@ -1,18 +1,19 @@
 The following notion should be used:
 
-Name	Description
-m	    Number of rows in matrix
-n	    Number of columns in matrix
-nnz	    Number of nonzeros in matrix
-nzr	    Number of nonzeros per row array
-avgnzr	Average number of nonzeros per row
-maxnzr	Maximum number of nonzeros per row
-ndiag	Number of nonzero diagonals
-as	    Coefficients array
-ia	    Row indices array
-ja	    Column indices array
-irp	    Row start pointers array
-jcp	    Column start pointers array
-offset	Offset for diagonals
+Name	    Description
+m	        Number of rows in matrix
+n	        Number of columns in matrix
+nnz	        Number of nonzeros in matrix
+nzr	        Number of nonzeros per row array
+avgnzr	    Average number of nonzeros per row
+maxnzr	    Maximum number of nonzeros per row
+ndiag	    Number of nonzero diagonals
+as	        Coefficients array
+ia	        Row indices array
+ja	        Column indices array
+irp	        Row start pointers array
+jcp	        Column start pointers array
+offset	    Offset for diagonals
+perm_rows   permutated row indices
 
 For details, see https://dl.acm.org/doi/10.1145/3017994
