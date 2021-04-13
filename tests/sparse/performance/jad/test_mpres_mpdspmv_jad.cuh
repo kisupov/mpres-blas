@@ -40,7 +40,8 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int nzr, const int n
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix size (MB): %lf\n", double(sizeof(double)) * nnz / double(1024 * 1024));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(nnz));
+    printf("\tJAD structure size (MB): %lf\n", get_double_array_size_in_mb(nnz));
 
     // Host data
     auto hx = new mp_float_t[n];

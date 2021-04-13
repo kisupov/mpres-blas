@@ -59,7 +59,7 @@ void test_campary_mpspmv_jad(const int m, const int n, const int nzr, const int 
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix size (MB): %lf\n", double(sizeof(multi_prec<prec>)) * nnz /  double(1024 * 1024));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_campary_array_size_in_mb<prec>(nnz));
 
     //Host data
     multi_prec<prec> *hx = new multi_prec<prec>[n];

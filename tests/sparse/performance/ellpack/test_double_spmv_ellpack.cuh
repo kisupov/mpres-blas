@@ -52,6 +52,7 @@ void test_double_spmv_ellpack(const int m, const int n, const int nzr, const int
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * nzr));
 
     //host data
     auto *hx = new double[n];

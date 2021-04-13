@@ -43,7 +43,7 @@ void test_mpres_mpspmv_csr_2stage(const int m, const int n, const int nnz, const
     const int gridDim2 = 32768; //blocks for residues
     const int blockDim3 = 64; //threads for reduce
     printf("\tExec. config: gridDim1 = %i, blockDim1 = %i, gridDim2 = %i, blockDim3 = %i\n", gridDim1, blockDim1, gridDim2, blockDim3);
-    printf("\tMatrix size (MB): %lf\n", double(sizeof(mp_float_t)) * nnz /  double(1024 * 1024));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_mp_float_array_size_in_mb(nnz));
 
     //Host data
     auto hx = new mp_float_t[n];

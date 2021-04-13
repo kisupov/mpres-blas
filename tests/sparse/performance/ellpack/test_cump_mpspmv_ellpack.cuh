@@ -60,7 +60,7 @@ void test_cump_mpspmv_ellpack(const int m, const int n, const int nzr, const int
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix size (MB): %lf\n", cump_get_array_size_in_mb(m * nzr, prec));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_cump_array_size_in_mb(m * nzr, prec));
 
     //Host data
     mpf_t *hx = new mpf_t[n];

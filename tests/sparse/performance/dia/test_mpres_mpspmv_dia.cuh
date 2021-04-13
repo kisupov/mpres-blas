@@ -39,7 +39,8 @@ void test_mpres_mpspmv_dia(const int m, const int n, const int ndiag, const int 
     int threads = 32;
     int blocks = m / threads + 1;
     printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
-    printf("Matrix size (MB): %lf\n", double(sizeof(mp_float_t)) * m * ndiag /  double(1024 * 1024));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_mp_float_array_size_in_mb(m * ndiag));
+
 
     // Host data
     auto hx = new mp_float_t[n];

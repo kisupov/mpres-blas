@@ -61,7 +61,7 @@ void test_cump_mpspmv_jad(const int m, const int n, const int nzr, const int nnz
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix size (MB): %lf\n", cump_get_array_size_in_mb(nnz, prec));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_cump_array_size_in_mb(nnz, prec));
 
     //Host data
     mpf_t *hx = new mpf_t[n];
