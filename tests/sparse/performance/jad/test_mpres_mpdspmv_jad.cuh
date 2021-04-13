@@ -40,8 +40,15 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int nzr, const int n
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(nnz));
-    printf("\tJAD structure size (MB): %lf\n", get_double_array_size_in_mb(nnz));
+
+    //Memory requirements
+    double sizeOfAs = get_double_array_size_in_mb(nnz);
+    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(nzr + 1)+ get_int_array_size_in_mb(m);
+    double sizeOfVectors = get_mp_float_array_size_in_mb(m + n);
+    printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
+    printf("\tJAD structure size (MB): %lf\n", sizeOfJad);
+    printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfJad + sizeOfVectors);
 
     // Host data
     auto hx = new mp_float_t[n];

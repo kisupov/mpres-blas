@@ -61,7 +61,15 @@ void test_cump_mpspmv_jad(const int m, const int n, const int nzr, const int nnz
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_cump_array_size_in_mb(nnz, prec));
+
+    //Memory requirements
+    double sizeOfAs = get_cump_array_size_in_mb(nnz, prec);
+    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(nzr + 1)+ get_int_array_size_in_mb(m);
+    double sizeOfVectors = get_cump_array_size_in_mb(m + n + m, prec);
+    printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
+    printf("\tJAD structure size (MB): %lf\n", sizeOfJad);
+    printf("\tVectors x and y and buf size (MB): %lf\n", sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfJad + sizeOfVectors);
 
     //Host data
     mpf_t *hx = new mpf_t[n];
