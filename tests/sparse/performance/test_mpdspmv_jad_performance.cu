@@ -27,7 +27,7 @@
 #include "sparse/performance/jad/test_campary_mpdspmv_jad.cuh"
 #include "sparse/performance/jad/test_cump_mpspmv_jad.cuh"
 #include "sparse/performance/jad/test_double_spmv_jad.cuh"
-#include "sparse/performance/jad/test_taco_spmv_jad.cuh"
+#include "sparse/performance/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -64,8 +64,8 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
 
     //Launch tests
     test_double_spmv_jad(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
-    test_taco_spmv_jad(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpdspmv_jad_scalar(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
+    //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
+    test_mpres_mpdspmv_jad(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
     test_campary_mpdspmv_jad<CAMPARY_PRECISION>(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
     test_cump_mpspmv_jad(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
