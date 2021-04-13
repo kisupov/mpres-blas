@@ -42,8 +42,7 @@ __global__ void cump_mpspmv_jad_kernel(const int m, const int nzr, const int *ja
         while (j < nzr && index < jcp[j + 1]) {
             mpf_mul(buf[perm_rows[row]], x[ja[index]], as[index]);
             mpf_add(y[perm_rows[row]], y[perm_rows[row]], buf[perm_rows[row]]);
-            index += jcp[j+1] - jcp[j];
-            j++;
+            index = row + jcp[++j];
         }
     }
 }

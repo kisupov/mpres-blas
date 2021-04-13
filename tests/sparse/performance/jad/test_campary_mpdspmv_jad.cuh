@@ -43,8 +43,7 @@ __global__ void campary_mpdspmv_jad_kernel(const int m, const int nzr, const int
 
         while (j < nzr && index < jcp[j + 1]) {
             dot += as[index] * x[ja[index]];
-            index += jcp[j+1] - jcp[j];
-            j++;
+            index = row + jcp[++j];
         }
         y[perm_rows[row]] = dot;
     }
