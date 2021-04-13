@@ -60,6 +60,7 @@ void test_cump_mpspmv_dia(const int m, const int n, const int ndiag, const int *
     int threads = 32;
     int blocks = m / threads + 1;
     printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
+    printf("\tMatrix size (MB): %lf\n", cump_get_array_size_in_mb(m * ndiag, prec));
 
     //Host data
     mpf_t *hx = new mpf_t[n];

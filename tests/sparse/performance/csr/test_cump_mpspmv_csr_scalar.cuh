@@ -59,7 +59,7 @@ void test_cump_mpspmv_csr_scalar(const int m, const int n, const int nnz, const 
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix size (MB): %lf\n", double(sizeof(mpf_t)) * nnz /  double(1024 * 1024));
+    printf("\tMatrix size (MB): %lf\n", cump_get_array_size_in_mb(nnz, prec));
 
     //Host data
     mpf_t *hx = new mpf_t[n];

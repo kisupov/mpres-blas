@@ -41,4 +41,18 @@ __global__ void cump_reset_array(int n, mpf_array_t temp) {
     }
 }
 
+/*
+ * Return the rough size  in bytes of the CUMP n-element nbit-precision array (cumpf_array_t)
+ */
+size_t cump_get_array_size_in_bytes(size_t n, int nbit){
+    return n * sizeof (cump_limb_t) * __CUMPF_ARRAY_ELEMSIZE (__CUMPF_BITS_TO_PREC(nbit));
+}
+
+/*
+ * Return the rough size  in MB of the CUMP n-element nbit-precision array (cumpf_array_t)
+ */
+double cump_get_array_size_in_mb(size_t n, int nbit){
+    return (double)(n * sizeof (cump_limb_t)) * (double)(__CUMPF_ARRAY_ELEMSIZE (__CUMPF_BITS_TO_PREC(nbit))) / double(1024 * 1024);
+}
+
 #endif //MPRES_TEST_CUMP_COMMON_CUH
