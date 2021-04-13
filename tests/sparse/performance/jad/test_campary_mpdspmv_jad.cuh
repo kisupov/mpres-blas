@@ -35,18 +35,17 @@
  */
 template<int prec>
 __global__ void campary_mpdspmv_jad_kernel(const int m, const int nzr, const int *ja, const double *as, const int *jcp, const int *perm_rows, const multi_prec<prec> *x, multi_prec<prec> *y) {
-    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    if (row < m) {
+    auto row = threadIdx.x + blockIdx.x * blockDim.x;
+    while (row < m) {
         multi_prec<prec> dot = 0.0;
-        int j = 0;
-        int index = row;
-
+        auto j = 0;
+        auto index = row;
         while (j < nzr && index < jcp[j + 1]) {
             dot += as[index] * x[ja[index]];
-            index += jcp[j+1] - jcp[j];
-            j++;
+            index = row + jcp[++j];
         }
         y[perm_rows[row]] = dot;
+        row +=  gridDim.x * blockDim.x;
     }
 }
 

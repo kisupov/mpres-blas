@@ -30,18 +30,17 @@
 // Double precision
 /////////
 __global__ static void double_spmv_jad_kernel(const int m, const int nzr, const int *ja, const double *as, const int *jcp, const int *perm_rows, const double *x, double *y) {
-    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    if (row < m) {
+    auto row = threadIdx.x + blockIdx.x * blockDim.x;
+    while (row < m) {
         double dot = 0;
-        int j = 0;
-        int index = row;
-
+        auto j = 0;
+        auto index = row;
         while (j < nzr && index < jcp[j + 1]) {
             dot += as[index] * x[ja[index]];
-            index += jcp[j+1] - jcp[j];
-            j++;
+            index = row + jcp[++j];
         }
         y[perm_rows[row]] = dot;
+        row +=  gridDim.x * blockDim.x;
     }
 }
 
