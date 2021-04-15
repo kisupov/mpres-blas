@@ -39,7 +39,7 @@ void test_mpres_mpspmv_ellpack_scalar(const int m, const int n, const int nzr, c
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix size (MB): %lf\n", double(sizeof(mp_float_t)) * m * nzr /  double(1024 * 1024));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_mp_float_array_size_in_mb(m * nzr));
 
     // Host data
     auto hx = new mp_float_t[n];

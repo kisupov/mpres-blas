@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_jad (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_jad (multiple precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,37 +19,38 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_MPDSPMV_JAD_CUH
-#define TEST_MPRES_MPDSPMV_JAD_CUH
+#ifndef TEST_MPRES_MPSPMV_JAD_CUH
+#define TEST_MPRES_MPSPMV_JAD_CUH
 
 #include "tsthelper.cuh"
 #include "logger.cuh"
 #include "timers.cuh"
-#include "sparse/jad/mpdspmv_jad.cuh"
+#include "sparse/jad/mpspmv_jad.cuh"
 
 /////////
-//  SpMV jad kernel
+//  SpMV jad scalar kernel
 /////////
-void test_mpres_mpdspmv_jad(const int m, const int n, const int nzr, const int nnz, const int *ja, const int *jcp,
-                       const double *as, const int *perm_rows, const mpfr_t *x) {
+void test_mpres_mpspmv_jad(const int m, const int n, const int nzr, const int nnz, const int *ja, const int *jcp,
+                      const double *as, const int *perm_rows, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpdspmv_jad");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_jad");
 
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix size (MB): %lf\n", double(sizeof(double)) * nnz / double(1024 * 1024));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_mp_float_array_size_in_mb(nzr));
 
     // Host data
     auto hx = new mp_float_t[n];
     auto hy = new mp_float_t[m];
+    auto has = new mp_float_t[nnz];
 
     // GPU data
     mp_float_ptr dx;
     mp_float_ptr dy;
-    double *das;
+    mp_float_ptr das;
     int *dja;
     int *djcp;
     int *dperm_rows;
@@ -57,17 +58,18 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int nzr, const int n
     //Init data
     cudaMalloc(&dx, sizeof(mp_float_t) * n);
     cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    cudaMalloc(&das, sizeof(double) * nnz);
+    cudaMalloc(&das, sizeof(mp_float_t) * nnz);
     cudaMalloc(&dja, sizeof(int) * nnz);
     cudaMalloc(&djcp, sizeof(int) * (nzr + 1));
     cudaMalloc(&dperm_rows, sizeof(int) * m);
 
     // Convert from MPFR
     convert_vector(hx, x, n);
+    convert_vector(has, as, nnz);
 
     //Copying to the GPU
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, nnz * sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(das, has, nnz * sizeof(mp_float_t), cudaMemcpyHostToDevice);
     cudaMemcpy(dja, ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(djcp, jcp, (nzr + 1) * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(dperm_rows, perm_rows, m * sizeof(int), cudaMemcpyHostToDevice);
@@ -77,7 +79,7 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int nzr, const int n
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_jad<<<blocks, threads>>>(m, nzr, das, dja, djcp, dperm_rows, dx, dy);
+    cuda::mpspmv_jad<<<blocks, threads>>>(m, nzr, das, dja, djcp, dperm_rows, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -90,6 +92,7 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int nzr, const int n
     //Cleanup
     delete[] hx;
     delete[] hy;
+    delete[] has;
     cudaFree(dx);
     cudaFree(dy);
     cudaFree(das);
@@ -98,4 +101,4 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int nzr, const int n
     cudaFree(dperm_rows);
 }
 
-#endif //TEST_MPRES_MPDSPMV_JAD_CUH
+#endif //TEST_MPRES_MPSPMV_JAD_CUH

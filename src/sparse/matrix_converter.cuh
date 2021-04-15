@@ -39,7 +39,7 @@ using namespace std;
  * @param n - number of columns in matrix (output parameter)
  * @param lines - total number of lines with data (output parameter)
  * @param nzr - maximum number of nonzeros per row in the matrix (output parameter)
- * @param nzmd - number of nonzeros in main diagonal of the matrix (output parameter)
+ * @param nzmd - number of nonzeros in the main diagonal of the matrix (output parameter)
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  * @param datatype - type of data according to the matrix market format - real, integer, binary
  */

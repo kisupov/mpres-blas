@@ -23,7 +23,7 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/jad/test_mpres_mpspmv_jad_scalar.cuh"
+#include "sparse/performance/jad/test_mpres_mpspmv_jad.cuh"
 #include "sparse/performance/jad/test_campary_mpspmv_jad.cuh"
 #include "sparse/performance/jad/test_cump_mpspmv_jad.cuh"
 #include "sparse/performance/jad/test_double_spmv_jad.cuh"

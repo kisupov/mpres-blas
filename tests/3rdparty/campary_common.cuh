@@ -61,4 +61,12 @@ static void printResult(multi_prec<nterms> result){
     mpfr_clear(r);
 }
 
+/*
+ * Return the size in MB of the CAMPARY n-element nterms-precision array (multi_prec<nterms>[])
+ */
+template<int nterms>
+double get_campary_array_size_in_mb(size_t n){
+    return double(sizeof(multi_prec<nterms>)) * n /  double(1024 * 1024);
+}
+
 #endif //MPRES_TEST_CAMPARY_COMMON_CUH

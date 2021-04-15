@@ -35,17 +35,17 @@
  */
 template<int prec>
 __global__ void campary_mpdspmv_jad_kernel(const int m, const int nzr, const int *ja, const double *as, const int *jcp, const int *perm_rows, const multi_prec<prec> *x, multi_prec<prec> *y) {
-    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    if (row < m) {
+    auto row = threadIdx.x + blockIdx.x * blockDim.x;
+    while (row < m) {
         multi_prec<prec> dot = 0.0;
-        int j = 0;
-        int index = row;
-
+        auto j = 0;
+        auto index = row;
         while (j < nzr && index < jcp[j + 1]) {
             dot += as[index] * x[ja[index]];
             index = row + jcp[++j];
         }
         y[perm_rows[row]] = dot;
+        row +=  gridDim.x * blockDim.x;
     }
 }
 
@@ -59,7 +59,15 @@ void test_campary_mpdspmv_jad(const int m, const int n, const int nzr, const int
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix size (MB): %lf\n", double(sizeof(double)) * nnz /  double(1024 * 1024));
+
+    //Memory requirements
+    double sizeOfAs = get_double_array_size_in_mb(nnz);
+    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(nzr + 1)+ get_int_array_size_in_mb(m);
+    double sizeOfVectors = get_campary_array_size_in_mb<prec>(m + n);
+    printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
+    printf("\tJAD structure size (MB): %lf\n", sizeOfJad);
+    printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfJad + sizeOfVectors);
 
     //Host data
     multi_prec<prec> *hx = new multi_prec<prec>[n];

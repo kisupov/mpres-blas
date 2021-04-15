@@ -51,7 +51,8 @@ void test_double_spmv_dia(const int m, const int n, const int ndiag, const int *
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
-    printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
+    printf("Exec. config: blocks = %i, threads = %i\n", blocks, threads);
+    printf("Matrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * ndiag));
 
     //host data
     auto *hx = new double[n];

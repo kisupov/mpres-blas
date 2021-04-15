@@ -204,5 +204,25 @@ static void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols
     }
 }
 
+/*
+ * Return the size in MB of n-element double precision array
+ */
+double get_double_array_size_in_mb(size_t n){
+    return double(sizeof(double)) * n / double(1024 * 1024);
+}
+
+/*
+ * Return the size in MB of n-element integer array
+ */
+double get_int_array_size_in_mb(size_t n){
+    return double(sizeof(int)) * n / double(1024 * 1024);
+}
+
+/*
+ * Return the size in MB of n-element mp_float_t array
+ */
+double get_mp_float_array_size_in_mb(size_t n){
+    return double(sizeof(mp_float_t)) * n / double(1024 * 1024);
+}
 
 #endif //MPRES_TEST_TSTHELPER_CUH

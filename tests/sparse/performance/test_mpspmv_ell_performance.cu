@@ -28,7 +28,7 @@
 #include "sparse/performance/ellpack/test_campary_mpspmv_ellpack.cuh"
 #include "sparse/performance/ellpack/test_cump_mpspmv_ellpack.cuh"
 #include "sparse/performance/ellpack/test_double_spmv_ellpack.cuh"
-#include "sparse/performance/ellpack/test_taco_spmv_ellpack.cuh"
+#include "sparse/performance/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -59,7 +59,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     convert_to_ellpack(MATRIX_PATH, M, NZR, LINES, SYMM, AS, JA);
     //Launch tests
     test_double_spmv_ellpack(M, N, NZR, JA, AS, vectorX);
-    //test_taco_spmv_ellpack(MATRIX_PATH, vectorX, DATATYPE);
+    //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
     test_mpres_mpspmv_ellpack_scalar(M, N, NZR, JA, AS, vectorX);
     test_mpres_mpspmv_ellpack_2stage(M, N, NZR, JA, AS, vectorX);
     test_campary_mpspmv_ellpack<CAMPARY_PRECISION>(M, N, NZR, JA, AS, vectorX, INP_DIGITS);

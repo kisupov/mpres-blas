@@ -30,17 +30,17 @@
 // Double precision
 /////////
 __global__ static void double_spmv_jad_kernel(const int m, const int nzr, const int *ja, const double *as, const int *jcp, const int *perm_rows, const double *x, double *y) {
-    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    if (row < m) {
+    auto row = threadIdx.x + blockIdx.x * blockDim.x;
+    while (row < m) {
         double dot = 0;
-        int j = 0;
-        int index = row;
-
+        auto j = 0;
+        auto index = row;
         while (j < nzr && index < jcp[j + 1]) {
             dot += as[index] * x[ja[index]];
             index = row + jcp[++j];
         }
         y[perm_rows[row]] = dot;
+        row +=  gridDim.x * blockDim.x;
     }
 }
 
@@ -53,6 +53,7 @@ void test_double_spmv_jad(const int m, const int n, const int nzr, const int nnz
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(nnz));
 
     //host data
     auto *hx = new double[n];

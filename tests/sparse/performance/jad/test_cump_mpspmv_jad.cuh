@@ -35,15 +35,16 @@
  */
 __global__ void cump_mpspmv_jad_kernel(const int m, const int nzr, const int *ja, mpf_array_t as, const int *jcp, const int *perm_rows, mpf_array_t x, mpf_array_t y, mpf_array_t buf) {
     using namespace cump;
-    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    if( row < m ) {
-        int j = 0;
-        int index = row;
+    auto row = threadIdx.x + blockIdx.x * blockDim.x;
+    while (row < m) {
+        auto j = 0;
+        auto index = row;
         while (j < nzr && index < jcp[j + 1]) {
             mpf_mul(buf[perm_rows[row]], x[ja[index]], as[index]);
             mpf_add(y[perm_rows[row]], y[perm_rows[row]], buf[perm_rows[row]]);
             index = row + jcp[++j];
         }
+        row +=  gridDim.x * blockDim.x;
     }
 }
 
@@ -60,7 +61,15 @@ void test_cump_mpspmv_jad(const int m, const int n, const int nzr, const int nnz
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix size (MB): %lf\n", double(sizeof(mpf_t)) * nnz /  double(1024 * 1024));
+
+    //Memory requirements
+    double sizeOfAs = get_cump_array_size_in_mb(nnz, prec);
+    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(nzr + 1)+ get_int_array_size_in_mb(m);
+    double sizeOfVectors = get_cump_array_size_in_mb(m + n + m, prec);
+    printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
+    printf("\tJAD structure size (MB): %lf\n", sizeOfJad);
+    printf("\tVectors x and y and buf size (MB): %lf\n", sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfJad + sizeOfVectors);
 
     //Host data
     mpf_t *hx = new mpf_t[n];
