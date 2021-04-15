@@ -31,6 +31,8 @@
 
 using namespace std;
 
+//TODO ни один конвертер + функция считывания параметров матрицы не учитывает нули, которые могут быть внутри .mtx файла
+
 /*!
  * Reads metadata from a file that contains a sparse matrix
  * @param filename - path to the file with the matrix
