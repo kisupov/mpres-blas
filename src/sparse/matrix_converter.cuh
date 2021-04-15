@@ -333,8 +333,8 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
     file.close();
 }
 
-
-void convert_to_jad(const char filename[], const int m, const int nzr, const int nnz, const int lines, bool symmetric, double *&as, int *&jcp, int *&ja, int *&perm_rows) {
+//jad через ellpack
+void convert_to_jad2(const char filename[], const int m, const int nzr, const int nnz, const int lines, bool symmetric, double *&as, int *&jcp, int *&ja, int *&perm_rows) {
     std::ifstream file(filename);
 
     // Ignore comments headers
@@ -407,6 +407,56 @@ void convert_to_jad(const char filename[], const int m, const int nzr, const int
     delete[] nonZeros;
     delete[] ell_as;
     delete[] ell_ja;
+}
+
+//jad через csr
+void convert_to_jad(const char filename[], const int m, const int nzr, const int nnz, const int lines, bool symmetric, double *&as, int *&jcp, int *&ja, int *&perm_rows) {
+    auto *csr_as = new double[nnz]();
+    auto *csr_ja = new int [nnz]();
+    auto *csr_irp = new int[m + 1]();
+    auto *nonZeros = new int[m]();
+
+    convert_to_csr(filename, m, nnz, lines, symmetric, csr_as, csr_irp, csr_ja);
+
+    for (int i = 0; i < m; ++i) {
+        perm_rows[i] = i; // сеттим массив perm_rows значениями от 0 до m-1
+        nonZeros[i] = csr_irp[i + 1] - csr_irp[i]; // получаем кол-во ненулевых элементов в i строке
+    }
+
+    //сортируем массив индексов строк относительно кол-ва ненулевых элементов в строке по убыванию
+    sort_perm_rows(m, nonZeros, perm_rows);
+
+    //вычисляем смещение по столбцам
+    jcp[0] = 0;
+    int count = 0;
+    for (int j = 0; j < nzr + 1; ++j) {
+        for (int i = 0; i < m; ++i) {
+            if (nonZeros[i] > 0) {
+                nonZeros[i]--;
+                count++;
+            } else {
+                continue;
+            }
+        }
+        jcp[j+1] = count;
+    }
+
+    //сеттим меасивы as и ja в новом порядке
+    int index = 0;
+    int j = 0;
+    while (index < nnz && j < nzr) {
+        for (int i = 0; i < jcp[j + 1] - jcp[j]; i++) {
+            as[index] = csr_as[j + csr_irp[perm_rows[i]]];
+            ja[index] = csr_ja[j + csr_irp[perm_rows[i]]];
+            index++;
+        }
+        j++;
+    }
+
+    delete[] csr_as;
+    delete[] csr_ja;
+    delete[] csr_irp;
+    delete[] nonZeros;
 }
 
 /*!
