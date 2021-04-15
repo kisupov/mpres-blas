@@ -335,82 +335,6 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
     file.close();
 }
 
-//jad через ellpack
-void convert_to_jad2(const char filename[], const int m, const int nzr, const int nnz, const int lines, bool symmetric, double *&as, int *&jcp, int *&ja, int *&perm_rows) {
-    std::ifstream file(filename);
-
-    // Ignore comments headers
-    while (file.peek() == '%') file.ignore(2048, '\n');
-    //Skip one line with the matrix properties
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-
-    //TODO пока что jad формируется через ellpack. Возможно, есть лучшее решение
-
-    //Read nonZeros in each row
-    int *nonZeros = new int[m]();
-    int *colNum = new int[m]();
-    double *ell_as = new double[m * nzr]();
-    double *ell_ja = new double[m * nzr]();
-
-    //Set default values
-    std::fill(ell_ja, ell_ja + m * nzr, -1);
-    std::fill(ell_ja, ell_ja + m * nzr, 0);
-
-    // Forming nonZeros array and ellpack storage format
-    // Iterating over the matrix
-    for (int l = 0; l < lines; l++) {
-        double fileData = 0.0;
-        int row = 0, col = 0;
-        file >> row >> col >> fileData;
-        nonZeros[(row - 1)] = nonZeros[(row - 1)] + 1;
-        ell_as[colNum[(row - 1)] * m + (row - 1)] = fileData;
-        ell_ja[colNum[(row - 1)] * m + (row - 1)] = (col - 1);
-        colNum[row - 1]++;
-        if (symmetric && (row != col)) {
-            nonZeros[(col - 1)] = nonZeros[(col - 1)] + 1;
-            ell_as[colNum[(col - 1)] * m + (col - 1)] = fileData;
-            ell_ja[colNum[(col - 1)] * m + (col - 1)] = (row - 1);
-            colNum[col - 1]++;
-        }
-    }
-    file.close();
-    
-    for (int i = 0; i < m; ++i) {
-        perm_rows[i] = i;
-    }
-
-    //сортируем массив индексов строк относительно кол-ва ненулевых элементов в строке по убыванию
-    sort_perm_rows(m, nonZeros, perm_rows);
-
-    //вычисляем смещение по столбцам
-    jcp[0] = 0;
-    int count = 0;
-    for (int j = 0; j < nzr + 1; ++j) {
-        for (int i = 0; i < m; ++i) {
-            if (ell_as[perm_rows[i] + j * m] != 0)
-                count++;
-        }
-        jcp[j+1] = count;
-    }
-
-
-    int index = 0;
-    int j = 0;
-    while (index < nnz && j < nzr) {
-        for (int i = 0; i < jcp[j+1] - jcp[j]; i++) {
-            as[index] = ell_as[perm_rows[i] + j * m];
-            ja[index] = ell_ja[perm_rows[i] + j * m];
-            index++;
-        }
-        j++;
-    }
-
-    delete[] colNum;
-    delete[] nonZeros;
-    delete[] ell_as;
-    delete[] ell_ja;
-}
-
 //jad через csr
 void convert_to_jad(const char filename[], const int m, const int nzr, const int nnz, const int lines, bool symmetric, double *&as, int *&jcp, int *&ja, int *&perm_rows) {
     auto *csr_as = new double[nnz]();
@@ -431,7 +355,7 @@ void convert_to_jad(const char filename[], const int m, const int nzr, const int
     //вычисляем смещение по столбцам
     jcp[0] = 0;
     int count = 0;
-    for (int j = 0; j < nzr + 1; ++j) {
+    for (int j = 0; j < nzr; ++j) {
         for (int i = 0; i < m; ++i) {
             if (nonZeros[i] > 0) {
                 nonZeros[i]--;
