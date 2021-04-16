@@ -23,12 +23,12 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/ellpack/test_mpres_mpspmv_ellpack_scalar.cuh"
-#include "sparse/performance/ellpack/test_mpres_mpspmv_ellpack_2stage.cuh"
-#include "sparse/performance/ellpack/test_campary_mpspmv_ellpack.cuh"
-#include "sparse/performance/ellpack/test_cump_mpspmv_ellpack.cuh"
-#include "sparse/performance/ellpack/test_double_spmv_ellpack.cuh"
-#include "sparse/performance/csr/test_taco_spmv_csr.cuh"
+#include "sparse/performance/ellpack/mp/test_mpres_mpspmv_ellpack_scalar.cuh"
+#include "sparse/performance/ellpack/mp/test_mpres_mpspmv_ellpack_2stage.cuh"
+#include "sparse/performance/ellpack/mp/test_campary_mpspmv_ellpack.cuh"
+#include "sparse/performance/ellpack/mp/test_cump_mpspmv_ellpack.cuh"
+#include "sparse/performance/ellpack/dbl/test_double_spmv_ellpack.cuh"
+#include "sparse/performance/csr/dbl/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits

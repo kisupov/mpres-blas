@@ -23,14 +23,14 @@
 #include "mpfr.h"
 #include "logger.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/csr/test_mpres_mpspmv_csr_2stage.cuh"
-#include "sparse/performance/csr/test_mpres_mpspmv_csr_scalar.cuh"
-#include "sparse/performance/csr/test_mpres_mpspmv_csr_vector.cuh"
-#include "sparse/performance/csr/test_campary_mpspmv_csr_scalar.cuh"
-#include "sparse/performance/csr/test_campary_mpspmv_csr_vector.cuh"
-#include "sparse/performance/csr/test_cump_mpspmv_csr_scalar.cuh"
-#include "sparse/performance/csr/test_double_spmv_csr.cuh"
-#include "sparse/performance/csr/test_taco_spmv_csr.cuh"
+#include "sparse/performance/csr/mp/test_mpres_mpspmv_csr_2stage.cuh"
+#include "sparse/performance/csr/mp/test_mpres_mpspmv_csr_scalar.cuh"
+#include "sparse/performance/csr/mp/test_mpres_mpspmv_csr_vector.cuh"
+#include "sparse/performance/csr/mp/test_campary_mpspmv_csr_scalar.cuh"
+#include "sparse/performance/csr/mp/test_campary_mpspmv_csr_vector.cuh"
+#include "sparse/performance/csr/mp/test_cump_mpspmv_csr_scalar.cuh"
+#include "sparse/performance/csr/dbl/test_double_spmv_csr.cuh"
+#include "sparse/performance/csr/dbl/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits

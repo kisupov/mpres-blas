@@ -23,11 +23,11 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/dia/test_mpres_mpdspmv_dia.cuh"
-#include "sparse/performance/dia/test_campary_mpdspmv_dia.cuh"
-#include "sparse/performance/dia/test_cump_mpspmv_dia.cuh"
-#include "sparse/performance/dia/test_double_spmv_dia.cuh"
-#include "sparse/performance/csr/test_taco_spmv_csr.cuh"
+#include "sparse/performance/dia/mpd/test_mpres_mpdspmv_dia.cuh"
+#include "sparse/performance/dia/mpd/test_campary_mpdspmv_dia.cuh"
+#include "sparse/performance/dia/mp/test_cump_mpspmv_dia.cuh"
+#include "sparse/performance/dia/dbl/test_double_spmv_dia.cuh"
+#include "sparse/performance/csr/dbl/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
