@@ -13,7 +13,7 @@ ia	        Row indices array
 ja	        Column indices array
 irp	        Row start pointers array
 jcp	        Column start pointers array
-offset	    Offset for diagonals
-perm_rows   permutated row indices
+offset	    Offset for diagonals array
+perm_rows   permutated row indices array
 
 For details, see https://dl.acm.org/doi/10.1145/3017994

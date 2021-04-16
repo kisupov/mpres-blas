@@ -272,8 +272,8 @@ void convert_to_csr(const char filename[], const int m, const int nnz, const int
  * @param lines - total number of lines with data
  * @param ndiag - number of nonzero diagonals
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
- * @param as - coefficients array (CSR data): an array of size lines containing a matrix data in the CSR format (output parameter)
- * @param offset - offset for diagonals
+ * @param as - coefficients array (DIA data): an array of size (m * ndiag) containing a matrix data in the DIA format (output parameter)
+ * @param offset - offset for diagonals (output parameter)
  */
 void convert_to_dia(const char filename[], const int m, const int lines, bool symmetric, int &ndiag, double *&as, int *&offset) {
     //Create stream
@@ -335,7 +335,19 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
     file.close();
 }
 
-//jad через csr
+/*!
+ * Converts a sparse matrix to the JAD format
+ * @param filename - path to the file with the matrix
+ * @param m - number of rows in the matrix
+ * @param nzr - maximum number of nonzeros per row
+ * @param nnz - number of nonzeros in the matrix
+ * @param lines - total number of lines with data
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
+ * @param as - coefficients array (JAD data): an array of size lines containing a matrix data in the JAD format (output parameter)
+ * @param jcp - column start pointers array (output parameter)
+ * @param ja - column indices array (output parameter)
+ * @param perm_rows - permutated row indices array (output parameter)
+ */
 void convert_to_jad(const char filename[], const int m, const int nzr, const int nnz, const int lines, bool symmetric, double *&as, int *&jcp, int *&ja, int *&perm_rows) {
     auto *csr_as = new double[nnz]();
     auto *csr_ja = new int [nnz]();
