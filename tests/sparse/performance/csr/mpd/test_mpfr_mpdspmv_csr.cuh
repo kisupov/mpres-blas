@@ -31,17 +31,24 @@
 // MPFR SpMV routine using double precision matrix
 /////////
 void mpfr_mpdspmv_csr(const int m, const int *irp, const int *ja, const double *as, const mpfr_t *x, mpfr_t *y, const int prec) {
-    mpfr_t prod;
-    mpfr_init2(prod, prec);
-    for(int row = 0; row < m; row++){
-        mpfr_set_d(y[row], 0.0, MPFR_RNDN);
-        int row_start = irp[row];
-        int row_end = irp[row+1];
-        for (int i = row_start; i < row_end; i++) {
-            mpfr_mul_d(prod, x[ja[i]], as[i], MPFR_RNDN);
-            mpfr_add(y[row],y[row],prod, MPFR_RNDN);
+    #pragma omp parallel shared(m, irp, ja, as, x, y)
+    {
+        mpfr_t prod;
+        mpfr_init2(prod, prec);
+        #pragma omp for
+        for(int row = 0; row < m; row++){
+            mpfr_set_d(y[row], 0.0, MPFR_RNDN);
+            int row_start = irp[row];
+            int row_end = irp[row+1];
+            for (int i = row_start; i < row_end; i++) {
+                mpfr_mul_d(prod, x[ja[i]], as[i], MPFR_RNDN);
+                mpfr_add(y[row],y[row],prod, MPFR_RNDN);
+            }
         }
+        mpfr_clear(prod);
     }
+
+
 }
 
 
