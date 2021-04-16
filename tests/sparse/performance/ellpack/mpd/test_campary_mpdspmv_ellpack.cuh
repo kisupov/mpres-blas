@@ -34,11 +34,11 @@
  * The matrix should be stored in the ELLPACK format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
 template<int prec>
-__global__ void campary_mpdspmv_ellpack_kernel(const int m, const int nzr, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
+__global__ void campary_mpdspmv_ellpack_kernel(const int m, const int maxnz, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if (row < m) {
         multi_prec<prec> dot = 0.0;
-        for (int col = 0; col < nzr; col++) {
+        for (int col = 0; col < maxnz; col++) {
             int index = ja[col * m + row];
             if(index >= 0){
                 dot += as[col * m + row] * x[index];
@@ -49,7 +49,7 @@ __global__ void campary_mpdspmv_ellpack_kernel(const int m, const int nzr, const
 }
 
 template<int prec>
-void test_campary_mpdspmv_ellpack(const int m, const int n, const int nzr, const int *ja, const double *as,  mpfr_t *x, const int convert_prec) {
+void test_campary_mpdspmv_ellpack(const int m, const int n, const int maxnz, const int *ja, const double *as,  mpfr_t *x, const int convert_prec) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY SpMV ELLPACK (double precision matrix)");
@@ -58,7 +58,7 @@ void test_campary_mpdspmv_ellpack(const int m, const int n, const int nzr, const
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * nzr));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * maxnz));
 
     //Host data
     multi_prec<prec> *hx = new multi_prec<prec>[n];
@@ -72,8 +72,8 @@ void test_campary_mpdspmv_ellpack(const int m, const int n, const int nzr, const
 
     cudaMalloc(&dx, sizeof(multi_prec<prec>) * n);
     cudaMalloc(&dy, sizeof(multi_prec<prec>) * m);
-    cudaMalloc(&das, sizeof(double) * m * nzr);
-    cudaMalloc(&dja, sizeof(int) * m * nzr);
+    cudaMalloc(&das, sizeof(double) * m * maxnz);
+    cudaMalloc(&dja, sizeof(int) * m * maxnz);
 
     //Convert from MPFR
     #pragma omp parallel for
@@ -83,14 +83,14 @@ void test_campary_mpdspmv_ellpack(const int m, const int n, const int nzr, const
 
     //Copying to the GPU
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, sizeof(double) * m * nzr, cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, sizeof(int) * m * nzr, cudaMemcpyHostToDevice);
+    cudaMemcpy(das, as, sizeof(double) * m * maxnz, cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, ja, sizeof(int) * m * maxnz, cudaMemcpyHostToDevice);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Launch
     StartCudaTimer();
-    campary_mpdspmv_ellpack_kernel<prec><<<blocks, threads>>>(m, nzr, dja, das, dx, dy);
+    campary_mpdspmv_ellpack_kernel<prec><<<blocks, threads>>>(m, maxnz, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

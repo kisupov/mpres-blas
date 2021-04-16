@@ -33,11 +33,11 @@
  * where x and y are dense vectors and A is a sparse matrix.
  * The matrix should be stored in the ELLPACK format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
-__global__ void cump_mpspmv_ellpack_kernel(const int m, const int nzr, const int *ja, mpf_array_t as, mpf_array_t x, mpf_array_t y, mpf_array_t buf) {
+__global__ void cump_mpspmv_ellpack_kernel(const int m, const int maxnz, const int *ja, mpf_array_t as, mpf_array_t x, mpf_array_t y, mpf_array_t buf) {
     using namespace cump;
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if( row < m ) {
-        for (int col = 0; col < nzr; col++) {
+        for (int col = 0; col < maxnz; col++) {
             int index = ja[col * m + row];
             if(index >= 0){
                 mpf_mul(buf[row], x[index], as[col * m + row]);
@@ -47,7 +47,7 @@ __global__ void cump_mpspmv_ellpack_kernel(const int m, const int nzr, const int
     }
 }
 
-void test_cump_mpspmv_ellpack(const int m, const int n, const int nzr, const int *ja, const double *as, mpfr_t *x, const int prec, const int convert_digits){
+void test_cump_mpspmv_ellpack(const int m, const int n, const int maxnz, const int *ja, const double *as, mpfr_t *x, const int prec, const int convert_digits){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CUMP SpMV ELLPACK (multiple precision matrix)");
@@ -60,12 +60,12 @@ void test_cump_mpspmv_ellpack(const int m, const int n, const int nzr, const int
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_cump_array_size_in_mb(m * nzr, prec));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_cump_array_size_in_mb(m * maxnz, prec));
 
     //Host data
     mpf_t *hx = new mpf_t[n];
     mpf_t *hy = new mpf_t[m];
-    mpf_t *has = new mpf_t[m * nzr];
+    mpf_t *has = new mpf_t[m * maxnz];
 
     //GPU data
     cumpf_array_t dx;
@@ -76,9 +76,9 @@ void test_cump_mpspmv_ellpack(const int m, const int n, const int nzr, const int
 
     cumpf_array_init2(dx, n, prec);
     cumpf_array_init2(dy, m, prec);
-    cumpf_array_init2(das, m * nzr, prec);
+    cumpf_array_init2(das, m * maxnz, prec);
     cumpf_array_init2(dbuf, m, prec);
-    cudaMalloc(&dja, sizeof(int) * m * nzr);
+    cudaMalloc(&dja, sizeof(int) * m * maxnz);
 
     //Convert from MPFR
     for(int i = 0; i < n; i++){
@@ -90,7 +90,7 @@ void test_cump_mpspmv_ellpack(const int m, const int n, const int nzr, const int
         mpf_set_d(hy[i], 0.0);
     }
     //Convert from double
-    for(int i = 0; i < m * nzr; i++){
+    for(int i = 0; i < m * maxnz; i++){
         mpf_init2(has[i], prec);
         mpf_set_d(has[i], as[i]);
     }
@@ -98,12 +98,12 @@ void test_cump_mpspmv_ellpack(const int m, const int n, const int nzr, const int
     //Copying to the GPU
     cumpf_array_set_mpf(dx, hx, n);
     cumpf_array_set_mpf(dy, hy, m);
-    cumpf_array_set_mpf(das, has, m * nzr);
-    cudaMemcpy(dja, ja, sizeof(int) * m * nzr, cudaMemcpyHostToDevice);
+    cumpf_array_set_mpf(das, has, m * maxnz);
+    cudaMemcpy(dja, ja, sizeof(int) * m * maxnz, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();
-    cump_mpspmv_ellpack_kernel<<<blocks, threads>>>(m, nzr, dja, das, dx, dy, dbuf);
+    cump_mpspmv_ellpack_kernel<<<blocks, threads>>>(m, maxnz, dja, das, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
 
@@ -121,7 +121,7 @@ void test_cump_mpspmv_ellpack(const int m, const int n, const int nzr, const int
     for(int i = 0; i < m; i++){
         mpf_clear(hy[i]);
     }
-    for(int i = 0; i < m * nzr; i++){
+    for(int i = 0; i < m * maxnz; i++){
         mpf_clear(has[i]);
     }
     delete [] hx;

@@ -29,11 +29,11 @@
 /////////
 // Double precision
 /////////
-__global__ static void double_spmv_ellpack_kernel(const int m, const int nzr, const int *ja, const double *as, const double *x, double *y) {
+__global__ static void double_spmv_ellpack_kernel(const int m, const int maxnz, const int *ja, const double *as, const double *x, double *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if(row < m){
         double dot = 0;
-        for (int col = 0; col < nzr; col++) {
+        for (int col = 0; col < maxnz; col++) {
             int index = ja[col * m + row];
             if(index != -1){
                 dot += as[col * m + row] * x[index];
@@ -43,7 +43,7 @@ __global__ static void double_spmv_ellpack_kernel(const int m, const int nzr, co
     }
 }
 
-void test_double_spmv_ellpack(const int m, const int n, const int nzr, const int *ja, const double *as, const mpfr_t *x) {
+void test_double_spmv_ellpack(const int m, const int n, const int maxnz, const int *ja, const double *as, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] double SpMV ELLPACK");
@@ -52,7 +52,7 @@ void test_double_spmv_ellpack(const int m, const int n, const int nzr, const int
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * nzr));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * maxnz));
 
     //host data
     auto *hx = new double[n];
@@ -64,8 +64,8 @@ void test_double_spmv_ellpack(const int m, const int n, const int nzr, const int
     double *dx;
     double *dy;
 
-    cudaMalloc(&das, sizeof(double) * m * nzr);
-    cudaMalloc(&dja, sizeof(int) * m * nzr);
+    cudaMalloc(&das, sizeof(double) * m * maxnz);
+    cudaMalloc(&dja, sizeof(int) * m * maxnz);
     cudaMalloc(&dx, sizeof(double) * n);
     cudaMalloc(&dy, sizeof(double) * m);
 
@@ -73,13 +73,13 @@ void test_double_spmv_ellpack(const int m, const int n, const int nzr, const int
     convert_vector(hx, x, n);
 
     //Copying data to the GPU
-    cudaMemcpy(das, as, sizeof(double) * m * nzr, cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, sizeof(int) * m * nzr, cudaMemcpyHostToDevice);
+    cudaMemcpy(das, as, sizeof(double) * m * maxnz, cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, ja, sizeof(int) * m * maxnz, cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();
-    double_spmv_ellpack_kernel<<<blocks, threads>>>(m, nzr, dja, das, dx, dy);
+    double_spmv_ellpack_kernel<<<blocks, threads>>>(m, maxnz, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

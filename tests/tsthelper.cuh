@@ -225,4 +225,52 @@ double get_mp_float_array_size_in_mb(size_t n){
     return double(sizeof(mp_float_t)) * n / double(1024 * 1024);
 }
 
+/***************************************************/
+/* Helper methods for sparse matrices              */
+/***************************************************/
+
+/*
+ * Displays the memory consumption of a double precision CSR structure and returns the total size of the structure in MB
+ */
+double print_dbl_csr_memory_consumption(const int m, const int nnz){
+    double sizeOfAs = get_double_array_size_in_mb(nnz);
+    double sizeOfCsr = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(m + 1);
+    printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
+    printf("\tCSR structure size (MB): %lf\n", sizeOfCsr);
+    return sizeOfCsr;
+}
+
+/*
+ * Displays the memory consumption of a double precision ELLPACK structure and returns the total size of the structure in MB
+ */
+double print_dbl_ell_memory_consumption(const int m, const int maxnz){
+    double sizeOfAs = get_double_array_size_in_mb(m * maxnz);
+    double sizeOfEll = sizeOfAs + get_int_array_size_in_mb(m * maxnz);
+    printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
+    printf("\tELL structure size (MB): %lf\n", sizeOfEll);
+    return sizeOfEll;
+}
+
+/*
+ * Displays the memory consumption of a double precision JAD structure and returns the total size of the structure in MB
+ */
+double print_dbl_jad_memory_consumption(const int m, const int n, const int nnz, const int maxnz){
+    double sizeOfAs = get_double_array_size_in_mb(nnz);
+    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(maxnz + 1)+ get_int_array_size_in_mb(m);
+    printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
+    printf("\tJAD structure size (MB): %lf\n", sizeOfJad);
+    return sizeOfJad;
+}
+
+/*
+ * Displays the memory consumption of a double precision DIA structure and returns the total size of the structure in MB
+ */
+double print_dbl_dia_memory_consumption(const int m, const int ndiag){
+    double sizeOfAs = get_double_array_size_in_mb(m * ndiag);
+    double sizeOfDia = sizeOfAs + get_int_array_size_in_mb(ndiag);
+    printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
+    printf("\tDIA structure size (MB): %lf\n", sizeOfDia);
+    return sizeOfDia;
+}
+
 #endif //MPRES_TEST_TSTHELPER_CUH

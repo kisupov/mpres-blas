@@ -32,7 +32,7 @@
 /////////
 // MPRES-BLAS SpMV two-stage implementation
 /////////
-void test_mpres_mpspmv_ellpack_2stage(const int m, const int n, const int nzr, const int *ja, const double *as,  const mpfr_t *x) {
+void test_mpres_mpspmv_ellpack_2stage(const int m, const int n, const int maxnz, const int *ja, const double *as,  const mpfr_t *x) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] MPRES-BLAS mpspmv_ell_2stage");
@@ -43,13 +43,13 @@ void test_mpres_mpspmv_ellpack_2stage(const int m, const int n, const int nzr, c
     const int gridDim2 = 32768; //blocks for residues
     const int blockDim3 = 64; //threads for reduce
     printf("\tExec. config: gridDim1 = %i, blockDim1 = %i, gridDim2 = %i, blockDim3 = %i\n", gridDim1, blockDim1, gridDim2, blockDim3);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_mp_float_array_size_in_mb(m * nzr));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_mp_float_array_size_in_mb(m * maxnz));
 
 
     //Host data
     auto hx = new mp_float_t[n];
     auto hy = new mp_float_t[m];
-    auto has = new mp_float_t[m * nzr];
+    auto has = new mp_float_t[m * maxnz];
 
     //GPU data
     mp_array_t dx;
@@ -61,24 +61,24 @@ void test_mpres_mpspmv_ellpack_2stage(const int m, const int n, const int nzr, c
     //Init data
     cuda::mp_array_init(dx, n);
     cuda::mp_array_init(dy, m);
-    cuda::mp_collection_init(das, m * nzr);
-    cuda::mp_collection_init(dbuf, m * nzr);
-    cudaMalloc(&dja, sizeof(int) * m * nzr);
+    cuda::mp_collection_init(das, m * maxnz);
+    cuda::mp_collection_init(dbuf, m * maxnz);
+    cudaMalloc(&dja, sizeof(int) * m * maxnz);
 
     // Convert from MPFR and double
     convert_vector(hx, x, n);
-    convert_vector(has, as, m * nzr);
+    convert_vector(has, as, m * maxnz);
 
     //Copying to the GPU
     cuda::mp_array_host2device(dx, hx, n);
-    cuda::mp_collection_host2device(das, has, m * nzr);
-    cudaMemcpy(dja, ja, sizeof(int) * m * nzr, cudaMemcpyHostToDevice);
+    cuda::mp_collection_host2device(das, has, m * maxnz);
+    cudaMemcpy(dja, ja, sizeof(int) * m * maxnz, cudaMemcpyHostToDevice);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_ell_2stage<gridDim1, blockDim1, gridDim2, blockDim3>(m, n, nzr, dja, das, dx, dy, dbuf);
+    cuda::mpspmv_ell_2stage<gridDim1, blockDim1, gridDim2, blockDim3>(m, n, maxnz, dja, das, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

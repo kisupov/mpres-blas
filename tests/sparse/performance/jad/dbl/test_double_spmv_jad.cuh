@@ -29,13 +29,13 @@
 /////////
 // Double precision
 /////////
-__global__ static void double_spmv_jad_kernel(const int m, const int nzr, const int *ja, const double *as, const int *jcp, const int *perm_rows, const double *x, double *y) {
+__global__ static void double_spmv_jad_kernel(const int m, const int maxnz, const int *ja, const double *as, const int *jcp, const int *perm_rows, const double *x, double *y) {
     auto row = threadIdx.x + blockIdx.x * blockDim.x;
     while (row < m) {
         double dot = 0;
         auto j = 0;
         auto index = row;
-        while (j < nzr && index < jcp[j + 1]) {
+        while (j < maxnz && index < jcp[j + 1]) {
             dot += as[index] * x[ja[index]];
             index = row + jcp[++j];
         }
@@ -44,7 +44,7 @@ __global__ static void double_spmv_jad_kernel(const int m, const int nzr, const 
     }
 }
 
-void test_double_spmv_jad(const int m, const int n, const int nzr, const int nnz, const int *ja, const int *jcp, const double *as, const int *perm_rows, const mpfr_t *x) {
+void test_double_spmv_jad(const int m, const int n, const int maxnz, const int nnz, const int *ja, const int *jcp, const double *as, const int *perm_rows, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] double SpMV JAD (JDS)");
@@ -69,7 +69,7 @@ void test_double_spmv_jad(const int m, const int n, const int nzr, const int nnz
 
     cudaMalloc(&das, sizeof(double) * nnz);
     cudaMalloc(&dja, sizeof(int) * nnz);
-    cudaMalloc(&djcp, sizeof(int) * (nzr + 1));
+    cudaMalloc(&djcp, sizeof(int) * (maxnz + 1));
     cudaMalloc(&dperm_rows, sizeof(int) * m);
     cudaMalloc(&dx, sizeof(double) * n);
     cudaMalloc(&dy, sizeof(double) * m);
@@ -80,13 +80,13 @@ void test_double_spmv_jad(const int m, const int n, const int nzr, const int nnz
     //Copying data to the GPU
     cudaMemcpy(das, as, sizeof(double) * nnz, cudaMemcpyHostToDevice);
     cudaMemcpy(dja, ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(djcp, jcp, sizeof(int) * (nzr + 1), cudaMemcpyHostToDevice);
+    cudaMemcpy(djcp, jcp, sizeof(int) * (maxnz + 1), cudaMemcpyHostToDevice);
     cudaMemcpy(dperm_rows, perm_rows, sizeof(int) * m, cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();
-    double_spmv_jad_kernel<<<blocks, threads>>>(m, nzr, dja, das, djcp, dperm_rows, dx, dy);
+    double_spmv_jad_kernel<<<blocks, threads>>>(m, maxnz, dja, das, djcp, dperm_rows, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

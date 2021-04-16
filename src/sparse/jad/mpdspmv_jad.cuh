@@ -40,22 +40,22 @@ namespace cuda {
      * @note No global memory buffer is required
      *
      * @param m - number of rows in matrix
-     * @param nzr - maximum number of nonzeros per row
+     * @param maxnz - maximum number of nonzeros per row in the matrix A
      * @param as - multiple-precision coefficients array (entries of the matrix A in the JAD (JDS) format), size nnz (number of nonzeros in matrix)
      * @param ja - column indices array to access the corresponding elements of the vector x, size = nnz
-     * @param jcp - col start pointers array of size nzr + 1, last element of jcp equals to nnz
+     * @param jcp - col start pointers array of size maxnz + 1, last element of jcp equals to nnz
      * @param perm_rows - permutated row indices, size = m
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
-    __global__ void mpdspmv_jad(const int m, const int nzr, const double *as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpdspmv_jad(const int m, const int maxnz, const double *as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         while (row < m) {
             auto j = 0;
             auto index = row;
             mp_float_t prod;
             mp_float_t dot = cuda::MP_ZERO;
-            while (j < nzr && index < jcp[j + 1]) {
+            while (j < maxnz && index < jcp[j + 1]) {
                 cuda::mp_mul_d(&prod, &x[ja[index]], as[index]);
                 cuda::mp_add(&dot, &dot, &prod);
                 index = row + jcp[++j];

@@ -30,7 +30,7 @@
 /////////
 //  SpMV ELLPACK scalar kernel
 /////////
-void test_mpres_mpdspmv_ellpack_scalar(const int m, const int n, const int nzr, const int *ja, const double *as, const mpfr_t *x){
+void test_mpres_mpdspmv_ellpack_scalar(const int m, const int n, const int maxnz, const int *ja, const double *as, const mpfr_t *x){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS mpdspmv_ell_scalar");
@@ -39,7 +39,7 @@ void test_mpres_mpdspmv_ellpack_scalar(const int m, const int n, const int nzr, 
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * nzr));
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * maxnz));
 
     // Host data
     auto hx = new mp_float_t[n];
@@ -54,23 +54,23 @@ void test_mpres_mpdspmv_ellpack_scalar(const int m, const int n, const int nzr, 
     //Init data
     cudaMalloc(&dx, sizeof(mp_float_t) * n);
     cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    cudaMalloc(&das, sizeof(double) * m * nzr);
-    cudaMalloc(&dja, sizeof(int) * m * nzr);
+    cudaMalloc(&das, sizeof(double) * m * maxnz);
+    cudaMalloc(&dja, sizeof(int) * m * maxnz);
 
     // Convert from MPFR
     convert_vector(hx, x, n);
 
     //Copying to the GPU
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, m * nzr * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, m * nzr * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(das, as, m * maxnz * sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, ja, m * maxnz * sizeof(int), cudaMemcpyHostToDevice);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_ell_scalar<<<blocks, threads>>>(m, nzr, dja, das, dx, dy);
+    cuda::mpdspmv_ell_scalar<<<blocks, threads>>>(m, maxnz, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

@@ -49,24 +49,24 @@ void initialize() {
 void finalize() {
 }
 
-void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int NZR, const int NNZ, const bool SYMM, const string DATATYPE) {
+void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int MAXNZ, const int NNZ, const bool SYMM, const string DATATYPE) {
 
     //Input arrays
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
     auto *AS = new double [NNZ]();
     auto *JA = new int[NNZ]();
-    auto *JCP = new int[NZR + 1]();
+    auto *JCP = new int[MAXNZ + 1]();
     auto *PERM_ROWS = new int[M]();
 
     //Convert a sparse matrix to the double-precision JAD (JDS) format
-    convert_to_jad(MATRIX_PATH, M, NZR, NNZ, LINES, SYMM, AS, JCP, JA, PERM_ROWS);
+    convert_to_jad(MATRIX_PATH, M, MAXNZ, NNZ, LINES, SYMM, AS, JCP, JA, PERM_ROWS);
 
     //Launch tests
-    test_double_spmv_jad(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
+    test_double_spmv_jad(M, N, MAXNZ, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_jad(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
-    test_campary_mpspmv_jad<CAMPARY_PRECISION>(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
-    test_cump_mpspmv_jad(M, N, NZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_mpres_mpspmv_jad(M, N, MAXNZ, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
+    test_campary_mpspmv_jad<CAMPARY_PRECISION>(M, N, MAXNZ, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
+    test_cump_mpspmv_jad(M, N, MAXNZ, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
     int M = 0; //number of rows
     int N = 0; //number of columns
     int NNZ = 0; //number of nonzeros in matrix
-    int NZR = 0; //number of nonzeros per row array (maximum number of nonzeros per row in the matrix A)
+    int MAXNZ = 0; //Maximum number of nonzeros per row in the matrix A
     int NZMD = 0; //number of nonzeros in main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
@@ -108,12 +108,12 @@ int main(int argc, char *argv[]) {
 
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, M, N, LINES, NZR, NZMD, SYMM, DATATYPE);
+    read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZ, NZMD, SYMM, DATATYPE);
     NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
     Logger::printParam("Number of rows in matrix, M", M);
     Logger::printParam("Number of column in matrix, N", N);
     Logger::printParam("Number of nonzeros in matrix, NNZ", NNZ);
-    Logger::printParam("Number of nonzeros per row array, NZR", NZR);
+    Logger::printParam("Maximum number of nonzeros per row array, MAXNZ", MAXNZ);
     Logger::printParam("Symmetry of matrix, SYMM", SYMM);
     Logger::printParam("Data type, DATATYPE", DATATYPE);
     Logger::printDash();
@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
     Logger::endSection(true);
 
     //Run the test
-    test(MATRIX_PATH, M, N, LINES, NZR, NNZ, SYMM, DATATYPE);
+    test(MATRIX_PATH, M, N, LINES, MAXNZ, NNZ, SYMM, DATATYPE);
 
     //Finalize
     finalize();

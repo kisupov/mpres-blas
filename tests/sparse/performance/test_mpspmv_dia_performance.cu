@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
     //The operation parameters. Read from an input file that contains a sparse matrix
     int M = 0; //number of rows
     int N = 0; //number of columns
-    int NZR = 0; //number of nonzeros per row array (maximum number of nonzeros per row in the matrix A)
+    int MAXNZ = 0; //Maximum number of nonzeros per row in the matrix A
     int NZMD = 0; //number of nonzeros in the main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
@@ -104,11 +104,11 @@ int main(int argc, char *argv[]) {
 
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, M, N, LINES, NZR, NZMD, SYMM, DATATYPE);
+    read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZ, NZMD, SYMM, DATATYPE);
     Logger::printParam("Number of rows in matrix, M", M);
     Logger::printParam("Number of column in matrix, N", N);
     Logger::printParam("Number of nonzeros in matrix, NNZ", SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES);
-    Logger::printParam("Number of nonzeros per row array, NZR", NZR);
+    Logger::printParam("Maximum number of nonzeros per row, MAXNZ", MAXNZ);
     Logger::printParam("Symmetry of matrix, SYMM", SYMM);
     Logger::printParam("Data type, DATATYPE", DATATYPE);
     Logger::printDash();

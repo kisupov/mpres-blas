@@ -7,7 +7,7 @@ n           Number of columns in matrix
 nnz         Number of nonzeros in matrix
 nzr         Number of nonzeros per row array
 avgnzr      Average number of nonzeros per row
-maxnzr      Maximum number of nonzeros per row
+maxnz       Maximum number of nonzeros per row
 ndiag       Number of nonzero diagonals
 as          Coefficients array
 ia          Row indices array
