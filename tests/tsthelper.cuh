@@ -243,9 +243,9 @@ double print_dbl_csr_memory_consumption(const int m, const int nnz){
 /*
  * Displays the memory consumption of a double precision ELLPACK structure and returns the total size of the structure in MB
  */
-double print_dbl_ell_memory_consumption(const int m, const int maxnz){
-    double sizeOfAs = get_double_array_size_in_mb(m * maxnz);
-    double sizeOfEll = sizeOfAs + get_int_array_size_in_mb(m * maxnz);
+double print_dbl_ell_memory_consumption(const int m, const int maxnzr){
+    double sizeOfAs = get_double_array_size_in_mb(m * maxnzr);
+    double sizeOfEll = sizeOfAs + get_int_array_size_in_mb(m * maxnzr);
     printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
     printf("\tELL structure size (MB): %lf\n", sizeOfEll);
     return sizeOfEll;
@@ -254,9 +254,9 @@ double print_dbl_ell_memory_consumption(const int m, const int maxnz){
 /*
  * Displays the memory consumption of a double precision JAD structure and returns the total size of the structure in MB
  */
-double print_dbl_jad_memory_consumption(const int m, const int n, const int nnz, const int maxnz){
+double print_dbl_jad_memory_consumption(const int m, const int n, const int nnz, const int maxnzr){
     double sizeOfAs = get_double_array_size_in_mb(nnz);
-    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(maxnz + 1)+ get_int_array_size_in_mb(m);
+    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(maxnzr + 1)+ get_int_array_size_in_mb(m);
     printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
     printf("\tJAD structure size (MB): %lf\n", sizeOfJad);
     return sizeOfJad;

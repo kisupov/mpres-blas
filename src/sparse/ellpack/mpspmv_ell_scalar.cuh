@@ -39,18 +39,18 @@ namespace cuda {
      * @note No global memory buffer is required
      *
      * @param m - number of rows in matrix
-     * @param maxnz - maximum number of nonzeros per row in the matrix A
-     * @param ja - column indices array to access the corresponding elements of the vector x, size m * maxnz (the same as for A)
-     * @param as - multiple-precision coefficients array (entries of the matrix A in the ELLPACK format), size m * maxnz
+     * @param maxnzr - maximum number of nonzeros per row in the matrix A
+     * @param ja - column indices array to access the corresponding elements of the vector x, size m * maxnzr (the same as for A)
+     * @param as - multiple-precision coefficients array (entries of the matrix A in the ELLPACK format), size m * maxnzr
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
-    __global__ void mpspmv_ell_scalar(const int m, const int maxnz, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_ell_scalar(const int m, const int maxnzr, const int *ja, mp_float_ptr as, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         while (row < m) {
             mp_float_t prod;
             mp_float_t dot = cuda::MP_ZERO;
-            for (int col = 0; col < maxnz; col++) {
+            for (int col = 0; col < maxnzr; col++) {
                 int index = ja[col * m + row];
                 if(index >= 0){
                     cuda::mp_mul(&prod, &x[index], &as[col * m + row]);

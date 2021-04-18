@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
     int M = 0; //number of rows
     int N = 0; //number of columns
     int NNZ = 0; //number of nonzeros in matrix
-    int MAXNZ = 0; //Maximum number of nonzeros per row in the matrix A
+    int MAXNZR = 0; //Maximum number of nonzeros per row in the matrix A
     int NZMD = 0; //number of nonzeros in the main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
@@ -121,13 +121,13 @@ int main(int argc, char *argv[]) {
 
     Logger::beginSection("Matrix properties:");
     Logger::printParam("Path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZ, NZMD, SYMM, DATATYPE);
+    read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);
     NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
     Logger::printParam("Number of rows, M", M);
     Logger::printParam("Number of column, N", N);
     Logger::printParam("Number of nonzeros, NNZ", NNZ);
-    Logger::printParam("Maximum number of nonzeros per row, MAXNZ", MAXNZ);
-    Logger::printParam("Average number of nonzeros per row, AVGNZ", (double)NNZ/M);
+    Logger::printParam("Maximum number of nonzeros per row, MAXNZR", MAXNZR);
+    Logger::printParam("Average number of nonzeros per row, AVGNZR", (double)NNZ/M);
     Logger::printParam("Symmetry, SYMM", SYMM);
     Logger::printParam("Data type, DATATYPE", DATATYPE);
     Logger::printDash();

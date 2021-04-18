@@ -33,13 +33,13 @@
  * where x and y are dense vectors and A is a sparse matrix.
  * The matrix should be stored in the JAD (JDS) format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
-__global__ void cump_mpspmv_jad_kernel(const int m, const int maxnz, const int *ja, mpf_array_t as, const int *jcp, const int *perm_rows, mpf_array_t x, mpf_array_t y, mpf_array_t buf) {
+__global__ void cump_mpspmv_jad_kernel(const int m, const int maxnzr, const int *ja, mpf_array_t as, const int *jcp, const int *perm_rows, mpf_array_t x, mpf_array_t y, mpf_array_t buf) {
     using namespace cump;
     auto row = threadIdx.x + blockIdx.x * blockDim.x;
     while (row < m) {
         auto j = 0;
         auto index = row;
-        while (j < maxnz && index < jcp[j + 1]) {
+        while (j < maxnzr && index < jcp[j + 1]) {
             mpf_mul(buf[perm_rows[row]], x[ja[index]], as[index]);
             mpf_add(y[perm_rows[row]], y[perm_rows[row]], buf[perm_rows[row]]);
             index = row + jcp[++j];
@@ -48,7 +48,7 @@ __global__ void cump_mpspmv_jad_kernel(const int m, const int maxnz, const int *
     }
 }
 
-void test_cump_mpspmv_jad(const int m, const int n, const int maxnz, const int nnz, const int *ja, const int *jcp, const double *as, const int *perm_rows, mpfr_t *x, const int prec, const int convert_digits){
+void test_cump_mpspmv_jad(const int m, const int n, const int maxnzr, const int nnz, const int *ja, const int *jcp, const double *as, const int *perm_rows, mpfr_t *x, const int prec, const int convert_digits){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CUMP SpMV JAD (JDS) (multiple precision matrix)");
@@ -64,7 +64,7 @@ void test_cump_mpspmv_jad(const int m, const int n, const int maxnz, const int n
 
     //Memory requirements
     double sizeOfAs = get_cump_array_size_in_mb(nnz, prec);
-    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(maxnz + 1)+ get_int_array_size_in_mb(m);
+    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(maxnzr + 1)+ get_int_array_size_in_mb(m);
     double sizeOfVectors = get_cump_array_size_in_mb(m + n + m, prec);
     printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
     printf("\tJAD structure size (MB): %lf\n", sizeOfJad);
@@ -90,7 +90,7 @@ void test_cump_mpspmv_jad(const int m, const int n, const int maxnz, const int n
     cumpf_array_init2(das, nnz, prec);
     cumpf_array_init2(dbuf, m, prec);
     cudaMalloc(&dja, sizeof(int) * nnz);
-    cudaMalloc(&djcp, sizeof(int) * (maxnz + 1));
+    cudaMalloc(&djcp, sizeof(int) * (maxnzr + 1));
     cudaMalloc(&dperm_rows, sizeof(int) * m);
 
     //Convert from MPFR
@@ -113,12 +113,12 @@ void test_cump_mpspmv_jad(const int m, const int n, const int maxnz, const int n
     cumpf_array_set_mpf(dy, hy, m);
     cumpf_array_set_mpf(das, has, nnz);
     cudaMemcpy(dja, ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(djcp, jcp, sizeof(int) * (maxnz + 1), cudaMemcpyHostToDevice);
+    cudaMemcpy(djcp, jcp, sizeof(int) * (maxnzr + 1), cudaMemcpyHostToDevice);
     cudaMemcpy(dperm_rows, perm_rows, sizeof(int) * m, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();
-    cump_mpspmv_jad_kernel<<<blocks, threads>>>(m, maxnz, dja, das, djcp, dperm_rows, dx, dy, dbuf);
+    cump_mpspmv_jad_kernel<<<blocks, threads>>>(m, maxnzr, dja, das, djcp, dperm_rows, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
 

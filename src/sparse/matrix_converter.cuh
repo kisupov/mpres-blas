@@ -40,12 +40,12 @@ using namespace std;
  * @param m - number of rows in matrix (output parameter)
  * @param n - number of columns in matrix (output parameter)
  * @param lines - total number of lines with data (output parameter)
- * @param maxnz - maximum number of nonzeros per row in the matrix (output parameter)
+ * @param maxnzr - maximum number of nonzeros per row in the matrix (output parameter)
  * @param nzmd - number of nonzeros in the main diagonal of the matrix (output parameter)
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  * @param datatype - type of data according to the matrix market format - real, integer, binary
  */
-void read_matrix_properties(const char filename[], int &m, int &n, int &lines, int &maxnz, int &nzmd, bool &symmetric, string &datatype) {
+void read_matrix_properties(const char filename[], int &m, int &n, int &lines, int &maxnzr, int &nzmd, bool &symmetric, string &datatype) {
 
     //Create stream
     std::ifstream file(filename);
@@ -90,7 +90,7 @@ void read_matrix_properties(const char filename[], int &m, int &n, int &lines, i
             nonZeros[(col - 1)] = nonZeros[(col - 1)] + 1;
         }
     }
-    maxnz = *std::max_element(nonZeros, nonZeros + m);
+    maxnzr = *std::max_element(nonZeros, nonZeros + m);
     delete[] nonZeros;
     file.close();
 }
@@ -207,17 +207,17 @@ void convert_to_coo(const char filename[], const int m, const int lines, bool sy
  * Converts a sparse matrix to the ELLPACK format
  * @param filename - path to the file with the matrix
  * @param m - number of rows in the matrix
- * @param maxnz - maximum number of nonzeros per row in the matrix
+ * @param maxnzr - maximum number of nonzeros per row in the matrix
  * @param lines - total number of lines with data
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
- * @param as - coefficients array (ELLPACK data): an array of size m * maxnz containing a matrix in the ELLPACK format (output parameter)
- * @param ja - column indices array (ELLPACK indices): an array of size m * maxnz containing the indices of nonzero elements in the matrix (output parameter)
+ * @param as - coefficients array (ELLPACK data): an array of size m * maxnzr containing a matrix in the ELLPACK format (output parameter)
+ * @param ja - column indices array (ELLPACK indices): an array of size m * maxnzr containing the indices of nonzero elements in the matrix (output parameter)
  */
-void convert_to_ellpack(const char filename[], const int m, const int maxnz, const int lines, bool symmetric, double *as, int *ja) {
+void convert_to_ellpack(const char filename[], const int m, const int maxnzr, const int lines, bool symmetric, double *as, int *ja) {
 
     //Set default values
-    std::fill(ja, ja + m * maxnz, -1);
-    std::fill(as, as + m * maxnz, 0);
+    std::fill(ja, ja + m * maxnzr, -1);
+    std::fill(as, as + m * maxnzr, 0);
 
     //Create stream
     std::ifstream file(filename);
@@ -339,7 +339,7 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
  * Converts a sparse matrix to the JAD format
  * @param filename - path to the file with the matrix
  * @param m - number of rows in the matrix
- * @param maxnz - maximum number of nonzeros per row
+ * @param maxnzr - maximum number of nonzeros per row
  * @param nnz - number of nonzeros in the matrix
  * @param lines - total number of lines with data
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
@@ -348,7 +348,7 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
  * @param ja - column indices array (output parameter)
  * @param perm_rows - permutated row indices array (output parameter)
  */
-void convert_to_jad(const char filename[], const int m, const int maxnz, const int nnz, const int lines, bool symmetric, double *&as, int *&jcp, int *&ja, int *&perm_rows) {
+void convert_to_jad(const char filename[], const int m, const int maxnzr, const int nnz, const int lines, bool symmetric, double *&as, int *&jcp, int *&ja, int *&perm_rows) {
     auto *csr_as = new double[nnz]();
     auto *csr_ja = new int [nnz]();
     auto *csr_irp = new int[m + 1]();
@@ -367,7 +367,7 @@ void convert_to_jad(const char filename[], const int m, const int maxnz, const i
     //вычисляем смещение по столбцам
     jcp[0] = 0;
     int count = 0;
-    for (int j = 0; j < maxnz; ++j) {
+    for (int j = 0; j < maxnzr; ++j) {
         for (int i = 0; i < m; ++i) {
             if (nonZeros[i] > 0) {
                 nonZeros[i]--;
@@ -382,7 +382,7 @@ void convert_to_jad(const char filename[], const int m, const int maxnz, const i
     //сеттим меасивы as и ja в новом порядке
     int index = 0;
     int j = 0;
-    while (index < nnz && j < maxnz) {
+    while (index < nnz && j < maxnzr) {
         for (int i = 0; i < jcp[j + 1] - jcp[j]; i++) {
             as[index] = csr_as[j + csr_irp[perm_rows[i]]];
             ja[index] = csr_ja[j + csr_irp[perm_rows[i]]];
@@ -400,18 +400,18 @@ void convert_to_jad(const char filename[], const int m, const int maxnz, const i
 /*!
  * Prints a sparse matrix represented in the ELLPACK format
  */
-void print_ellpack(const int m, const int maxnz, double *as, int *ja) {
+void print_ellpack(const int m, const int maxnzr, double *as, int *ja) {
     std::cout << std::endl << "AS:";
     for (int i = 0; i < m; i++) {
         std::cout << std::endl;
-        for (int j = 0; j < maxnz; j++) {
+        for (int j = 0; j < maxnzr; j++) {
             std::cout << as[i + m * j] << "\t";
         }
     }
     std::cout << std::endl << "JA:";
     for (int i = 0; i < m; i++) {
         std::cout << std::endl;
-        for (int j = 0; j < maxnz; j++) {
+        for (int j = 0; j < maxnzr; j++) {
             std::cout << ja[i + m * j] << "\t";
         }
     }
@@ -460,7 +460,7 @@ void print_dia(const int m, const int ndiag, double *as, int *offset) {
 /*!
  * Prints a sparse matrix represented in the JAD (JDS) format
  */
-void print_jad(const int m, const int nnz, const int maxnz, double *as, int *ja, int *jcp, int *perm_rows) {
+void print_jad(const int m, const int nnz, const int maxnzr, double *as, int *ja, int *jcp, int *perm_rows) {
     std::cout << std::endl << "JA:";
     std::cout << std::endl;
     for (int j = 0; j < nnz; j++) {
@@ -475,7 +475,7 @@ void print_jad(const int m, const int nnz, const int maxnz, double *as, int *ja,
 
     std::cout << std::endl << "JCP:";
     std::cout << std::endl;
-    for (int i = 0; i < maxnz + 1; i++) {
+    for (int i = 0; i < maxnzr + 1; i++) {
         std::cout << jcp[i] << "\t";
     }
 

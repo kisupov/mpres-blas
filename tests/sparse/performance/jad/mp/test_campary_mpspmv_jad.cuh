@@ -34,13 +34,13 @@
  * The matrix should be stored in the JAD (JDS) format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
 template<int prec>
-__global__ void campary_mpspmv_jad_kernel(const int m, const int maxnz, const int *ja, const multi_prec<prec> *as, const int *jcp, const int *perm_rows, const multi_prec<prec> *x, multi_prec<prec> *y) {
+__global__ void campary_mpspmv_jad_kernel(const int m, const int maxnzr, const int *ja, const multi_prec<prec> *as, const int *jcp, const int *perm_rows, const multi_prec<prec> *x, multi_prec<prec> *y) {
     auto row = threadIdx.x + blockIdx.x * blockDim.x;
     while (row < m) {
         multi_prec<prec> dot = 0.0;
         auto j = 0;
         auto index = row;
-        while (j < maxnz && index < jcp[j + 1]) {
+        while (j < maxnzr && index < jcp[j + 1]) {
             dot += as[index] * x[ja[index]];
             index = row + jcp[++j];
         }
@@ -50,7 +50,7 @@ __global__ void campary_mpspmv_jad_kernel(const int m, const int maxnz, const in
 }
 
 template<int prec>
-void test_campary_mpspmv_jad(const int m, const int n, const int maxnz, const int nnz, const int *ja, const int *jcp, const double *as, const int *perm_rows, mpfr_t *x, const int convert_prec) {
+void test_campary_mpspmv_jad(const int m, const int n, const int maxnzr, const int nnz, const int *ja, const int *jcp, const double *as, const int *perm_rows, mpfr_t *x, const int convert_prec) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY SpMV JAD (JDS) (multiple precision matrix)");
@@ -78,7 +78,7 @@ void test_campary_mpspmv_jad(const int m, const int n, const int maxnz, const in
     cudaMalloc(&dy, sizeof(multi_prec<prec>) * m);
     cudaMalloc(&das, sizeof(multi_prec<prec>) * nnz);
     cudaMalloc(&dja, sizeof(int) * nnz);
-    cudaMalloc(&djcp, sizeof(int) * (maxnz + 1));
+    cudaMalloc(&djcp, sizeof(int) * (maxnzr + 1));
     cudaMalloc(&dperm_rows, sizeof(int) * m);
 
     //Convert from MPFR
@@ -97,14 +97,14 @@ void test_campary_mpspmv_jad(const int m, const int n, const int maxnz, const in
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(das, has, sizeof(multi_prec<prec>) * nnz, cudaMemcpyHostToDevice);
     cudaMemcpy(dja, ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(djcp, jcp, sizeof(int) * (maxnz + 1), cudaMemcpyHostToDevice);
+    cudaMemcpy(djcp, jcp, sizeof(int) * (maxnzr + 1), cudaMemcpyHostToDevice);
     cudaMemcpy(dperm_rows, perm_rows, sizeof(int) * m, cudaMemcpyHostToDevice);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Launch
     StartCudaTimer();
-    campary_mpspmv_jad_kernel<prec><<<blocks, threads>>>(m, maxnz, dja, das, djcp, dperm_rows, dx, dy);
+    campary_mpspmv_jad_kernel<prec><<<blocks, threads>>>(m, maxnzr, dja, das, djcp, dperm_rows, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

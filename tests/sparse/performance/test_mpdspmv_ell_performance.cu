@@ -49,19 +49,19 @@ void initialize() {
 void finalize() {
 }
 
-void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int MAXNZ, const bool SYMM, const string DATATYPE) {
+void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int MAXNZR, const bool SYMM, const string DATATYPE) {
     //Input arrays
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
-    auto *AS = new double [M * MAXNZ]();
-    auto *JA = new int[M * MAXNZ]();
+    auto *AS = new double [M * MAXNZR]();
+    auto *JA = new int[M * MAXNZR]();
     //Convert a sparse matrix to the double-precision ELLPACK format
-    convert_to_ellpack(MATRIX_PATH, M, MAXNZ, LINES, SYMM, AS, JA);
+    convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
     //Launch tests
-    test_double_spmv_ellpack(M, N, MAXNZ, JA, AS, vectorX);
+    test_double_spmv_ellpack(M, N, MAXNZR, JA, AS, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpdspmv_ellpack_scalar(M, N, MAXNZ, JA, AS, vectorX);
-    test_campary_mpdspmv_ellpack<CAMPARY_PRECISION>(M, N, MAXNZ, JA, AS, vectorX, INP_DIGITS);
-    test_cump_mpspmv_ellpack(M, N, MAXNZ, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_mpres_mpdspmv_ellpack_scalar(M, N, MAXNZR, JA, AS, vectorX);
+    test_campary_mpdspmv_ellpack<CAMPARY_PRECISION>(M, N, MAXNZR, JA, AS, vectorX, INP_DIGITS);
+    test_cump_mpspmv_ellpack(M, N, MAXNZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
     //Cleanup
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     //The operation parameters. Read from an input file that contains a sparse matrix
     int M = 0; //number of rows
     int N = 0; //number of columns
-    int MAXNZ = 0; //maximum number of nonzeros per row in the matrix A
+    int MAXNZR = 0; //maximum number of nonzeros per row in the matrix A
     int NZMD = 0; //number of nonzeros in the main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
@@ -99,13 +99,13 @@ int main(int argc, char *argv[]) {
 
     Logger::beginSection("Matrix properties:");
     Logger::printParam("Path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZ, NZMD, SYMM, DATATYPE);
+    read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);
     int NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
     Logger::printParam("Number of rows, M", M);
     Logger::printParam("Number of column, N", N);
     Logger::printParam("Number of nonzeros, NNZ", NNZ);
-    Logger::printParam("Maximum number of nonzeros per row, MAXNZ", MAXNZ);
-    Logger::printParam("Average number of nonzeros per row, AVGNZ", (double)NNZ/M);
+    Logger::printParam("Maximum number of nonzeros per row, MAXNZR", MAXNZR);
+    Logger::printParam("Average number of nonzeros per row, AVGNZR", (double)NNZ/M);
     Logger::printParam("Symmetry, SYMM", SYMM);
     Logger::printParam("Data type, DATATYPE", DATATYPE);
     Logger::printDash();
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
     Logger::endSection(true);
 
     //Run the test
-    test(MATRIX_PATH, M, N, LINES, MAXNZ, SYMM, DATATYPE);
+    test(MATRIX_PATH, M, N, LINES, MAXNZR, SYMM, DATATYPE);
 
     //Finalize
     finalize();

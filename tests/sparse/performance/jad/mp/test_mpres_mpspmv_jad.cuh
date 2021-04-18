@@ -30,7 +30,7 @@
 /////////
 //  SpMV jad scalar kernel
 /////////
-void test_mpres_mpspmv_jad(const int m, const int n, const int maxnz, const int nnz, const int *ja, const int *jcp,
+void test_mpres_mpspmv_jad(const int m, const int n, const int maxnzr, const int nnz, const int *ja, const int *jcp,
                       const double *as, const int *perm_rows, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
@@ -60,7 +60,7 @@ void test_mpres_mpspmv_jad(const int m, const int n, const int maxnz, const int 
     cudaMalloc(&dy, sizeof(mp_float_t) * m);
     cudaMalloc(&das, sizeof(mp_float_t) * nnz);
     cudaMalloc(&dja, sizeof(int) * nnz);
-    cudaMalloc(&djcp, sizeof(int) * (maxnz + 1));
+    cudaMalloc(&djcp, sizeof(int) * (maxnzr + 1));
     cudaMalloc(&dperm_rows, sizeof(int) * m);
 
     // Convert from MPFR
@@ -71,7 +71,7 @@ void test_mpres_mpspmv_jad(const int m, const int n, const int maxnz, const int 
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
     cudaMemcpy(das, has, nnz * sizeof(mp_float_t), cudaMemcpyHostToDevice);
     cudaMemcpy(dja, ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(djcp, jcp, (maxnz + 1) * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(djcp, jcp, (maxnzr + 1) * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(dperm_rows, perm_rows, m * sizeof(int), cudaMemcpyHostToDevice);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -79,7 +79,7 @@ void test_mpres_mpspmv_jad(const int m, const int n, const int maxnz, const int 
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_jad<<<blocks, threads>>>(m, maxnz, das, dja, djcp, dperm_rows, dx, dy);
+    cuda::mpspmv_jad<<<blocks, threads>>>(m, maxnzr, das, dja, djcp, dperm_rows, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
