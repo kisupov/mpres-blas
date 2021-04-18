@@ -118,14 +118,15 @@ int main(int argc, char *argv[]) {
     }
     const char * MATRIX_PATH = argv[1];
 
-    Logger::beginSection("Operation info:");
-    Logger::printParam("Matrix path", MATRIX_PATH);
+    Logger::beginSection("Matrix properties:");
+    Logger::printParam("Path", MATRIX_PATH);
     read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZ, NZMD, SYMM, DATATYPE);
     NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
-    Logger::printParam("Number of rows in matrix, M", M);
-    Logger::printParam("Number of column in matrix, N", N);
-    Logger::printParam("Number of nonzeros in matrix, NNZ", NNZ);
+    Logger::printParam("Number of rows, M", M);
+    Logger::printParam("Number of column, N", N);
+    Logger::printParam("Number of nonzeros, NNZ", NNZ);
     Logger::printParam("Maximum number of nonzeros per row, MAXNZ", MAXNZ);
+    Logger::printParam("Average number of nonzeros per row, AVGNZ", (double)NNZ/M);
     Logger::printParam("Symmetry, SYMM", SYMM);
     Logger::printParam("Data type, DATATYPE", DATATYPE);
     Logger::printDash();
