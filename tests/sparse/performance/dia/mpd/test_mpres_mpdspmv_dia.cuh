@@ -33,13 +33,18 @@
 void test_mpres_mpdspmv_dia(const int m, const int n, const int ndiag, const int *offset, const double *as, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpdspmv_dia");
+    PrintTimerName("[GPU] MPRES-BLAS DIA (mpdspmv_dia)");
 
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
-    printf("Exec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("Matrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * ndiag));
+    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
+
+    //Memory requirements
+    double sizeOfMatrix = print_dbl_dia_memory_consumption(m, ndiag);
+    double sizeOfVectors = get_mp_float_array_size_in_mb(m + n);
+    printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors);
 
     // Host data
     auto hx = new mp_float_t[n];

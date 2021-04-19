@@ -157,7 +157,10 @@ add_executable(test_mpdspmv_jad_performance sparse/performance/test_mpdspmv_jad_
 target_compile_options(test_mpdspmv_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpdspmv_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
-
+# Performance test for SPMV using various sparse matrix storage formats (double precision matrix)
+add_executable(test_mpdspmv_performance.cu sparse/performance/test_mpdspmv_performance.cu)
+target_compile_options(test_mpdspmv_performance.cu PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdspmv_performance.cu gmp mpfr OpenMP::OpenMP_CXX cump)
 #########################
 ## Accuracy tests for BLAS routines
 #########################

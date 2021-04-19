@@ -34,7 +34,7 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int maxnzr, const in
                        const double *as, const int *perm_rows, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpdspmv_jad");
+    PrintTimerName("[GPU] MPRES-BLAS JAD (mpdspmv_jad)");
 
     //Execution configuration
     int threads = 32;
@@ -42,13 +42,10 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int maxnzr, const in
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
     //Memory requirements
-    double sizeOfAs = get_double_array_size_in_mb(nnz);
-    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(maxnzr + 1)+ get_int_array_size_in_mb(m);
+    double sizeOfMatrix = print_dbl_jad_memory_consumption(m, n, nnz, maxnzr);
     double sizeOfVectors = get_mp_float_array_size_in_mb(m + n);
-    printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
-    printf("\tJAD structure size (MB): %lf\n", sizeOfJad);
     printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
-    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfJad + sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors);
 
     // Host data
     auto hx = new mp_float_t[n];

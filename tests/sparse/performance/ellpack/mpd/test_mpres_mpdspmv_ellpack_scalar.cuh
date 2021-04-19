@@ -33,13 +33,18 @@
 void test_mpres_mpdspmv_ellpack_scalar(const int m, const int n, const int maxnzr, const int *ja, const double *as, const mpfr_t *x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpdspmv_ell_scalar");
+    PrintTimerName("[GPU] MPRES-BLAS ELLPACK (mpdspmv_ell_scalar)");
 
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * maxnzr));
+
+    //Memory requirements
+    double sizeOfMatrix = print_dbl_ell_memory_consumption(m, maxnzr);
+    double sizeOfVectors = get_mp_float_array_size_in_mb(m + n);
+    printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors);
 
     // Host data
     auto hx = new mp_float_t[n];

@@ -34,7 +34,7 @@ template<int threadsPerRow>
 void test_mpres_mpdspmv_csr_vector(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpdspmv_csr_vector");
+    PrintTimerName("[GPU] MPRES-BLAS CSR Vector (mpdspmv_csr_vector)");
 
     //Execution configuration
     const int threads = 256;
@@ -42,7 +42,12 @@ void test_mpres_mpdspmv_csr_vector(const int m, const int n, const int nnz, cons
     //int blocks = 32;
     printf("\tThreads per row = %i\n", threadsPerRow);
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(nnz));
+
+    //Memory requirements
+    double sizeOfMatrix = print_dbl_csr_memory_consumption(m, nnz);
+    double sizeOfVectors = get_mp_float_array_size_in_mb(m + n);
+    printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors);
 
     // Host data
     auto hx = new mp_float_t[n];
