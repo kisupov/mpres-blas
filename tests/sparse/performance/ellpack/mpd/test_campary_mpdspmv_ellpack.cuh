@@ -39,9 +39,10 @@ __global__ void campary_mpdspmv_ellpack_kernel(const int m, const int maxnzr, co
     if (row < m) {
         multi_prec<prec> dot = 0.0;
         for (int col = 0; col < maxnzr; col++) {
-            int index = ja[col * m + row];
-            if(index >= 0){
-                dot += as[col * m + row] * x[index];
+            auto j = ja[col * m + row];
+            auto val = as[col * m + row];
+            if(val != 0){
+                dot += val * x[j];
             }
         }
         y[row] = dot;

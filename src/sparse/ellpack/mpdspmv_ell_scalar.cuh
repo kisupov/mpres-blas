@@ -51,9 +51,10 @@ namespace cuda {
             mp_float_t prod;
             mp_float_t dot = cuda::MP_ZERO;
             for (int col = 0; col < maxnzr; col++) {
-                int index = ja[col * m + row];
-                if(index >= 0){
-                    cuda::mp_mul_d(&prod, &x[index], as[col * m + row]);
+                int j = ja[col * m + row];
+                double val = as[col * m + row];
+                if(val != 0){
+                    cuda::mp_mul_d(&prod, &x[j], val);
                     cuda::mp_add(&dot, &dot, &prod);
                 }
             }

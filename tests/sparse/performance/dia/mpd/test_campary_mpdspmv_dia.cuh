@@ -35,13 +35,14 @@
  */
 template<int prec>
 __global__ void campary_mpdspmv_dia_kernel(const int m, const int n, const int ndiag, const int *offset, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
-    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
+    auto row = threadIdx.x + blockIdx.x * blockDim.x;
     if (row < m) {
         multi_prec<prec> dot = 0.0;
         for (int i = 0; i < ndiag; i++) {
-            int col = row + offset[i];
-            if(col  >= 0 && col < n)
-                dot += as[m * i + row] * x[col];
+            auto j = row + offset[i];
+            auto val = as[m * i + row];
+            if(j  >= 0 && j < n)
+                dot += val * x[j];
         }
         y[row] = dot;
     }
