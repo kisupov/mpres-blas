@@ -61,13 +61,10 @@ void test_campary_mpdspmv_jad(const int m, const int n, const int maxnzr, const 
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
     //Memory requirements
-    double sizeOfAs = get_double_array_size_in_mb(nnz);
-    double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(maxnzr + 1)+ get_int_array_size_in_mb(m);
+    double sizeOfMatrix = print_dbl_jad_memory_consumption(m, n, nnz, maxnzr);
     double sizeOfVectors = get_campary_array_size_in_mb<prec>(m + n);
-    printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
-    printf("\tJAD structure size (MB): %lf\n", sizeOfJad);
     printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
-    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfJad + sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors);
 
     //Host data
     multi_prec<prec> *hx = new multi_prec<prec>[n];

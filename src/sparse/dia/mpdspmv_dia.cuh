@@ -53,8 +53,8 @@ namespace cuda {
             mp_float_t prod;
             mp_float_t dot = cuda::MP_ZERO;
             for (int i = 0; i < ndiag; i++) {
-                auto j = row + offset[i];
-                auto val = as[m * i + row];
+                int j = row + offset[i];
+                double val = as[m * i + row];
                 if(j >= 0 && j < n) {
                     cuda::mp_mul_d(&prod, &x[j], val);
                     cuda::mp_add(&dot, &dot, &prod);

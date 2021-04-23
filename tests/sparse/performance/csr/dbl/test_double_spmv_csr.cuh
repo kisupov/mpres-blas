@@ -52,7 +52,12 @@ void test_double_spmv_csr(const int m, const int n, const int nnz, const int *ir
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", double(sizeof(double)) * nnz /  double(1024 * 1024));
+
+    //Memory requirements
+    double sizeOfMatrix = print_dbl_csr_memory_consumption(m, nnz);
+    double sizeOfVectors = get_double_array_size_in_mb(m + n);
+    printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors);
 
     //host data
     auto *hx = new double[n];

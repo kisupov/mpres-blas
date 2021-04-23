@@ -39,8 +39,8 @@ __global__ void campary_mpdspmv_dia_kernel(const int m, const int n, const int n
     if (row < m) {
         multi_prec<prec> dot = 0.0;
         for (int i = 0; i < ndiag; i++) {
-            auto j = row + offset[i];
-            auto val = as[m * i + row];
+            int j = row + offset[i];
+            double val = as[m * i + row];
             if(j  >= 0 && j < n)
                 dot += val * x[j];
         }
@@ -58,7 +58,12 @@ void test_campary_mpdspmv_dia(const int m, const int n, const int ndiag, const i
     int threads = 32;
     int blocks = m / threads + 1;
     printf("Exec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("Matrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * ndiag));
+
+    //Memory requirements
+    double sizeOfMatrix = print_dbl_dia_memory_consumption(m, ndiag);
+    double sizeOfVectors = get_campary_array_size_in_mb<prec>(m + n);
+    printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors);
 
     //Host data
     multi_prec<prec> *hx = new multi_prec<prec>[n];

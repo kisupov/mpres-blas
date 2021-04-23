@@ -59,7 +59,12 @@ void test_cump_mpspmv_csr_scalar(const int m, const int n, const int nnz, const 
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_cump_array_size_in_mb(nnz, prec));
+
+    //Memory requirements
+    double sizeOfMatrix = print_cump_csr_memory_consumption(m, nnz, prec);
+    double sizeOfVectors = get_cump_array_size_in_mb(m + n + m, prec);
+    printf("\tVectors x and y and buf size (MB): %lf\n", sizeOfVectors);
+    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors);
 
     //Host data
     mpf_t *hx = new mpf_t[n];

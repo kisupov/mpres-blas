@@ -31,10 +31,13 @@
 #include "sparse/performance/ellpack/mpd/test_mpres_mpdspmv_ellpack_scalar.cuh"
 #include "sparse/performance/dia/mpd/test_mpres_mpdspmv_dia.cuh"
 #include "sparse/performance/csr/mpd/test_campary_mpdspmv_csr_scalar.cuh"
-#include "sparse/performance/csr/mpd/test_campary_mpdspmv_csr_vector.cuh"
+#include "sparse/performance/jad/mpd/test_campary_mpdspmv_jad.cuh"
+#include "sparse/performance/ellpack//mpd/test_campary_mpdspmv_ellpack.cuh"
+#include "sparse/performance/dia/mpd/test_campary_mpdspmv_dia.cuh"
 #include "sparse/performance/csr/mp/test_cump_mpspmv_csr_scalar.cuh"
 #include "sparse/performance/jad/mp/test_cump_mpspmv_jad.cuh"
 #include "sparse/performance/ellpack/mp/test_cump_mpspmv_ellpack.cuh"
+#include "sparse/performance/dia/mp/test_cump_mpspmv_dia.cuh"
 
 
 int INP_BITS; //in bits
@@ -95,7 +98,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     Logger::printDash();
     Logger::beginSection("***** MPRES-BLAS Tests *****");
 
-    //CSR
+    //MPRES
     test_mpres_mpdspmv_csr_scalar(M, N, NNZ, IRP, JA, AS, vectorX);
     test_mpres_mpdspmv_csr_vector<8>(M, N, NNZ, IRP, JA, AS, vectorX);
     test_mpres_mpdspmv_csr_vector<16>(M, N, NNZ, IRP, JA, AS, vectorX);
@@ -134,14 +137,53 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     /*
      * CAMPARY tests
      */
+    //TODO Print Memory consumption
 
-    //TODO: Для CAMPARY тестировать только скалярное CSR ядро и JAD
-    //TODO: Для CUMP Тоже!
+    Logger::printSpace();
+    Logger::printSpace();
+    Logger::printDash();
+    Logger::beginSection("***** CAMPARY Tests *****");
+
+    //CSR
+    AS = new double [NNZ]();
+    JA = new int[NNZ]();
+    IRP = new int[M + 1]();
+    convert_to_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, AS, IRP, JA);
+    test_campary_mpdspmv_csr_scalar<CAMPARY_PRECISION>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    delete[] AS;
+    delete[] JA;
+    delete[] IRP;
+
+    //JAD
+    AS = new double [NNZ]();
+    JA = new int[NNZ]();
+    JCP = new int[MAXNZR + 1]();
+    PERM_ROWS = new int[M]();
+    convert_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, AS, JCP, JA, PERM_ROWS);
+    test_campary_mpdspmv_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
+    delete[] AS;
+    delete[] JA;
+    delete[] JCP;
+    delete[] PERM_ROWS;
+
+    //ELLPACK
+    AS = new double [M * MAXNZR]();
+    JA = new int[M * MAXNZR]();
+    convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
+    test_campary_mpdspmv_ellpack<CAMPARY_PRECISION>(M, N, MAXNZR, JA, AS, vectorX, INP_DIGITS);
+    delete[] AS;
+    delete[] JA;
+
+    //DIA
+    convert_to_dia(MATRIX_PATH, M, LINES, SYMM, NDIAG, AS, OFFSET);
+    test_campary_mpdspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
+    delete[] AS;
+    delete[] OFFSET;
+    Logger::printDash();
 
     /*
      * CUMP tests
      */
-    //TODO Print Memory consumption
     Logger::printSpace();
     Logger::printSpace();
     Logger::printDash();
@@ -177,29 +219,12 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     delete[] AS;
     delete[] JA;
 
-
-
-/*
-    Logger::printStars();
-    test_campary_mpdspmv_csr_scalar<CAMPARY_PRECISION>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    //test_campary_mpdspmv_csr_vector<CAMPARY_PRECISION, 2>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    //test_campary_mpdspmv_csr_vector<CAMPARY_PRECISION, 4>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpdspmv_csr_vector<CAMPARY_PRECISION, 8>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpdspmv_csr_vector<CAMPARY_PRECISION, 16>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpdspmv_csr_vector<CAMPARY_PRECISION, 32>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    Logger::printStars();
-    test_cump_mpspmv_csr_scalar(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    // cudaCheckErrors(); //CUMP gives failure
-
-    //Cleanup
-    for(int i = 0; i < N; i++){
-        mpfr_clear(vectorX[i]);
-    }
-    delete[] vectorX;
+    //DIA
+    convert_to_dia(MATRIX_PATH, M, LINES, SYMM, NDIAG, AS, OFFSET);
+    test_cump_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX, MP_PRECISION, INP_DIGITS);
     delete[] AS;
-    delete[] JA;
-    delete[] IRP;*/
+    delete[] OFFSET;
+
     cudaDeviceReset();
 }
 
