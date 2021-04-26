@@ -37,14 +37,15 @@
 template<int prec>
 __global__ void campary_mpdspmv_csr_scalar_kernel(const int m, const int *irp, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
+    extern __shared__ multi_prec<prec> vals[];
     if (row < m) {
-        multi_prec<prec> dot = 0.0;
+        vals[threadIdx.x] = 0.0;
         int row_start = irp[row];
         int row_end = irp[row + 1];
         for (int i = row_start; i < row_end; i++) {
-            dot += as[i] * x[ja[i]];
+            vals[threadIdx.x] += as[i] * x[ja[i]];
         }
-        y[row] = dot;
+        y[row] = vals[threadIdx.x];
     }
 }
 
@@ -98,7 +99,7 @@ void test_campary_mpdspmv_csr_scalar(const int m, const int n, const int nnz, co
 
     //Launch
     StartCudaTimer();
-    campary_mpdspmv_csr_scalar_kernel<prec><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
+    campary_mpdspmv_csr_scalar_kernel<prec><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

@@ -51,18 +51,18 @@ namespace cuda {
      */
     __global__ void mpdspmv_jad(const int m, const int maxnzr, const double *as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
-        extern __shared__ mp_float_t dot[];
+        extern __shared__ mp_float_t vals[];
         mp_float_t prod;
         while (row < m) {
             auto j = 0;
             auto index = row;
-            dot[threadIdx.x] = cuda::MP_ZERO;
+            vals[threadIdx.x] = cuda::MP_ZERO;
             while (j < maxnzr && index < jcp[j + 1]) {
                 cuda::mp_mul_d(&prod, &x[ja[index]], as[index]);
-                cuda::mp_add(&dot[threadIdx.x], &dot[threadIdx.x], &prod);
+                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &prod);
                 index = row + jcp[++j];
             }
-            cuda::mp_set(&y[perm_rows[row]], &dot[threadIdx.x]);
+            cuda::mp_set(&y[perm_rows[row]], &vals[threadIdx.x]);
             row +=  gridDim.x * blockDim.x;
         }
     }

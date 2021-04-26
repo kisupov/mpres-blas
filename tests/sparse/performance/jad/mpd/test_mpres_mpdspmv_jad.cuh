@@ -82,7 +82,7 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int maxnzr, const in
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_jad<<<blocks, threads, sizeof(mp_float_t) * 3 * threads>>>(m, maxnzr, das, dja, djcp, dperm_rows, dx, dy);
+    cuda::mpdspmv_jad<<<blocks, threads, sizeof(mp_float_t) * threads>>>(m, maxnzr, das, dja, djcp, dperm_rows, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
