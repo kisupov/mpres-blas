@@ -36,15 +36,16 @@
 template<int prec>
 __global__ void campary_mpdspmv_jad_kernel(const int m, const int maxnzr, const int *ja, const double *as, const int *jcp, const int *perm_rows, const multi_prec<prec> *x, multi_prec<prec> *y) {
     auto row = threadIdx.x + blockIdx.x * blockDim.x;
+    extern __shared__ multi_prec<prec> dot[];
     while (row < m) {
-        multi_prec<prec> dot = 0.0;
+        dot[threadIdx.x] = 0.0;
         auto j = 0;
         auto index = row;
         while (j < maxnzr && index < jcp[j + 1]) {
-            dot += as[index] * x[ja[index]];
+            dot[threadIdx.x] += as[index] * x[ja[index]];
             index = row + jcp[++j];
         }
-        y[perm_rows[row]] = dot;
+        y[perm_rows[row]] = dot[threadIdx.x];
         row +=  gridDim.x * blockDim.x;
     }
 }
@@ -102,7 +103,7 @@ void test_campary_mpdspmv_jad(const int m, const int n, const int maxnzr, const 
 
     //Launch
     StartCudaTimer();
-    campary_mpdspmv_jad_kernel<prec><<<blocks, threads>>>(m, maxnzr, dja, das, djcp, dperm_rows, dx, dy);
+    campary_mpdspmv_jad_kernel<prec><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, maxnzr, dja, das, djcp, dperm_rows, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

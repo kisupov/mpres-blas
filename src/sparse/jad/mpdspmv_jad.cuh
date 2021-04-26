@@ -38,6 +38,7 @@ namespace cuda {
      * @note Each operation using multiple precision is performed as a single thread
      * @note One thread is assigned to compute one dot product, i.e. one element of the vector n
      * @note No global memory buffer is required
+     * @note Shared memory of size sizeof(mp_float_t) * blockDim.x must be allocated
      *
      * @param m - number of rows in matrix
      * @param maxnzr - maximum number of nonzeros per row in the matrix A
@@ -50,17 +51,18 @@ namespace cuda {
      */
     __global__ void mpdspmv_jad(const int m, const int maxnzr, const double *as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
+        extern __shared__ mp_float_t dot[];
+        mp_float_t prod;
         while (row < m) {
             auto j = 0;
             auto index = row;
-            mp_float_t prod;
-            mp_float_t dot = cuda::MP_ZERO;
+            dot[threadIdx.x] = cuda::MP_ZERO;
             while (j < maxnzr && index < jcp[j + 1]) {
                 cuda::mp_mul_d(&prod, &x[ja[index]], as[index]);
-                cuda::mp_add(&dot, &dot, &prod);
+                cuda::mp_add(&dot[threadIdx.x], &dot[threadIdx.x], &prod);
                 index = row + jcp[++j];
             }
-            cuda::mp_set(&y[perm_rows[row]], &dot);
+            cuda::mp_set(&y[perm_rows[row]], &dot[threadIdx.x]);
             row +=  gridDim.x * blockDim.x;
         }
     }
