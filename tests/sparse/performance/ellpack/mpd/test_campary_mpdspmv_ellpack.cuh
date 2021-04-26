@@ -36,16 +36,17 @@
 template<int prec>
 __global__ void campary_mpdspmv_ellpack_kernel(const int m, const int maxnzr, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
+    extern __shared__ multi_prec<prec> vals[];
     if (row < m) {
-        multi_prec<prec> dot = 0.0;
+        vals[threadIdx.x] = 0.0;
         for (int col = 0; col < maxnzr; col++) {
             auto j = ja[col * m + row];
             auto val = as[col * m + row];
             if(val != 0){
-                dot += val * x[j];
+                vals[threadIdx.x]  += val * x[j];
             }
         }
-        y[row] = dot;
+        y[row] = vals[threadIdx.x];
     }
 }
 
@@ -96,7 +97,7 @@ void test_campary_mpdspmv_ellpack(const int m, const int n, const int maxnzr, co
 
     //Launch
     StartCudaTimer();
-    campary_mpdspmv_ellpack_kernel<prec><<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy);
+    campary_mpdspmv_ellpack_kernel<prec><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, maxnzr, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
