@@ -36,15 +36,16 @@
 template<int prec>
 __global__ void campary_mpdspmv_dia_kernel(const int m, const int n, const int ndiag, const int *offset, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
     auto row = threadIdx.x + blockIdx.x * blockDim.x;
+    extern __shared__ multi_prec<prec> vals[];
     if (row < m) {
-        multi_prec<prec> dot = 0.0;
+        vals[threadIdx.x] = 0.0;
         for (int i = 0; i < ndiag; i++) {
             int j = row + offset[i];
             double val = as[m * i + row];
             if(j  >= 0 && j < n)
-                dot += val * x[j];
+                vals[threadIdx.x] += val * x[j];
         }
-        y[row] = dot;
+        y[row] = vals[threadIdx.x];
     }
 }
 
@@ -95,7 +96,7 @@ void test_campary_mpdspmv_dia(const int m, const int n, const int ndiag, const i
 
     //Launch
     StartCudaTimer();
-    campary_mpdspmv_dia_kernel<prec><<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy);
+    campary_mpdspmv_dia_kernel<prec><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, n, ndiag, doffset, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

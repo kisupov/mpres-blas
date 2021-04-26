@@ -38,6 +38,7 @@ namespace cuda {
      * @note Each operation using multiple precision is performed as a single thread
      * @note One thread is assigned to compute one dot product, i.e. one element of the vector n
      * @note No global memory buffer is required
+     * @note Shared memory of size sizeof(mp_float_t) * blockDim.x must be allocated
      *
      * @param m - number of rows in matrix
      * @param n - number of columns in matrix
@@ -49,18 +50,19 @@ namespace cuda {
      */
     __global__ void mpdspmv_dia(const int m, const int n, const int ndiag, const int *offset, const double *as, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
+        extern __shared__ mp_float_t vals[];
+        mp_float_t prod;
         while (row < m) {
-            mp_float_t prod;
-            mp_float_t dot = cuda::MP_ZERO;
+            vals[threadIdx.x] = cuda::MP_ZERO;
             for (int i = 0; i < ndiag; i++) {
                 int j = row + offset[i];
                 double val = as[m * i + row];
                 if(j >= 0 && j < n) {
                     cuda::mp_mul_d(&prod, &x[j], val);
-                    cuda::mp_add(&dot, &dot, &prod);
+                    cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &prod);
                 }
             }
-            cuda::mp_set(&y[row], &dot);
+            cuda::mp_set(&y[row], &vals[threadIdx.x]);
             row +=  gridDim.x * blockDim.x;
         }
     }
