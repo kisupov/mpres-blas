@@ -34,18 +34,20 @@
  * Scalar kernel - one thread is assigned to each row of the matrix, i.e. one element of the vector y.
  * The matrix should be stored in the CSR format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
-template<int prec>
+template<int threads, int prec>
 __global__ void campary_mpdspmv_csr_scalar_kernel(const int m, const int *irp, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    extern __shared__ multi_prec<prec> vals[];
+    __shared__ multi_prec<prec> sums[threads];
+    __shared__ multi_prec<prec> prods[threads];
     if (row < m) {
-        vals[threadIdx.x] = 0.0;
+        sums[threadIdx.x] = 0.0;
         int row_start = irp[row];
         int row_end = irp[row + 1];
         for (int i = row_start; i < row_end; i++) {
-            vals[threadIdx.x] += as[i] * x[ja[i]];
+            prods[threadIdx.x] = as[i] * x[ja[i]];
+            sums[threadIdx.x] += prods[threadIdx.x];
         }
-        y[row] = vals[threadIdx.x];
+        y[row] = sums[threadIdx.x];
     }
 }
 
@@ -99,7 +101,7 @@ void test_campary_mpdspmv_csr_scalar(const int m, const int n, const int nnz, co
 
     //Launch
     StartCudaTimer();
-    campary_mpdspmv_csr_scalar_kernel<prec><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, dirp, dja, das, dx, dy);
+    campary_mpdspmv_csr_scalar_kernel<32, prec><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

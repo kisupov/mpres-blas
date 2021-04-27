@@ -34,9 +34,10 @@
  * The matrix is in double precision
  * The matrix should be stored in the CSR format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
-template<int prec, int threadsPerRow>
+template<int threads, int threadsPerRow, int prec>
 __global__ void campary_mpdspmv_csr_vector_kernel(const int m, const int *irp, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
-    extern __shared__ multi_prec<prec> vals[];
+    __shared__ multi_prec<prec> sums[threads];
+    __shared__ multi_prec<prec> prods[threads];
     auto threadId = threadIdx.x + blockIdx.x * blockDim.x; // global thread index
     auto groupId = threadId / threadsPerRow; // global thread group index
     auto lane = threadId & (threadsPerRow - 1); // thread index within the group
@@ -45,29 +46,30 @@ __global__ void campary_mpdspmv_csr_vector_kernel(const int m, const int *irp, c
         int row_start = irp[row];
         int row_end = irp[row + 1];
         // compute running sum per thread
-        vals[threadIdx.x] = 0.0;
+        sums[threadIdx.x] = 0.0;
         for (auto i = row_start + lane; i < row_end; i += threadsPerRow) {
-            vals[threadIdx.x] += x[ja[i]] * as[i];
+            prods[threadIdx.x] = x[ja[i]] * as[i];
+            sums[threadIdx.x] += prods[threadIdx.x];
         }
         // parallel reduction in shared memory
         if (threadsPerRow >= 32 && lane < 16) {
-            vals[threadIdx.x] = vals[threadIdx.x] + vals[threadIdx.x + 16];
+            sums[threadIdx.x] = sums[threadIdx.x] + sums[threadIdx.x + 16];
         }
         if (threadsPerRow >= 16 && lane < 8) {
-            vals[threadIdx.x] = vals[threadIdx.x] + vals[threadIdx.x + 8];
+            sums[threadIdx.x] = sums[threadIdx.x] + sums[threadIdx.x + 8];
         }
         if (threadsPerRow >= 8 && lane < 4) {
-            vals[threadIdx.x] = vals[threadIdx.x] + vals[threadIdx.x + 4];
+            sums[threadIdx.x] = sums[threadIdx.x] + sums[threadIdx.x + 4];
         }
         if (threadsPerRow >= 4 && lane < 2) {
-            vals[threadIdx.x] = vals[threadIdx.x] + vals[threadIdx.x + 2];
+            sums[threadIdx.x] = sums[threadIdx.x] + sums[threadIdx.x + 2];
         }
         if (threadsPerRow >= 2 && lane < 1) {
-            vals[threadIdx.x] = vals[threadIdx.x] + vals[threadIdx.x + 1];
+            sums[threadIdx.x] = sums[threadIdx.x] + sums[threadIdx.x + 1];
         }
         // first thread writes the result
         if (lane == 0) {
-            y[row] = vals[threadIdx.x];
+            y[row] = sums[threadIdx.x];
         }
         row +=  gridDim.x * blockDim.x / threadsPerRow;
     }
@@ -80,7 +82,7 @@ void test_campary_mpdspmv_csr_vector(const int m, const int n, const int nnz, co
     PrintTimerName("[GPU] CAMPARY SpMV CSR vector (double precision matrix)");
 
     //Execution configuration
-    const int threads = 256;
+    const int threads = 32;
     const int blocks = m / (threads/threadsPerRow) + 1;
     printf("\tThreads per row = %i\n", threadsPerRow);
 
@@ -123,7 +125,7 @@ void test_campary_mpdspmv_csr_vector(const int m, const int n, const int nnz, co
 
     //Launch
     StartCudaTimer();
-    campary_mpdspmv_csr_vector_kernel<prec, threadsPerRow><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, dirp, dja, das, dx, dy);
+    campary_mpdspmv_csr_vector_kernel<32, threadsPerRow, prec><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

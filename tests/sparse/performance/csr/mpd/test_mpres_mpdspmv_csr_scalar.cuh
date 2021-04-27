@@ -78,7 +78,7 @@ void test_mpres_mpdspmv_csr_scalar(const int m, const int n, const int nnz, cons
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_csr_scalar<<<blocks, threads, sizeof(mp_float_t) * threads>>>(m, dirp, dja, das, dx, dy);
+    cuda::mpdspmv_csr_scalar<32><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

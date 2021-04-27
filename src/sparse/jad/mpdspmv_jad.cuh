@@ -38,8 +38,8 @@ namespace cuda {
      * @note Each operation using multiple precision is performed as a single thread
      * @note One thread is assigned to compute one dot product, i.e. one element of the vector n
      * @note No global memory buffer is required
-     * @note Shared memory of size sizeof(mp_float_t) * blockDim.x must be allocated
      *
+     * @tparam threads - thread block size
      * @param m - number of rows in matrix
      * @param maxnzr - maximum number of nonzeros per row in the matrix A
      * @param as - multiple-precision coefficients array (entries of the matrix A in the JAD (JDS) format), size nnz (number of nonzeros in matrix)
@@ -49,20 +49,21 @@ namespace cuda {
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
+    template<int threads>
     __global__ void mpdspmv_jad(const int m, const int maxnzr, const double *as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
-        extern __shared__ mp_float_t vals[];
-        mp_float_t prod;
+        __shared__ mp_float_t sums[threads];
+        __shared__ mp_float_t prods[threads];
         while (row < m) {
             auto j = 0;
             auto index = row;
-            vals[threadIdx.x] = cuda::MP_ZERO;
+            sums[threadIdx.x] = cuda::MP_ZERO;
             while (j < maxnzr && index < jcp[j + 1]) {
-                cuda::mp_mul_d(&prod, &x[ja[index]], as[index]);
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &prod);
+                cuda::mp_mul_d(&prods[threadIdx.x], &x[ja[index]], as[index]);
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
                 index = row + jcp[++j];
             }
-            cuda::mp_set(&y[perm_rows[row]], &vals[threadIdx.x]);
+            cuda::mp_set(&y[perm_rows[row]], &sums[threadIdx.x]);
             row +=  gridDim.x * blockDim.x;
         }
     }

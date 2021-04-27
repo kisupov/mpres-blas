@@ -33,20 +33,22 @@
  * The matrix is in multiple precision
  * The matrix should be stored in the ELLPACK format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
-template<int prec>
+template<int threads, int prec>
 __global__ void campary_mpdspmv_ellpack_kernel(const int m, const int maxnzr, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    extern __shared__ multi_prec<prec> vals[];
+    __shared__ multi_prec<prec> sums[threads];
+    __shared__ multi_prec<prec> prods[threads];
     if (row < m) {
-        vals[threadIdx.x] = 0.0;
+        sums[threadIdx.x] = 0.0;
         for (int col = 0; col < maxnzr; col++) {
             auto j = ja[col * m + row];
             auto val = as[col * m + row];
             if(val != 0){
-                vals[threadIdx.x]  += val * x[j];
+                prods[threadIdx.x] = val * x[j];
+                sums[threadIdx.x]  +=  prods[threadIdx.x];
             }
         }
-        y[row] = vals[threadIdx.x];
+        y[row] = sums[threadIdx.x];
     }
 }
 
@@ -97,7 +99,7 @@ void test_campary_mpdspmv_ellpack(const int m, const int n, const int maxnzr, co
 
     //Launch
     StartCudaTimer();
-    campary_mpdspmv_ellpack_kernel<prec><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, maxnzr, dja, das, dx, dy);
+    campary_mpdspmv_ellpack_kernel<32, prec><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, maxnzr, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

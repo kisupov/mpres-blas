@@ -37,8 +37,8 @@ namespace cuda {
      * @note The matrix is in double precision and the vectors are in multiple precision
      * @note Each operation using multiple precision is performed as a single thread
      * @note No global memory buffer is required
-     * @note Shared memory of size sizeof(mp_float_t) * blockDim.x must be allocated
      *
+     * @tparam threads - thread block size
      * @tparam threadsPerRow - number of threads assigned to compute one row of the matrix (must be a power of two from 1 to 32, i.e., 1, 2, 4, 8, 16, or 32)
      * @param m - number of rows in matrix
      * @param irp - row start pointers array of size m + 1, last element of irp equals to nnz (number of nonzeros in matrix)
@@ -47,44 +47,42 @@ namespace cuda {
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
-    template<int threadsPerRow>
+    template<int threads, int threadsPerRow>
     __global__ void mpdspmv_csr_vector(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
-        extern __shared__ mp_float_t vals[];
-
+        __shared__ mp_float_t sums[threads];
+        __shared__ mp_float_t prods[threads];
         auto threadId = threadIdx.x + blockIdx.x * blockDim.x; // global thread index
         auto groupId = threadId / threadsPerRow; // global thread group index
         auto lane = threadId & (threadsPerRow - 1); // thread index within the group
         auto row = groupId; // one group per row
-
         while (row < m) {
-            mp_float_t prod;
             int row_start = irp[row];
             int row_end = irp[row + 1];
             // compute running sum per thread
-            vals[threadIdx.x] = cuda::MP_ZERO;
+            sums[threadIdx.x] = cuda::MP_ZERO;
             for (auto i = row_start + lane; i < row_end; i += threadsPerRow) {
-                cuda::mp_mul_d(&prod, &x[ja[i]], as[i]);
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &prod);
+                cuda::mp_mul_d(&prods[threadIdx.x], &x[ja[i]], as[i]);
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
             }
             // parallel reduction in shared memory
             if (threadsPerRow >= 32 && lane < 16) {
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 16]);
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 16]);
             }
             if (threadsPerRow >= 16 && lane < 8) {
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 8]);
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 8]);
             }
             if (threadsPerRow >= 8 && lane < 4) {
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 4]);
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 4]);
             }
             if (threadsPerRow >= 4 && lane < 2) {
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 2]);
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 2]);
             }
             if (threadsPerRow >= 2 && lane < 1) {
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 1]);
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 1]);
             }
             // first thread writes the result
             if (lane == 0) {
-                cuda::mp_set(&y[row], &vals[threadIdx.x]);
+                cuda::mp_set(&y[row], &sums[threadIdx.x]);
             }
             row +=  gridDim.x * blockDim.x / threadsPerRow;
         }

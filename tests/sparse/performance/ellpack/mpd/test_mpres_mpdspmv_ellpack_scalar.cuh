@@ -75,7 +75,7 @@ void test_mpres_mpdspmv_ellpack_scalar(const int m, const int n, const int maxnz
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_ell_scalar<<<blocks, threads, sizeof(mp_float_t) * threads>>>(m, maxnzr, dja, das, dx, dy);
+    cuda::mpdspmv_ell_scalar<32><<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

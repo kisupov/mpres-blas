@@ -37,8 +37,8 @@ namespace cuda {
      * @note The matrix is represented in double precision
      * @note Each operation using multiple precision is performed as a single thread
      * @note No global memory buffer is required
-     * @note Shared memory of size sizeof(mp_float_t) * blockDim.x must be allocated
      *
+     * @tparam threads - thread block size
      * @param m - number of rows in matrix
      * @param irp - row start pointers array of size m + 1, last element of irp equals to nnz (number of nonzeros in matrix)
      * @param ja - column indices array to access the corresponding elements of the vector x, size = nnz
@@ -46,19 +46,20 @@ namespace cuda {
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
+    template<int threads>
     __global__ void mpdspmv_csr_scalar(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
-        extern __shared__ mp_float_t vals[];
-        mp_float_t prod;
+        __shared__ mp_float_t sums[threads];
+        __shared__ mp_float_t prods[threads];
         while (row < m) {
-            vals[threadIdx.x] = cuda::MP_ZERO;
+            sums[threadIdx.x] = cuda::MP_ZERO;
             int row_start = irp[row];
             int row_end = irp[row+1];
             for (int i = row_start; i < row_end; i++) {
-                cuda::mp_mul_d(&prod, &x[ja[i]], as[i]);
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &prod);
+                cuda::mp_mul_d(&prods[threadIdx.x], &x[ja[i]], as[i]);
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
             }
-            cuda::mp_set(&y[row], &vals[threadIdx.x]);
+            cuda::mp_set(&y[row], &sums[threadIdx.x]);
             row +=  gridDim.x * blockDim.x;
         }
     }

@@ -37,7 +37,7 @@ void test_mpres_mpdspmv_csr_vector(const int m, const int n, const int nnz, cons
     PrintTimerName("[GPU] MPRES-BLAS CSR Vector (mpdspmv_csr_vector)");
 
     //Execution configuration
-    const int threads = 256;
+    const int threads = 32;
     const int blocks = m / (threads/threadsPerRow) + 1;
     //int blocks = 32;
     printf("\tThreads per row = %i\n", threadsPerRow);
@@ -81,7 +81,7 @@ void test_mpres_mpdspmv_csr_vector(const int m, const int n, const int nnz, cons
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_csr_vector<threadsPerRow><<<blocks, threads, sizeof(mp_float_t) * threads>>>(m, dirp, dja, das, dx, dy);
+    cuda::mpdspmv_csr_vector<32, threadsPerRow><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
