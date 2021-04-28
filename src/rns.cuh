@@ -86,6 +86,12 @@ int RNS_PART_MODULI_PRODUCT_POW2_RESIDUES[RNS_P2_SCALING_THRESHOLD][RNS_MODULI_S
 int RNS_POW2_INVERSE[RNS_P2_SCALING_THRESHOLD][RNS_MODULI_SIZE];
 
 /*
+ * Moduli reciprocals, rounded directly
+ */
+double RNS_MODULI_RECIP_RD[RNS_MODULI_SIZE];
+double RNS_MODULI_RECIP_RU[RNS_MODULI_SIZE];
+
+/*
  * Constants for computing the interval evaluation of an RNS number
  */
 double RNS_EVAL_ACCURACY; // Accuracy constant for computing the RNS interval evaluation. RNS_EVAL_ACCURACY = 4*u*n*log_2(n)*(1+RNS_EVAL_RELATIVE_ERROR/2)/RNS_EVAL_RELATIVE_ERROR, where u is the unit roundoff,
@@ -114,6 +120,8 @@ namespace cuda {
     __device__ __constant__  interval_t RNS_EVAL_INV_UNIT;
     __device__ __constant__ er_float_t RNS_EVAL_ZERO_BOUND;
     __device__ int MRC_MULT_INV[RNS_MODULI_SIZE][RNS_MODULI_SIZE];
+    __device__ double RNS_MODULI_RECIP_RD[RNS_MODULI_SIZE];
+    __device__ double RNS_MODULI_RECIP_RU[RNS_MODULI_SIZE];
 }
 
 
@@ -400,6 +408,11 @@ void rns_const_init(){
     //round_nearest_mode();
     mpfr_clear(mpfr_tmp);
     mpfr_clear(mpfr_one);
+    //Computing reciprocals
+    for(int i = 0; i < RNS_MODULI_SIZE; i++){
+        RNS_MODULI_RECIP_RD[i] = ddiv_rd(1.0, RNS_MODULI[i]);
+        RNS_MODULI_RECIP_RU[i] = ddiv_ru(1.0, RNS_MODULI[i]);
+    }
     //Init the MRC constants
     for (int i = 0; i < RNS_MODULI_SIZE; ++i) {
         for (int j = 0; j < RNS_MODULI_SIZE; ++j) {
@@ -424,6 +437,8 @@ void rns_const_init(){
     cudaMemcpyToSymbol(cuda::RNS_EVAL_INV_UNIT, &RNS_EVAL_INV_UNIT, sizeof(interval_t));
     cudaMemcpyToSymbol(cuda::RNS_EVAL_ZERO_BOUND, &RNS_EVAL_ZERO_BOUND, sizeof(er_float_t));
     cudaMemcpyToSymbol(cuda::MRC_MULT_INV, &MRC_MULT_INV, sizeof(int) * RNS_MODULI_SIZE * RNS_MODULI_SIZE);
+    cudaMemcpyToSymbol(cuda::RNS_MODULI_RECIP_RD, &RNS_MODULI_RECIP_RD, RNS_MODULI_SIZE * sizeof(double));
+    cudaMemcpyToSymbol(cuda::RNS_MODULI_RECIP_RU, &RNS_MODULI_RECIP_RU, RNS_MODULI_SIZE * sizeof(double));
 }
 
 /*
@@ -746,8 +761,8 @@ namespace cuda{
         //1.0 / moduli[i] is evaluated at compile time
         cuda::rns_mul(s, x, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            fracl[i] = __dmul_rd(s[i], 1.0 / moduli[i]);
-            fracu[i] = __dmul_ru(s[i], 1.0 / moduli[i]);
+            fracl[i] = __dmul_rd(s[i], cuda::RNS_MODULI_RECIP_RD[i]);
+            fracu[i] = __dmul_ru(s[i], cuda::RNS_MODULI_RECIP_RU[i]);
         }
         //Pairwise summation of the fractions
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
@@ -790,7 +805,7 @@ namespace cuda{
             int k = MAX(-(ceil(log2(sumu))+1), cuda::RNS_EVAL_REF_FACTOR);
             cuda::rns_mul(s, s, cuda::RNS_POW2[k]);
             for(int i = 0; i < RNS_MODULI_SIZE; i++) {
-                fracu[i] = __dmul_ru(s[i], 1.0 / moduli[i]);
+                fracu[i] = __dmul_ru(s[i], cuda::RNS_MODULI_RECIP_RU[i]);
             }
             sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
             sumu = __dsub_ru(sumu, (unsigned int) sumu);
@@ -798,7 +813,7 @@ namespace cuda{
         }
         // Computing the shifted lower bound
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            fracl[i] = __dmul_rd(s[i], 1.0 / moduli[i]);
+            fracl[i] = __dmul_rd(s[i], cuda::RNS_MODULI_RECIP_RD[i]);
         }
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
         suml = __dsub_rd(suml, (unsigned int) suml);
@@ -828,8 +843,8 @@ namespace cuda{
         //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
         cuda::rns_mul(s, x, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            fracl[i] = __dmul_rd(s[i], 1.0 / moduli[i]);
-            fracu[i] = __dmul_ru(s[i], 1.0 / moduli[i]);
+            fracl[i] = __dmul_rd(s[i], cuda::RNS_MODULI_RECIP_RD[i]);
+            fracu[i] = __dmul_ru(s[i], cuda::RNS_MODULI_RECIP_RU[i]);
         }
         //Pairwise summation of the fractions
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
@@ -856,7 +871,7 @@ namespace cuda{
             int k = MAX(-(ceil(log2(sumu))+1), cuda::RNS_EVAL_REF_FACTOR);
             cuda::rns_mul(s, s, cuda::RNS_POW2[k]);
             for(int i = 0; i < RNS_MODULI_SIZE; i++) {
-                fracu[i] = __dmul_ru(s[i], 1.0 / moduli[i]);
+                fracu[i] = __dmul_ru(s[i], cuda::RNS_MODULI_RECIP_RU[i]);
             }
             sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
             sumu = __dsub_ru(sumu, (unsigned int) sumu);
@@ -864,7 +879,7 @@ namespace cuda{
         }
         // Computing the shifted lower bound
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            fracl[i] = __dmul_rd(s[i], 1.0 / moduli[i]);
+            fracl[i] = __dmul_rd(s[i], cuda::RNS_MODULI_RECIP_RD[i]);
         }
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
         suml = __dsub_rd(suml, (unsigned int) suml);
@@ -1008,8 +1023,8 @@ namespace cuda{
         int mr = -1;
         //Computing ( (x_i * w_i) mod m_i ) / mi
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            fracl[i] = __dmul_rd(s[i], 1.0 / moduli[i]);
-            fracu[i] = __dmul_ru(s[i], 1.0 / moduli[i]);
+            fracl[i] = __dmul_rd(s[i], cuda::RNS_MODULI_RECIP_RD[i]);
+            fracu[i] = __dmul_ru(s[i], cuda::RNS_MODULI_RECIP_RU[i]);
         }
         //Pairwise summation of the fractions
         suml = cuda::psum_rd<RNS_MODULI_SIZE>(fracl);
@@ -1038,7 +1053,7 @@ namespace cuda{
         double fracu[RNS_MODULI_SIZE];
         double sumu = 0.0;
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-            fracu[i] = __dmul_ru(s[i], 1.0 / moduli[i]);
+            fracu[i] = __dmul_ru(s[i], cuda::RNS_MODULI_RECIP_RU[i]);
         }
         sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
         return (int) sumu;
