@@ -748,7 +748,6 @@ namespace cuda{
      * @param x - pointer to the input RNS number
      */
     DEVICE_CUDA_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * x) {
-        constexpr double moduli[ RNS_MODULI_SIZE ] = RNS_MODULI_VALUES;
         const double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
         int  s[RNS_MODULI_SIZE];
         double fracl[RNS_MODULI_SIZE];
@@ -833,7 +832,6 @@ namespace cuda{
      * @param x - pointer to the input RNS number
      */
     DEVICE_CUDA_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, int * x) {
-        constexpr double moduli[ RNS_MODULI_SIZE ] = RNS_MODULI_VALUES;
         const double accuracy_constant = cuda::RNS_EVAL_ACCURACY;
         int s[RNS_MODULI_SIZE];
         double fracl[RNS_MODULI_SIZE];
@@ -1014,7 +1012,6 @@ namespace cuda{
      * where w_i is the modulo mi multiplicative inverse of Mi = M / mi.
      */
     DEVICE_CUDA_FORCEINLINE int rns_rank_compute(int * x, int * s) {
-        constexpr double moduli[ RNS_MODULI_SIZE ] = RNS_MODULI_VALUES;
         double fracl[RNS_MODULI_SIZE];
         double fracu[RNS_MODULI_SIZE];
         double suml = 0.0;
@@ -1049,7 +1046,6 @@ namespace cuda{
      * This function performs faster than the previous one.
      */
     DEVICE_CUDA_FORCEINLINE int rns_rank_compute_fast(int * x, int * s) {
-        constexpr double moduli[ RNS_MODULI_SIZE ] = RNS_MODULI_VALUES;
         double fracu[RNS_MODULI_SIZE];
         double sumu = 0.0;
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
