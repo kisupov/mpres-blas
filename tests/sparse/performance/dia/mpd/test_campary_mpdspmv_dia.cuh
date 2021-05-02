@@ -43,7 +43,7 @@ __global__ void campary_mpdspmv_dia_kernel(const int m, const int n, const int n
         for (int i = 0; i < ndiag; i++) {
             int j = row + offset[i];
             double val = as[m * i + row];
-            if(j  >= 0 && j < n)
+            if(j  >= 0 && j < n && val != 0)
                 prods[threadIdx.x] = val * x[j];
                 sums[threadIdx.x] += prods[threadIdx.x];
         }

@@ -36,7 +36,7 @@ __global__ static void double_spmv_dia_kernel(const int m, const int n, const in
         for (int i = 0; i < ndiag; i++) {
             int col = row + offset[i];
             double val = as[m * i + row];
-            if(col  >= 0 && col < n)
+            if(col  >= 0 && col < n && val != 0)
                 dot += val * x[col];
         }
         y[row] = dot;
