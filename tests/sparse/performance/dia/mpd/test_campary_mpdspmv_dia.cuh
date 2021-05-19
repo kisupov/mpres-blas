@@ -62,12 +62,6 @@ void test_campary_mpdspmv_dia(const int m, const int n, const int ndiag, const i
     int blocks = m / threads + 1;
     printf("Exec. config: blocks = %i, threads = %i\n", blocks, threads);
 
-    //Memory requirements
-    double sizeOfMatrix = print_dbl_dia_memory_consumption(m, ndiag);
-    double sizeOfVectors = get_campary_array_size_in_mb<prec>(m + n);
-    printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
-    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors);
-
     //Host data
     multi_prec<prec> *hx = new multi_prec<prec>[n];
     multi_prec<prec> *hy = new multi_prec<prec>[m];

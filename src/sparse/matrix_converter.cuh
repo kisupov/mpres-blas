@@ -333,6 +333,41 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
         }
     }
     file.close();
+    diagOffsets.clear();
+    diagOffsets.shrink_to_fit();
+}
+
+/*!
+ * Calculates the number of nonzero diagonals in the sparse matrix
+ * @param filename - path to the file with the matrix
+ * @param lines - total number of lines with data
+ * @param ndiag - number of nonzero diagonals
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
+ */
+int calc_ndiag(const char filename[], const int lines, bool symmetric) {
+    std::ifstream file(filename);
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::vector<int> diagOffsets(lines);
+    for (int l = 0; l < lines; l++) {
+        double fileData = 0.0;
+        int row = 0, col = 0;
+        file >> row >> col >> fileData;
+        diagOffsets[l] = col-row;
+    }
+    std::sort(diagOffsets.begin(), diagOffsets.end());
+    diagOffsets.erase(std::unique(diagOffsets.begin(), diagOffsets.end()), diagOffsets.end());
+    int ndiag = (int) diagOffsets.size();
+    if (symmetric) {
+        for (int i = ndiag-2; i > -1; i--) {
+            diagOffsets.push_back(-diagOffsets[i]);
+        }
+        ndiag = (int) diagOffsets.size();
+    }
+    file.close();
+    diagOffsets.clear();
+    diagOffsets.shrink_to_fit();
+    return ndiag;
 }
 
 /*!

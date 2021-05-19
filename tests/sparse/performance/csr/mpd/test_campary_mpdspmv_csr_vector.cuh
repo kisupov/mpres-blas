@@ -86,12 +86,6 @@ void test_campary_mpdspmv_csr_vector(const int m, const int n, const int nnz, co
     const int blocks = m / (threads/threadsPerRow) + 1;
     printf("\tThreads per row = %i\n", threadsPerRow);
 
-    //Memory requirements
-  /* double sizeOfMatrix = print_dbl_csr_memory_consumption(m, nnz);
-     double sizeOfVectors = get_campary_array_size_in_mb<prec>(m + n);
-     printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
-     printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors); */
-
     //Host data
     auto *hx = new multi_prec<prec>[n];
     auto *hy = new multi_prec<prec>[m];

@@ -56,46 +56,38 @@ double get_cump_array_size_in_mb(size_t n, int nbit){
 }
 
 /*
- * Displays the memory consumption of a double precision CSR structure and returns the total size of the structure in MB
+ * Returns the memory consumption of a double precision CSR structure and returns the total size of the structure in MB
  */
-double print_cump_csr_memory_consumption(const int m, const int nnz, const int prec){
+double get_cump_csr_memory_consumption(const int m, const int nnz, const int prec){
     double sizeOfAs = get_cump_array_size_in_mb(nnz, prec);
     double sizeOfCsr = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(m + 1);
-    //printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
-    printf("\tCSR structure size (MB): %lf\n", sizeOfCsr);
     return sizeOfCsr;
 }
 
 /*
- * Displays the memory consumption of a double precision ELLPACK structure and returns the total size of the structure in MB
+ * Returns the memory consumption of a double precision ELLPACK structure and returns the total size of the structure in MB
  */
-double print_cump_ell_memory_consumption(const int m, const int maxnzr, const int prec){
+double get_cump_ell_memory_consumption(const int m, const int maxnzr, const int prec){
     double sizeOfAs = get_cump_array_size_in_mb(m * maxnzr, prec);
     double sizeOfEll = sizeOfAs + get_int_array_size_in_mb(m * maxnzr);
-    //printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
-    printf("\tELL structure size (MB): %lf\n", sizeOfEll);
     return sizeOfEll;
 }
 
 /*
- * Displays the memory consumption of a double precision JAD structure and returns the total size of the structure in MB
+ * Returns the memory consumption of a double precision JAD structure and returns the total size of the structure in MB
  */
-double print_cump_jad_memory_consumption(const int m, const int n, const int nnz, const int maxnzr, const int prec){
+double get_cump_jad_memory_consumption(const int m, const int n, const int nnz, const int maxnzr, const int prec){
     double sizeOfAs = get_cump_array_size_in_mb(nnz, prec);
     double sizeOfJad = sizeOfAs + get_int_array_size_in_mb(nnz) + get_int_array_size_in_mb(maxnzr + 1)+ get_int_array_size_in_mb(m);
-    //printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
-    printf("\tJAD structure size (MB): %lf\n", sizeOfJad);
     return sizeOfJad;
 }
 
 /*
- * Displays the memory consumption of a double precision DIA structure and returns the total size of the structure in MB
+ * Returns the memory consumption of a double precision DIA structure and returns the total size of the structure in MB
  */
-double print_cump_dia_memory_consumption(const int m, const int ndiag, const int prec){
+double get_cump_dia_memory_consumption(const int m, const int ndiag, const int prec){
     double sizeOfAs = get_cump_array_size_in_mb(m * ndiag, prec);
     double sizeOfDia = sizeOfAs + get_int_array_size_in_mb(ndiag);
-    //printf("\tMatrix (AS array) size (MB): %lf\n", sizeOfAs);
-    printf("\tDIA structure size (MB): %lf\n", sizeOfDia);
     return sizeOfDia;
 }
 

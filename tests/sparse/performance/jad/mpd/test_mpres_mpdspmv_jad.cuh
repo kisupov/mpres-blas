@@ -41,12 +41,6 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int maxnzr, const in
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
-    //Memory requirements
-    double sizeOfMatrix = print_dbl_jad_memory_consumption(m, n, nnz, maxnzr);
-    double sizeOfVectors = get_mp_float_array_size_in_mb(m + n);
-    printf("\tVectors x and y size (MB): %lf\n", sizeOfVectors);
-    printf("\tTOTAL Memory Consumption (MB): %lf\n", sizeOfMatrix + sizeOfVectors);
-
     // Host data
     auto hx = new mp_float_t[n];
     auto hy = new mp_float_t[m];
