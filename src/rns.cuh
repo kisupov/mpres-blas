@@ -525,7 +525,7 @@ GCC_FORCEINLINE static int mrs_cmp(int * x, int * y) {
  * Compares RNS numbers using mixed-radix conversion
  * @return 1, if x > y; -1, if x < y; 0, if x = y
  */
-int mrc_compare_rns(int * x, int * y) {
+GCC_FORCEINLINE int mrc_compare_rns(int * x, int * y) {
     int mx[RNS_MODULI_SIZE];
     int my[RNS_MODULI_SIZE];
     mrc(mx, x);
@@ -614,7 +614,9 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
     rns_mul(s, x, RNS_PART_MODULI_PRODUCT_INVERSE);
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        ddiv_rdu(&fracl[i], &fracu[i], (double)s[i], (double)RNS_MODULI[i]);
+        fracl[i] = dmul_rd(s[i], RNS_MODULI_RECIP_RD[i]);
+        fracu[i] = dmul_ru(s[i], RNS_MODULI_RECIP_RU[i]);
+        //ddiv_rdu(&fracl[i], &fracu[i], (double)s[i], (double)RNS_MODULI[i]);
     }
     //Pairwise summation of the fractions
     suml = psum_rd<RNS_MODULI_SIZE>(fracl);
@@ -693,7 +695,9 @@ GCC_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, i
     //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
     rns_mul(s, x, RNS_PART_MODULI_PRODUCT_INVERSE);
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        ddiv_rdu(&fracl[i], &fracu[i], (double)s[i], (double)RNS_MODULI[i]);
+        fracl[i] = dmul_rd(s[i], RNS_MODULI_RECIP_RD[i]);
+        fracu[i] = dmul_ru(s[i], RNS_MODULI_RECIP_RU[i]);
+        //ddiv_rdu(&fracl[i], &fracu[i], (double)s[i], (double)RNS_MODULI[i]);
     }
     //Pairwise summation of the fractions
     suml = psum_rd<RNS_MODULI_SIZE>(fracl);
@@ -757,7 +761,6 @@ namespace cuda{
         int mrd[RNS_MODULI_SIZE];
         int mr = -1;
         //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
-        //1.0 / moduli[i] is evaluated at compile time
         cuda::rns_mul(s, x, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             fracl[i] = __dmul_rd(s[i], cuda::RNS_MODULI_RECIP_RD[i]);
@@ -899,7 +902,7 @@ namespace cuda{
  * X = sum( Mi * x_i * w_i (mod m_i) ) - r * M. Array s stores the computed values (xi * w_i) mod mi
  * where w_i is the modulo mi multiplicative inverse of Mi = M / mi.
  */
-GCC_FORCEINLINE int rns_rank_compute(int * x, int * s) {
+GCC_FORCEINLINE static int rns_rank_compute(int * x, int * s) {
     double fracl[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding down
     double fracu[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding up
     double suml = 0.0;
@@ -909,7 +912,9 @@ GCC_FORCEINLINE int rns_rank_compute(int * x, int * s) {
 
     //Computing ( (x_i * w_i) mod m_i ) / mi
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        ddiv_rdu(&fracl[i], &fracu[i], (double)s[i], (double)RNS_MODULI[i]);
+        fracl[i] = dmul_rd(s[i], RNS_MODULI_RECIP_RD[i]);
+        fracu[i] = dmul_ru(s[i], RNS_MODULI_RECIP_RU[i]);
+        //ddiv_rdu(&fracl[i], &fracu[i], (double)s[i], (double)RNS_MODULI[i]);
     }
     //Pairwise summation of the fractions
     suml = psum_rd<RNS_MODULI_SIZE>(fracl);
@@ -933,11 +938,12 @@ GCC_FORCEINLINE int rns_rank_compute(int * x, int * s) {
  * Array s stores the computed values (xi * w_i) mod mi, where w_i is the modulo mi multiplicative inverse of Mi = M / mi.
  * This function performs faster than the previous one.
  */
-GCC_FORCEINLINE int rns_rank_compute_fast(int * x, int * s) {
+GCC_FORCEINLINE static int rns_rank_compute_fast(int * s) {
     double fracu[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding up
     double sumu = 0.0;
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        fracu[i] = ddiv_ru((double)s[i], (double)RNS_MODULI[i]);
+        fracu[i] = dmul_ru(s[i], RNS_MODULI_RECIP_RU[i]);
+        //fracu[i] = ddiv_ru((double)s[i], (double)RNS_MODULI[i]);
     }
     sumu = psum_ru<RNS_MODULI_SIZE>(fracu);
     return (int) sumu;
@@ -946,7 +952,7 @@ GCC_FORCEINLINE int rns_rank_compute_fast(int * x, int * s) {
 /*
  * This helper function performs one step of scaling by a power of two
  */
-GCC_FORCEINLINE void scale2powj(int *y, int k, unsigned int j, int pow2j, int * x, int * c) {
+GCC_FORCEINLINE static void make_scaling_step(int *y, int k, unsigned int j, int pow2j, int * x, int * c) {
     long residue = 0; //X mod 2^j
     int multiple[RNS_MODULI_SIZE]; //X - (X mod pow2j)
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -981,22 +987,22 @@ GCC_FORCEINLINE void rns_scale2pow(int * result, int * x, unsigned int D) {
     if (t > 0) {
         rns_mul(c, x, RNS_PART_MODULI_PRODUCT_INVERSE);
         k = rns_rank_compute(x, c);
-        scale2powj(result, k, RNS_P2_SCALING_THRESHOLD, RNS_P2_SCALING_FACTOR, x, c);
+        make_scaling_step(result, k, RNS_P2_SCALING_THRESHOLD, RNS_P2_SCALING_FACTOR, x, c);
         t -= 1;
     }
     //second step
     while (t > 0) {
         rns_mul(c, result, RNS_PART_MODULI_PRODUCT_INVERSE);
-        k = rns_rank_compute_fast(result, c);
-        scale2powj(result, k, RNS_P2_SCALING_THRESHOLD, RNS_P2_SCALING_FACTOR, result, c);
+        k = rns_rank_compute_fast(c);
+        make_scaling_step(result, k, RNS_P2_SCALING_THRESHOLD, RNS_P2_SCALING_FACTOR, result, c);
         t -= 1;
     }
     //third step
     unsigned int d = D % RNS_P2_SCALING_THRESHOLD;
     if (d > 0) {
         rns_mul(c, result, RNS_PART_MODULI_PRODUCT_INVERSE);
-        k = d < D ? rns_rank_compute_fast(result, c) : rns_rank_compute(result, c);
-        scale2powj(result, k, d, 1 << d, result, c);
+        k = d < D ? rns_rank_compute_fast(c) : rns_rank_compute(result, c);
+        make_scaling_step(result, k, d, 1 << d, result, c);
     }
 }
 
@@ -1011,7 +1017,7 @@ namespace cuda{
      * X = sum( Mi * x_i * w_i (mod m_i) ) - r * M. Array s stores the computed values (xi * w_i) mod mi
      * where w_i is the modulo mi multiplicative inverse of Mi = M / mi.
      */
-    DEVICE_CUDA_FORCEINLINE int rns_rank_compute(int * x, int * s) {
+    DEVICE_CUDA_FORCEINLINE static int rns_rank_compute(int * x, int * s) {
         double fracl[RNS_MODULI_SIZE];
         double fracu[RNS_MODULI_SIZE];
         double suml = 0.0;
@@ -1045,7 +1051,7 @@ namespace cuda{
      * Array s stores the computed values (xi * w_i) mod mi, where w_i is the modulo mi multiplicative inverse of Mi = M / mi.
      * This function performs faster than the previous one.
      */
-    DEVICE_CUDA_FORCEINLINE int rns_rank_compute_fast(int * x, int * s) {
+    DEVICE_CUDA_FORCEINLINE static int rns_rank_compute_fast(int * x, int * s) {
         double fracu[RNS_MODULI_SIZE];
         double sumu = 0.0;
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -1058,7 +1064,7 @@ namespace cuda{
     /*
      * This helper function performs one step of scaling by a power of two
      */
-    DEVICE_CUDA_FORCEINLINE void scale2powj(int * y, int k, unsigned int j, int pow2j, int * x, int * c) {
+    DEVICE_CUDA_FORCEINLINE static void make_scaling_step(int * y, int k, unsigned int j, int pow2j, int * x, int * c) {
         long residue = 0; // X mod 2^j
         int multiple[RNS_MODULI_SIZE]; // X - (X mod pow2j)
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -1095,14 +1101,14 @@ namespace cuda{
         if (t > 0) {
             cuda::rns_mul(c, x, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
             k = cuda::rns_rank_compute(x, c);
-            cuda::scale2powj(result, k, RNS_P2_SCALING_THRESHOLD, RNS_P2_SCALING_FACTOR, x, c);
+            cuda::make_scaling_step(result, k, RNS_P2_SCALING_THRESHOLD, RNS_P2_SCALING_FACTOR, x, c);
             t -= 1;
         }
         //second step
         while (t > 0) {
             cuda::rns_mul(c, result, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
             k = cuda::rns_rank_compute_fast(result, c);
-            cuda::scale2powj(result, k, RNS_P2_SCALING_THRESHOLD, RNS_P2_SCALING_FACTOR, result, c);
+            cuda::make_scaling_step(result, k, RNS_P2_SCALING_THRESHOLD, RNS_P2_SCALING_FACTOR, result, c);
             t -= 1;
         }
         //third step
@@ -1110,7 +1116,7 @@ namespace cuda{
         if (d > 0) {
             cuda::rns_mul(c, result, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
             k = d < D ? cuda::rns_rank_compute(result, c) : cuda::rns_rank_compute_fast(result, c);
-            cuda::scale2powj(result, k, d, 1 << d, result, c);
+            cuda::make_scaling_step(result, k, d, 1 << d, result, c);
         }
     }
 
