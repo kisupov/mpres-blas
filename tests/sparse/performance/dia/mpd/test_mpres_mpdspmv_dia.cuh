@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_mpmtx_dia (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_dia (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -25,7 +25,7 @@
 #include "../../../../tsthelper.cuh"
 #include "../../../../logger.cuh"
 #include "../../../../timers.cuh"
-#include "sparse/mpdspmv_dia.cuh"
+#include "sparse/mpspmv_dia.cuh"
 
 /////////
 //  SpMV DIA scalar kernel
@@ -33,7 +33,7 @@
 void test_mpres_mpdspmv_dia(const int m, const int n, const int ndiag, const int *offset, const double *as, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS DIA (mpdspmv_dia)");
+    PrintTimerName("[GPU] MPRES-BLAS DIA (mpspmv_dia)");
 
     //Execution configuration
     int threads = 32;
@@ -69,7 +69,7 @@ void test_mpres_mpdspmv_dia(const int m, const int n, const int ndiag, const int
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_dia<32><<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy);
+    cuda::mpspmv_dia<32><<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

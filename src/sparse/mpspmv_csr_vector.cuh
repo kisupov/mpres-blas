@@ -1,6 +1,6 @@
 /*
  *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format (double precision matrix, multiple precision vectors)
- *  Scalar CSR kernel - one thread is assigned to each row of the matrix
+ *  Vector CSR kernel - multiple threads (up to 32) assigned to each row of the matrix
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
@@ -20,8 +20,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPDSPMV_CSR_SCALAR_CUH
-#define MPDSPMV_CSR_SCALAR_CUH
+#ifndef MPSPMV_CSR_VECTOR_CUH
+#define MPSPMV_CSR_VECTOR_CUH
 
 #include "../arith/mpadd.cuh"
 #include "../arith/mpmuld.cuh"
@@ -31,14 +31,15 @@ namespace cuda {
 
     /*!
      * Performs the matrix-vector operation y = A * x, where x and y are dense vectors and A is a sparse matrix.
-     * Scalar kernel - one thread is assigned to each row of the matrix, i.e. one element of the vector y.
+     * Vector kernel - a group of threads (up to 32 threads) are assigned to each row of the matrix, i.e. one element of the vector y.
      * The matrix should be stored in the CSR format: entries are stored in a dense array of nonzeros in row major order.
      *
-     * @note The matrix is represented in double precision
+     * @note The matrix is in double precision and the vectors are in multiple precision
      * @note Each operation using multiple precision is performed as a single thread
      * @note No global memory buffer is required
      *
      * @tparam threads - thread block size
+     * @tparam threadsPerRow - number of threads assigned to compute one row of the matrix (must be a power of two from 1 to 32, i.e., 1, 2, 4, 8, 16, or 32)
      * @param m - number of rows in matrix
      * @param irp - row start pointers array of size m + 1, last element of irp equals to nnz (number of nonzeros in matrix)
      * @param ja - column indices array to access the corresponding elements of the vector x, size = nnz
@@ -46,24 +47,47 @@ namespace cuda {
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
-    template<int threads>
-    __global__ void mpdspmv_csr_scalar(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
-        auto row = threadIdx.x + blockIdx.x * blockDim.x;
+    template<int threads, int threadsPerRow>
+    __global__ void mpspmv_csr_vector(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
         __shared__ mp_float_t sums[threads];
         __shared__ mp_float_t prods[threads];
+        auto threadId = threadIdx.x + blockIdx.x * blockDim.x; // global thread index
+        auto groupId = threadId / threadsPerRow; // global thread group index
+        auto lane = threadId & (threadsPerRow - 1); // thread index within the group
+        auto row = groupId; // one group per row
         while (row < m) {
-            sums[threadIdx.x] = cuda::MP_ZERO;
             int row_start = irp[row];
-            int row_end = irp[row+1];
-            for (int i = row_start; i < row_end; i++) {
+            int row_end = irp[row + 1];
+            // compute running sum per thread
+            sums[threadIdx.x] = cuda::MP_ZERO;
+            for (auto i = row_start + lane; i < row_end; i += threadsPerRow) {
                 cuda::mp_mul_d(&prods[threadIdx.x], &x[ja[i]], as[i]);
                 cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
             }
-            cuda::mp_set(&y[row], &sums[threadIdx.x]);
-            row +=  gridDim.x * blockDim.x;
+            // parallel reduction in shared memory
+            if (threadsPerRow >= 32 && lane < 16) {
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 16]);
+            }
+            if (threadsPerRow >= 16 && lane < 8) {
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 8]);
+            }
+            if (threadsPerRow >= 8 && lane < 4) {
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 4]);
+            }
+            if (threadsPerRow >= 4 && lane < 2) {
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 2]);
+            }
+            if (threadsPerRow >= 2 && lane < 1) {
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 1]);
+            }
+            // first thread writes the result
+            if (lane == 0) {
+                cuda::mp_set(&y[row], &sums[threadIdx.x]);
+            }
+            row +=  gridDim.x * blockDim.x / threadsPerRow;
         }
     }
 
 } // namespace cuda
 
-#endif //MPDSPMV_CSR_SCALAR_CUH
+#endif //MPSPMV_CSR_VECTOR_CUH

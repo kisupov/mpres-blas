@@ -33,7 +33,7 @@
 void test_mpres_mpspmv_mpmtx_dia(const int m, const int n, const int ndiag, const int *offset, const double *as, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS mpdspmv_dia");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_dia");
 
     //Execution configuration
     int threads = 32;

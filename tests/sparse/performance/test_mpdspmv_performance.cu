@@ -29,16 +29,16 @@
 #include "sparse/performance/csr/mpd/test_mpres_mpdspmv_csr_scalar.cuh"
 #include "sparse/performance/csr/mpd/test_mpres_mpdspmv_csr_vector.cuh"
 #include "sparse/performance/jad/mpd/test_mpres_mpdspmv_jad.cuh"
-#include "sparse/performance/ellpack/mpd/test_mpres_mpdspmv_ellpack_scalar.cuh"
+#include "sparse/performance/ell/test_mpres_mpspmv_ell.cuh"
 #include "sparse/performance/dia/mpd/test_mpres_mpdspmv_dia.cuh"
 #include "sparse/performance/csr/mpd/test_campary_mpdspmv_csr_scalar.cuh"
 #include "sparse/performance/csr/mpd/test_campary_mpdspmv_csr_vector.cuh"
 #include "sparse/performance/jad/mpd/test_campary_mpdspmv_jad.cuh"
-#include "sparse/performance/ellpack//mpd/test_campary_mpdspmv_ellpack.cuh"
+#include "sparse/performance/ell/test_campary_mpspmv_ell.cuh"
 #include "sparse/performance/dia/mpd/test_campary_mpdspmv_dia.cuh"
 #include "sparse/performance/csr/mp/test_cump_mpspmv_csr_scalar.cuh"
 #include "sparse/performance/jad/mp/test_cump_mpspmv_jad.cuh"
-#include "sparse/performance/ellpack/mp/test_cump_mpspmv_ellpack.cuh"
+#include "sparse/performance/ell/test_cump_mpspmv_ell.cuh"
 #include "sparse/performance/dia/mp/test_cump_mpspmv_dia.cuh"
 
 bool TEST_DIA = false; // Whether or not dia should be tested
@@ -193,7 +193,7 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     AS = new double [M * MAXNZR]();
     JA = new int[M * MAXNZR]();
     convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
-    test_mpres_mpdspmv_ellpack_scalar(M, N, MAXNZR, JA, AS, vectorX);
+    test_mpres_mpspmv_ell(M, N, MAXNZR, JA, AS, vectorX);
     delete[] AS;
     delete[] JA;
 
@@ -242,7 +242,7 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     AS = new double [M * MAXNZR]();
     JA = new int[M * MAXNZR]();
     convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
-    test_campary_mpdspmv_ellpack<CAMPARY_PRECISION>(M, N, MAXNZR, JA, AS, vectorX, INP_DIGITS);
+    test_campary_mpspmv_ell<CAMPARY_PRECISION>(M, N, MAXNZR, JA, AS, vectorX, INP_DIGITS);
     delete[] AS;
     delete[] JA;
 
@@ -288,7 +288,7 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     AS = new double [M * MAXNZR]();
     JA = new int[M * MAXNZR]();
     convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
-    test_cump_mpspmv_ellpack(M, N, MAXNZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_cump_mpspmv_ell(M, N, MAXNZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
     delete[] AS;
     delete[] JA;
 

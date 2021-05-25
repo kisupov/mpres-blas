@@ -19,17 +19,17 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_DOUBLE_SPMV_ELLPACK_CUH
-#define TEST_DOUBLE_SPMV_ELLPACK_CUH
+#ifndef TEST_DOUBLE_SPMV_ELL_CUH
+#define TEST_DOUBLE_SPMV_ELL_CUH
 
-#include "../../../../tsthelper.cuh"
-#include "../../../../logger.cuh"
-#include "../../../../timers.cuh"
+#include "../../../tsthelper.cuh"
+#include "../../../logger.cuh"
+#include "../../../timers.cuh"
 
 /////////
 // Double precision
 /////////
-__global__ static void double_spmv_ellpack_kernel(const int m, const int maxnzr, const int *ja, const double *as, const double *x, double *y) {
+__global__ static void double_spmv_ell_kernel(const int m, const int maxnzr, const int *ja, const double *as, const double *x, double *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if(row < m){
         double dot = 0;
@@ -43,7 +43,7 @@ __global__ static void double_spmv_ellpack_kernel(const int m, const int maxnzr,
     }
 }
 
-void test_double_spmv_ellpack(const int m, const int n, const int maxnzr, const int *ja, const double *as, const mpfr_t *x) {
+void test_double_spmv_ell(const int m, const int n, const int maxnzr, const int *ja, const double *as, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] double SpMV ELLPACK");
@@ -79,7 +79,7 @@ void test_double_spmv_ellpack(const int m, const int n, const int maxnzr, const 
 
     //Launch
     StartCudaTimer();
-    double_spmv_ellpack_kernel<<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy);
+    double_spmv_ell_kernel<<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -97,4 +97,4 @@ void test_double_spmv_ellpack(const int m, const int n, const int maxnzr, const 
     cudaFree(dy);
 }
 
-#endif //TEST_DOUBLE_SPMV_ELLPACK_CUH
+#endif //TEST_DOUBLE_SPMV_ELL_CUH

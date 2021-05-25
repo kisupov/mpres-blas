@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_mpmtx_ell (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_ell (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,21 +19,21 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_MPDSPMV_ELLPACK_SCALAR_CUH
-#define TEST_MPRES_MPDSPMV_ELLPACK_SCALAR_CUH
+#ifndef TEST_MPRES_MPSPMV_ELL_CUH
+#define TEST_MPRES_MPSPMV_ELL_CUH
 
-#include "../../../../tsthelper.cuh"
-#include "../../../../logger.cuh"
-#include "../../../../timers.cuh"
-#include "sparse/mpdspmv_ell_scalar.cuh"
+#include "../../../tsthelper.cuh"
+#include "../../../logger.cuh"
+#include "../../../timers.cuh"
+#include "../../../../src/sparse/mpspmv_ell.cuh"
 
 /////////
 //  SpMV ELLPACK scalar kernel
 /////////
-void test_mpres_mpdspmv_ellpack_scalar(const int m, const int n, const int maxnzr, const int *ja, const double *as, const mpfr_t *x){
+void test_mpres_mpspmv_ell(const int m, const int n, const int maxnzr, const int *ja, const double *as, const mpfr_t *x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS ELLPACK (mpdspmv_ell_scalar)");
+    PrintTimerName("[GPU] MPRES-BLAS ELLPACK (mpspmv_ell)");
 
     //Execution configuration
     int threads = 32;
@@ -69,7 +69,7 @@ void test_mpres_mpdspmv_ellpack_scalar(const int m, const int n, const int maxnz
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_ell_scalar<32><<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy);
+    cuda::mpspmv_ell<32><<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -88,4 +88,4 @@ void test_mpres_mpdspmv_ellpack_scalar(const int m, const int n, const int maxnz
     cudaFree(dja);
 }
 
-#endif //TEST_MPRES_MPDSPMV_ELLPACK_SCALAR_CUH
+#endif //TEST_MPRES_MPSPMV_ELL_CUH

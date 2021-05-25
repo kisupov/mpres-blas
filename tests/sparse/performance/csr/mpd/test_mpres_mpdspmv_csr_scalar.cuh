@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpdspmv_csr_scalar (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_csr_scalar (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -25,7 +25,7 @@
 #include "../../../../tsthelper.cuh"
 #include "../../../../logger.cuh"
 #include "../../../../timers.cuh"
-#include "sparse/mpdspmv_csr_scalar.cuh"
+#include "sparse/mpspmv_csr_scalar.cuh"
 
 /////////
 //  SpMV CSR scalar kernel
@@ -33,7 +33,7 @@
 void test_mpres_mpdspmv_csr_scalar(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS CSR Scalar (mpdspmv_csr_scalar)");
+    PrintTimerName("[GPU] MPRES-BLAS CSR Scalar (mpspmv_csr_scalar)");
 
     //Execution configuration
     int threads = 32;
@@ -72,7 +72,7 @@ void test_mpres_mpdspmv_csr_scalar(const int m, const int n, const int nnz, cons
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_csr_scalar<32><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
+    cuda::mpspmv_csr_scalar<32><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

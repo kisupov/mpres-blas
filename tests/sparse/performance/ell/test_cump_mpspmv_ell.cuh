@@ -20,20 +20,20 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_CUMP_MPSPMV_ELLPACK_CUH
-#define TEST_CUMP_MPSPMV_ELLPACK_CUH
+#ifndef TEST_CUMP_MPSPMV_ELL_CUH
+#define TEST_CUMP_MPSPMV_ELL_CUH
 
-#include "../../../../tsthelper.cuh"
-#include "../../../../logger.cuh"
-#include "../../../../timers.cuh"
-#include "../../../../3rdparty/cump_common.cuh"
+#include "../../../tsthelper.cuh"
+#include "../../../logger.cuh"
+#include "../../../timers.cuh"
+#include "../../../3rdparty/cump_common.cuh"
 
 /*
  * Performs the matrix-vector operation y = A * x
  * where x and y are dense vectors and A is a sparse matrix.
  * The matrix should be stored in the ELLPACK format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
-__global__ void cump_mpspmv_ellpack_kernel(const int m, const int maxnzr, const int *ja, mpf_array_t as, mpf_array_t x, mpf_array_t y, mpf_array_t buf) {
+__global__ void cump_mpspmv_ell_kernel(const int m, const int maxnzr, const int *ja, mpf_array_t as, mpf_array_t x, mpf_array_t y, mpf_array_t buf) {
     using namespace cump;
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if( row < m ) {
@@ -47,7 +47,7 @@ __global__ void cump_mpspmv_ellpack_kernel(const int m, const int maxnzr, const 
     }
 }
 
-void test_cump_mpspmv_ellpack(const int m, const int n, const int maxnzr, const int *ja, const double *as, mpfr_t *x, const int prec, const int convert_digits){
+void test_cump_mpspmv_ell(const int m, const int n, const int maxnzr, const int *ja, const double *as, mpfr_t *x, const int prec, const int convert_digits){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CUMP SpMV ELLPACK (multiple precision matrix)");
@@ -102,7 +102,7 @@ void test_cump_mpspmv_ellpack(const int m, const int n, const int maxnzr, const 
 
     //Launch
     StartCudaTimer();
-    cump_mpspmv_ellpack_kernel<<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy, dbuf);
+    cump_mpspmv_ell_kernel<<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
 
@@ -134,4 +134,4 @@ void test_cump_mpspmv_ellpack(const int m, const int n, const int maxnzr, const 
 }
 
 
-#endif //TEST_CUMP_MPSPMV_ELLPACK_CUH
+#endif //TEST_CUMP_MPSPMV_ELL_CUH

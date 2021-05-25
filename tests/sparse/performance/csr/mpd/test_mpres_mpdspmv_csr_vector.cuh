@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpdspmv_csr_vector (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_csr_vector (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -25,7 +25,7 @@
 #include "../../../../tsthelper.cuh"
 #include "../../../../logger.cuh"
 #include "../../../../timers.cuh"
-#include "sparse/mpdspmv_csr_vector.cuh"
+#include "sparse/mpspmv_csr_vector.cuh"
 
 /////////
 //  SpMV CSR vector kernel with multiple threads per matrix row
@@ -34,7 +34,7 @@ template<int threadsPerRow>
 void test_mpres_mpdspmv_csr_vector(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS CSR Vector (mpdspmv_csr_vector)");
+    PrintTimerName("[GPU] MPRES-BLAS CSR Vector (mpspmv_csr_vector)");
 
     //Execution configuration
     const int threads = 32;
@@ -75,7 +75,7 @@ void test_mpres_mpdspmv_csr_vector(const int m, const int n, const int nnz, cons
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_csr_vector<32, threadsPerRow><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
+    cuda::mpspmv_csr_vector<32, threadsPerRow><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

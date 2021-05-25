@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_mpmtx_jad (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_jad (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -25,7 +25,7 @@
 #include "../../../../tsthelper.cuh"
 #include "../../../../logger.cuh"
 #include "../../../../timers.cuh"
-#include "sparse/mpdspmv_jad.cuh"
+#include "sparse/mpspmv_jad.cuh"
 
 /////////
 //  SpMV jad kernel
@@ -34,7 +34,7 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int maxnzr, const in
                        const double *as, const int *perm_rows, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS JAD (mpdspmv_jad)");
+    PrintTimerName("[GPU] MPRES-BLAS JAD (mpspmv_jad)");
 
     //Execution configuration
     int threads = 32;
@@ -76,7 +76,7 @@ void test_mpres_mpdspmv_jad(const int m, const int n, const int maxnzr, const in
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_jad<32><<<blocks, threads>>>(m, maxnzr, das, dja, djcp, dperm_rows, dx, dy);
+    cuda::mpspmv_jad<32><<<blocks, threads>>>(m, maxnzr, das, dja, djcp, dperm_rows, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());

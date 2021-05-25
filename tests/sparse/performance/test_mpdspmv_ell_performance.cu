@@ -23,10 +23,10 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/ellpack/mpd/test_mpres_mpdspmv_ellpack_scalar.cuh"
-#include "sparse/performance/ellpack/mpd/test_campary_mpdspmv_ellpack.cuh"
-#include "sparse/performance/ellpack/mp/test_cump_mpspmv_ellpack.cuh"
-#include "sparse/performance/ellpack/dbl/test_double_spmv_ellpack.cuh"
+#include "sparse/performance/ell/test_mpres_mpspmv_ell.cuh"
+#include "sparse/performance/ell/test_campary_mpspmv_ell.cuh"
+#include "sparse/performance/ell/test_cump_mpspmv_ell.cuh"
+#include "sparse/performance/ell/test_double_spmv_ell.cuh"
 #include "sparse/performance/csr/dbl/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
@@ -57,11 +57,11 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     //Convert a sparse matrix to the double-precision ELLPACK format
     convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
     //Launch tests
-    test_double_spmv_ellpack(M, N, MAXNZR, JA, AS, vectorX);
+    test_double_spmv_ell(M, N, MAXNZR, JA, AS, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpdspmv_ellpack_scalar(M, N, MAXNZR, JA, AS, vectorX);
-    test_campary_mpdspmv_ellpack<CAMPARY_PRECISION>(M, N, MAXNZR, JA, AS, vectorX, INP_DIGITS);
-    test_cump_mpspmv_ellpack(M, N, MAXNZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_mpres_mpspmv_ell(M, N, MAXNZR, JA, AS, vectorX);
+    test_campary_mpspmv_ell<CAMPARY_PRECISION>(M, N, MAXNZR, JA, AS, vectorX, INP_DIGITS);
+    test_cump_mpspmv_ell(M, N, MAXNZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
     //Cleanup

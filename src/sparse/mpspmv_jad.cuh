@@ -1,6 +1,7 @@
 /*
- *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the ELLPACK sparse matrix format (double precision matrix, multiple precision vectors)
- *  Scalar ELLPACK kernel - one thread is assigned to each row of the matrix
+ *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the JAD (JDS) sparse matrix format (double precision matrix)
+ *  Computes the product of a sparse matrix and a dense vector
+ *  SpMV JAD (JDS) implementation
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
@@ -20,8 +21,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPDSPMV_ELL_SCALAR_CUH
-#define MPDSPMV_ELL_SCALAR_CUH
+#ifndef MPSPMV_JAD_CUH
+#define MPSPMV_JAD_CUH
 
 #include "../arith/mpadd.cuh"
 #include "../arith/mpmuld.cuh"
@@ -31,7 +32,7 @@ namespace cuda {
 
     /*!
      * Performs the matrix-vector operation y = A * x, where x and y are dense vectors and A is a sparse matrix.
-     * The matrix should be stored in the ELLPACK format: entries are stored in a dense array 'as' in column major order and explicit zeros are stored if necessary (zero padding)
+     * The matrix should be stored in the JAD (JDS) format: entries are stored in a dense array 'as' in column major order and explicit zeros are stored if necessary (zero padding)
      *
      * @note The matrix is represented in double precision
      * @note Each operation using multiple precision is performed as a single thread
@@ -41,31 +42,32 @@ namespace cuda {
      * @tparam threads - thread block size
      * @param m - number of rows in matrix
      * @param maxnzr - maximum number of nonzeros per row in the matrix A
-     * @param ja - column indices array to access the corresponding elements of the vector x, size m * maxnzr (the same as for A)
-     * @param as - double-precision coefficients array (entries of the matrix A in the ELLPACK format), size m * maxnzr
+     * @param as - multiple-precision coefficients array (entries of the matrix A in the JAD (JDS) format), size nnz (number of nonzeros in matrix)
+     * @param ja - column indices array to access the corresponding elements of the vector x, size = nnz
+     * @param jcp - col start pointers array of size maxnzr + 1, last element of jcp equals to nnz
+     * @param perm_rows - permutated row indices, size = m
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
     template<int threads>
-    __global__ void mpdspmv_ell_scalar(const int m, const int maxnzr, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_jad(const int m, const int maxnzr, const double *as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         __shared__ mp_float_t sums[threads];
         __shared__ mp_float_t prods[threads];
         while (row < m) {
+            auto j = 0;
+            auto index = row;
             sums[threadIdx.x] = cuda::MP_ZERO;
-            for (int col = 0; col < maxnzr; col++) {
-                int j = ja[col * m + row];
-                double val = as[col * m + row];
-                if(val != 0){
-                    cuda::mp_mul_d(&prods[threadIdx.x], &x[j], val);
-                    cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
-                }
+            while (j < maxnzr && index < jcp[j + 1]) {
+                cuda::mp_mul_d(&prods[threadIdx.x], &x[ja[index]], as[index]);
+                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
+                index = row + jcp[++j];
             }
-            cuda::mp_set(&y[row], &sums[threadIdx.x]);
+            cuda::mp_set(&y[perm_rows[row]], &sums[threadIdx.x]);
             row +=  gridDim.x * blockDim.x;
         }
     }
 
 } // namespace cuda
 
-#endif //MPDSPMV_ELL_SCALAR_CUH
+#endif //MPSPMV_JAD_CUH
