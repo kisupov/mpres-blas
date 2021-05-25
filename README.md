@@ -25,26 +25,29 @@ Underlying algorithms for multiple-precision floating-point arithmetic as well a
     * GE_LRSCALE --- Two-sided diagonal scaling (`mpgelrscale`)
     * GE_NORM --- Matrix norms (`mpgenorm`)
 
-2. In addition, the following sparse matrix-vector multiplication (SpMV) routines are supported:
+2. The following sparse matrix-vector multiplication (SpMV) routines are supported:
     
     * Multiple-precision CSR kernel for double-precision matrix using one thread per matrix row (`mpdspmv_csr_scalar`)
-    * Multiple-precision CSR kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_csr_scalar`)
     * Multiple-precision CSR kernel for double-precision matrix using a group (up to 32) of threads per matrix row (`mpdspmv_csr_vector`)
-    * Multiple-precision CSR kernel for multiple-precision matrix using a group (up to 32) of threads per matrix row (`mpspmv_csr_vector`)
-    * Multiple-precision two-step CSR implementation (`mpspmv_csr_2stage`)
+      * Multiple-precision JAD kernel for double-precision matrix using one thread per matrix row (`mpdspmv_jad`)
     * Multiple-precision ELLPACK kernel for double-precision matrix using one thread per matrix row (`mpdspmv_ell_scalar`)
-    * Multiple-precision ELLPACK kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_ell_scalar`)
-    * Multiple-precision two-step ELLPACK implementation (`mpspmv_ell_2stage`)
     * Multiple-precision DIA kernel for double-precision matrix using one thread per matrix row (`mpdspmv_dia`)
-    * Multiple-precision DIA kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_dia`)
-    * Multiple-precision JAD kernel for double-precision matrix using one thread per matrix row (`mpdspmv_jad`)
-    * Multiple-precision JAD kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_jad`)
 
 The corresponding benchmarks are also provided.
 
-3. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/arith/`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
+3. In addition, the following SpMV routines using a multiple-precision matrix are implemented (can consume a lot of memory, not for iterative solvers):
 
-4. In addition, the library implements a number of optimized RNS algorithms, such as magnitude comparison and power-of-two scaling (see `src/rns.cuh`), and also supports extended-range floating-point arithmetic with working precision (see `src/extrange.cuh`), which prevents underflow and overflow in a computation involving extremely large or small quantities.
+   * Multiple-precision CSR kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_mpmtx_csr_scalar`)
+   * Multiple-precision CSR kernel for multiple-precision matrix using a group (up to 32) of threads per matrix row (`mpspmv_mpmtx_csr_vector`)
+   * Multiple-precision two-step CSR implementation (`mpspmv_mpmtx_csr_2stage`)
+   * Multiple-precision JAD kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_mpmtx_jad`)
+   * Multiple-precision ELLPACK kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_mpmtx_ell`)
+   * Multiple-precision two-step ELLPACK implementation (`mpspmv_mpmtx_ell_2stage`)
+   * Multiple-precision DIA kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_mpmtx_dia`)
+
+4. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/arith/`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
+
+5. In addition, the library implements a number of optimized RNS algorithms, such as magnitude comparison and power-of-two scaling (see `src/rns.cuh`), and also supports extended-range floating-point arithmetic with working precision (see `src/extrange.cuh`), which prevents underflow and overflow in a computation involving extremely large or small quantities.
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
 Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for details.

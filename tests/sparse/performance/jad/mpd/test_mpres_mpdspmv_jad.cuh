@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_jad (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_mpmtx_jad (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -25,7 +25,7 @@
 #include "../../../../tsthelper.cuh"
 #include "../../../../logger.cuh"
 #include "../../../../timers.cuh"
-#include "../../../../../src/sparse/jad/mpdspmv_jad.cuh"
+#include "sparse/mpdspmv_jad.cuh"
 
 /////////
 //  SpMV jad kernel

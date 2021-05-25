@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_dia (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_mpmtx_dia (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -25,7 +25,7 @@
 #include "../../../../tsthelper.cuh"
 #include "../../../../logger.cuh"
 #include "../../../../timers.cuh"
-#include "../../../../../src/sparse/dia/mpdspmv_dia.cuh"
+#include "sparse/mpdspmv_dia.cuh"
 
 /////////
 //  SpMV DIA scalar kernel

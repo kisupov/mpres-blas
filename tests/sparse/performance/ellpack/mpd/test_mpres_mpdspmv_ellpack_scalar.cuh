@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_ell_scalar (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_mpmtx_ell (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -25,7 +25,7 @@
 #include "../../../../tsthelper.cuh"
 #include "../../../../logger.cuh"
 #include "../../../../timers.cuh"
-#include "../../../../../src/sparse/ellpack/mpdspmv_ell_scalar.cuh"
+#include "sparse/mpdspmv_ell_scalar.cuh"
 
 /////////
 //  SpMV ELLPACK scalar kernel

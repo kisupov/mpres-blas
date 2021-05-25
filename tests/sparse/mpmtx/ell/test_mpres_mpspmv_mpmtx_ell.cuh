@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mpdspmv_csr_scalar (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mpspmv_mpmtx_ell (multiple precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,60 +19,60 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_MPDSPMV_CSR_SCALAR_CUH
-#define TEST_MPRES_MPDSPMV_CSR_SCALAR_CUH
+#ifndef TEST_MPRES_MPSPMV_MPMTX_ELLPACK_SCALAR_CUH
+#define TEST_MPRES_MPSPMV_MPMTX_ELLPACK_SCALAR_CUH
 
-#include "../../../../tsthelper.cuh"
-#include "../../../../logger.cuh"
-#include "../../../../timers.cuh"
-#include "sparse/mpdspmv_csr_scalar.cuh"
+#include "../../../tsthelper.cuh"
+#include "../../../logger.cuh"
+#include "../../../timers.cuh"
+#include "../../../../src/sparse/mpmtx/mpspmv_mpmtx_ell.cuh"
 
 /////////
-//  SpMV CSR scalar kernel
+//  SpMV ELLPACK scalar kernel
 /////////
-void test_mpres_mpdspmv_csr_scalar(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as,  const mpfr_t * x){
+void test_mpres_mpspmv_mpmtx_ell(const int m, const int n, const int maxnzr, const int *ja, const double *as, const mpfr_t *x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS CSR Scalar (mpdspmv_csr_scalar)");
+    PrintTimerName("[GPU] MPRES-BLAS mpspmv_mpmtx_ell");
 
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
+    printf("\tMatrix (AS array) size (MB): %lf\n", get_mp_float_array_size_in_mb(m * maxnzr));
 
     // Host data
     auto hx = new mp_float_t[n];
     auto hy = new mp_float_t[m];
+    auto has = new mp_float_t[m * maxnzr];
 
     // GPU data
     mp_float_ptr dx;
     mp_float_ptr dy;
-    double *das;
-    int *dirp;
+    mp_float_ptr das;
     int *dja;
 
     //Init data
     cudaMalloc(&dx, sizeof(mp_float_t) * n);
     cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    cudaMalloc(&das, sizeof(double) * nnz);
-    cudaMalloc(&dirp, sizeof(int) * (m + 1));
-    cudaMalloc(&dja, sizeof(int) * nnz);
+    cudaMalloc(&das, sizeof(mp_float_t) * m * maxnzr);
+    cudaMalloc(&dja, sizeof(int) * m * maxnzr);
 
     // Convert from MPFR
     convert_vector(hx, x, n);
+    convert_vector(has, as, m * maxnzr);
 
     //Copying to the GPU
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, nnz * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(dirp, irp, (m + 1) * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(das, has, m * maxnzr * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, ja, m * maxnzr * sizeof(int), cudaMemcpyHostToDevice);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Launch
     StartCudaTimer();
-    cuda::mpdspmv_csr_scalar<32><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
+    cuda::mpspmv_mpmtx_ell<<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -85,11 +85,11 @@ void test_mpres_mpdspmv_csr_scalar(const int m, const int n, const int nnz, cons
     //Cleanup
     delete [] hx;
     delete [] hy;
+    delete [] has;
     cudaFree(dx);
     cudaFree(dy);
     cudaFree(das);
-    cudaFree(dirp);
     cudaFree(dja);
 }
 
-#endif //TEST_MPRES_MPDSPMV_CSR_SCALAR_CUH
+#endif //TEST_MPRES_MPSPMV_MPMTX_ELLPACK_SCALAR_CUH

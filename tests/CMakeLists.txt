@@ -33,6 +33,38 @@ find_package(OpenMP REQUIRED)
 set(MPACK_INC_PATH /usr/local/include/mpack)
 include_directories(${MPACK_INC_PATH})
 
+#########################
+## Basic arith tests
+#########################
+
+# Test for checking the algorithms that calculate the interval evaluation of an RNS number
+add_executable(test_rns_eval_verify arith/test_rns_eval_verify.cu)
+target_compile_options(test_rns_eval_verify PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_rns_eval_verify gmp mpfr)
+
+# Test for validating the mp_add routines
+add_executable(test_mp_add_verify arith/test_mp_add_verify.cu)
+target_compile_options(test_mp_add_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mp_add_verify gmp mpfr OpenMP::OpenMP_CXX)
+
+# Test for validating the mp_mul routines
+add_executable(test_mp_mul_verify arith/test_mp_mul_verify.cu)
+target_compile_options(test_mp_mul_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mp_mul_verify gmp mpfr OpenMP::OpenMP_CXX)
+
+# Test for checking the correctness of the extended-range floating-point routines
+add_executable(test_extrange_verify arith/test_extrange_verify.cu)
+target_compile_options(test_extrange_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+
+# Test for measure the performance of the RNS magnitude comparison algorithms
+add_executable(test_rns_cmp_performance arith/test_rns_cmp_performance.cu)
+target_compile_options(test_rns_cmp_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_rns_cmp_performance gmp mpfr)
+
+# Test for validating the mp_cmp routines
+add_executable(test_mp_cmp_verify arith/test_mp_cmp_verify.cu)
+target_compile_options(test_mp_cmp_verify PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mp_cmp_verify gmp mpfr)
 
 #########################
 ## Performance tests for BLAS routines
@@ -114,54 +146,6 @@ target_compile_options(test_mpgenorm_performance PRIVATE  $<${cuda_lang}:$<BUILD
 target_link_libraries(test_mpgenorm_performance gmp mpfr OpenMP::OpenMP_CXX)
 
 #########################
-## Performance tests for SpMV routines
-#########################
-
-# Performance test for SPMV using CSR (multiple precision matrix)
-add_executable(test_mpspmv_csr_performance sparse/performance/test_mpspmv_csr_performance.cu)
-target_compile_options(test_mpspmv_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
-
-# Performance test for SPMV using CSR (double precision matrix)
-add_executable(test_mpdspmv_csr_performance sparse/performance/test_mpdspmv_csr_performance.cu)
-target_compile_options(test_mpdspmv_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpdspmv_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
-
-# Performance test for SPMV using ELLPACK (multiple precision matrix)
-add_executable(test_mpspmv_ell_performance sparse/performance/test_mpspmv_ell_performance.cu)
-target_compile_options(test_mpspmv_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
-
-# Performance test for SPMV using ELLPACK (double precision matrix)
-add_executable(test_mpdspmv_ell_performance sparse/performance/test_mpdspmv_ell_performance.cu)
-target_compile_options(test_mpdspmv_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpdspmv_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
-
-# Performance test for SPMV using DIA (multiple precision matrix)
-add_executable(test_mpspmv_dia_performance sparse/performance/test_mpspmv_dia_performance.cu)
-target_compile_options(test_mpspmv_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
-
-# Performance test for SPMV using DIA (double precision matrix)
-add_executable(test_mpdspmv_dia_performance sparse/performance/test_mpdspmv_dia_performance.cu)
-target_compile_options(test_mpdspmv_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpdspmv_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
-
-# Performance test for SPMV using JAD (JDS) (multiple precision matrix)
-add_executable(test_mpspmv_jad_performance sparse/performance/test_mpspmv_jad_performance.cu)
-target_compile_options(test_mpspmv_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
-
-# Performance test for SPMV using JAD (JDS) (double precision matrix)
-add_executable(test_mpdspmv_jad_performance sparse/performance/test_mpdspmv_jad_performance.cu)
-target_compile_options(test_mpdspmv_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpdspmv_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
-
-# Performance test for SPMV using various sparse matrix storage formats (double precision matrix)
-add_executable(test_mpdspmv_performance.cu sparse/performance/test_mpdspmv_performance.cu)
-target_compile_options(test_mpdspmv_performance.cu PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpdspmv_performance.cu gmp mpfr OpenMP::OpenMP_CXX cump)
-#########################
 ## Accuracy tests for BLAS routines
 #########################
 
@@ -185,37 +169,55 @@ add_executable(test_mpaxpy_accuracy blas/accuracy/test_mpaxpy_accuracy.cu)
 target_compile_options(test_mpaxpy_accuracy PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpaxpy_accuracy gmp mpfr OpenMP::OpenMP_CXX)
 
+#########################
+## Performance tests for SpMV routines (double precision matrix)
+#########################
+
+# Performance test for SpMV using various sparse matrix storage formats
+add_executable(test_mpdspmv_performance.cu sparse/performance/test_mpdspmv_performance.cu)
+target_compile_options(test_mpdspmv_performance.cu PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdspmv_performance.cu gmp mpfr OpenMP::OpenMP_CXX cump)
+
+# Performance test for SpMV in CSR format
+add_executable(test_mpdspmv_csr_performance sparse/performance/test_mpdspmv_csr_performance.cu)
+target_compile_options(test_mpdspmv_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdspmv_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+
+# Performance test for SpMV in JAD (JDS) format
+add_executable(test_mpdspmv_jad_performance sparse/performance/test_mpdspmv_jad_performance.cu)
+target_compile_options(test_mpdspmv_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdspmv_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+
+# Performance test for SpMV in ELLPACK format
+add_executable(test_mpdspmv_ell_performance sparse/performance/test_mpdspmv_ell_performance.cu)
+target_compile_options(test_mpdspmv_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdspmv_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+
+# Performance test for SpMV in DIA format
+add_executable(test_mpdspmv_dia_performance sparse/performance/test_mpdspmv_dia_performance.cu)
+target_compile_options(test_mpdspmv_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpdspmv_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 #########################
-## Basic arith tests
+## Performance tests for SpMV routines with multiple-precision matrix
 #########################
 
-# Test for checking the algorithms that calculate the interval evaluation of an RNS number
-add_executable(test_rns_eval_verify arith/test_rns_eval_verify.cu)
-target_compile_options(test_rns_eval_verify PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_rns_eval_verify gmp mpfr)
+# Performance test for SpMV in CSR format
+add_executable(test_mpspmv_mpmtx_csr_performance sparse/mpmtx/test_mpspmv_mpmtx_csr_performance.cu)
+target_compile_options(test_mpspmv_mpmtx_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpspmv_mpmtx_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
-# Test for validating the mp_add routines
-add_executable(test_mp_add_verify arith/test_mp_add_verify.cu)
-target_compile_options(test_mp_add_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mp_add_verify gmp mpfr OpenMP::OpenMP_CXX)
+# Performance test for SpMV in ELLPACK format
+add_executable(test_mpspmv_mpmtx_ell_performance sparse/mpmtx/test_mpspmv_mpmtx_ell_performance.cu)
+target_compile_options(test_mpspmv_mpmtx_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpspmv_mpmtx_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
-# Test for validating the mp_mul routines
-add_executable(test_mp_mul_verify arith/test_mp_mul_verify.cu)
-target_compile_options(test_mp_mul_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mp_mul_verify gmp mpfr OpenMP::OpenMP_CXX)
+# Performance test for SpMV in DIA format
+add_executable(test_mpspmv_mpmtx_dia_performance sparse/mpmtx/test_mpspmv_mpmtx_dia_performance.cu)
+target_compile_options(test_mpspmv_mpmtx_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpspmv_mpmtx_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
-# Test for checking the correctness of the extended-range floating-point routines
-add_executable(test_extrange_verify arith/test_extrange_verify.cu)
-target_compile_options(test_extrange_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-
-# Test for measure the performance of the RNS magnitude comparison algorithms
-add_executable(test_rns_cmp_performance arith/test_rns_cmp_performance.cu)
-target_compile_options(test_rns_cmp_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_rns_cmp_performance gmp mpfr)
-
-# Test for validating the mp_cmp routines
-add_executable(test_mp_cmp_verify arith/test_mp_cmp_verify.cu)
-target_compile_options(test_mp_cmp_verify PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mp_cmp_verify gmp mpfr)
-
+# Performance test for SpMV in JAD (JDS) format
+add_executable(test_mpspmv_mpmtx_jad_performance sparse/mpmtx/test_mpspmv_mpmtx_jad_performance.cu)
+target_compile_options(test_mpspmv_mpmtx_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpspmv_mpmtx_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
