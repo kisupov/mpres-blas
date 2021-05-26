@@ -50,6 +50,77 @@ void initialize() {
 void finalize() {
 }
 
+/*
+ * Multiple-precision JAD kernel without using shared memory
+ */
+__global__ void mpspmv_jad_smem_free(const int m, const int maxnzr, const jad_t jad, mp_float_ptr x, mp_float_ptr y) {
+    auto row = threadIdx.x + blockIdx.x * blockDim.x;
+    mp_float_t sum;
+    mp_float_t prod;
+    while (row < m) {
+        auto j = 0;
+        auto index = row;
+        sum = cuda::MP_ZERO;
+        while (j < maxnzr && index < jad.jcp[j + 1]) {
+            cuda::mp_mul_d(&prod, &x[jad.ja[index]], jad.as[index]);
+            cuda::mp_add(&sum, &sum, &prod);
+            index = row + jad.jcp[++j];
+        }
+        cuda::mp_set(&y[jad.perm[row]], &sum);
+        row +=  gridDim.x * blockDim.x;
+    }
+}
+
+/*
+ * MPRES-BLAS test, no shared memory
+ */
+void test_mpres_mpspmv_jad_smem_free(const int m, const int n, const int maxnzr, const int nnz, const jad_t &jad, const mpfr_t *x) {
+    InitCudaTimer();
+    Logger::printDash();
+    PrintTimerName("[GPU] MPRES-BLAS JAD (w/o shared memory)");
+
+    //Execution configuration
+    int threads = 32;
+    int blocks = m / threads + 1;
+    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
+
+    // Host data
+    auto hx = new mp_float_t[n];
+    auto hy = new mp_float_t[m];
+
+    // GPU vectors
+    mp_float_ptr dx;
+    mp_float_ptr dy;
+    cudaMalloc(&dx, sizeof(mp_float_t) * n);
+    cudaMalloc(&dy, sizeof(mp_float_t) * m);
+    convert_vector(hx, x, n);
+    cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+
+    //GPU matrix
+    jad_t djad;
+    cuda::jad_init(djad, m, maxnzr, nnz);
+    cuda::jad_host2device(djad, jad, m, maxnzr, nnz);
+
+    //Launch
+    StartCudaTimer();
+    mpspmv_jad_smem_free<<<blocks, threads>>>(m, maxnzr, djad, dx, dy);
+    EndCudaTimer();
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    print_mp_sum(hy, m);
+
+    //Cleanup
+    delete[] hx;
+    delete[] hy;
+    cudaFree(dx);
+    cudaFree(dy);
+    cuda::jad_clear(djad);
+
+}
 
 void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int MAXNZR, const int NNZ, const bool SYMM, const string DATATYPE) {
 
@@ -64,6 +135,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     test_double_spmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
     test_mpres_mpspmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
+    test_mpres_mpspmv_jad_smem_free(M, N, MAXNZR, NNZ, JAD, vectorX);
     test_campary_mpspmv_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JAD, vectorX, INP_DIGITS);
     test_cump_mpspmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
