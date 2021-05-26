@@ -22,6 +22,7 @@
 
 #include "logger.cuh"
 #include "tsthelper.cuh"
+#include "sparse/utils/jad_utils.cuh"
 #include "sparse/matrix_converter.cuh"
 #include "sparse/mpmtx/jad/test_mpres_mpspmv_mpmtx_jad.cuh"
 #include "sparse/mpmtx/jad/test_campary_mpspmv_mpmtx_jad.cuh"
@@ -52,19 +53,16 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
 
     //Input arrays
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
-    auto *AS = new double [NNZ]();
-    auto *JA = new int[NNZ]();
-    auto *JCP = new int[MAXNZR + 1]();
-    auto *PERM_ROWS = new int[M]();
-
+    jad_t JAD;
+    jad_init(JAD, M, MAXNZR, NNZ);
     //Convert a sparse matrix to the double-precision JAD (JDS) format
-    convert_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, AS, JCP, JA, PERM_ROWS);
+    read_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
 
     //Launch tests
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_mpmtx_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
-    test_campary_mpspmv_mpmtx_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
-    test_cump_mpspmv_mpmtx_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_mpres_mpspmv_mpmtx_jad(M, N, MAXNZR, NNZ, JAD.ja, JAD.jcp, JAD.as, JAD.perm, vectorX);
+    test_campary_mpspmv_mpmtx_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JAD.ja, JAD.jcp, JAD.as, JAD.perm, vectorX, INP_DIGITS);
+    test_cump_mpspmv_mpmtx_jad(M, N, MAXNZR, NNZ, JAD.ja, JAD.jcp, JAD.as, JAD.perm, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -73,10 +71,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
         mpfr_clear(vectorX[i]);
     }
     delete[] vectorX;
-    delete[] AS;
-    delete[] JA;
-    delete[] JCP;
-    delete[] PERM_ROWS;
+    jad_clear(JAD);
     cudaDeviceReset();
 }
 

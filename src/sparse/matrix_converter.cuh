@@ -380,12 +380,9 @@ int calc_ndiag(const char filename[], const int lines, bool symmetric) {
  * @param nnz - number of nonzeros in the matrix
  * @param lines - total number of lines with data
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
- * @param as - coefficients array (JAD data): an array of size lines containing a matrix data in the JAD format (output parameter)
- * @param jcp - column start pointers array (output parameter)
- * @param ja - column indices array (output parameter)
- * @param perm_rows - permutated row indices array (output parameter)
+ * @param jad - reference to the JAD instance to be defined
  */
-void convert_to_jad(const char filename[], const int m, const int maxnzr, const int nnz, const int lines, bool symmetric, double *&as, int *&jcp, int *&ja, int *&perm_rows) {
+void read_to_jad(const char *filename, const int m, const int maxnzr, const int nnz, const int lines, bool symmetric, jad_t &jad) {
     auto *csr_as = new double[nnz]();
     auto *csr_ja = new int [nnz]();
     auto *csr_irp = new int[m + 1]();
@@ -394,15 +391,15 @@ void convert_to_jad(const char filename[], const int m, const int maxnzr, const 
     convert_to_csr(filename, m, nnz, lines, symmetric, csr_as, csr_irp, csr_ja);
 
     for (int i = 0; i < m; ++i) {
-        perm_rows[i] = i; // сеттим массив perm_rows значениями от 0 до m-1
+        jad.perm[i] = i; // сеттим массив perm_rows значениями от 0 до m-1
         nonZeros[i] = csr_irp[i + 1] - csr_irp[i]; // получаем кол-во ненулевых элементов в i строке
     }
 
     //сортируем массив индексов строк относительно кол-ва ненулевых элементов в строке по убыванию
-    sort_perm_rows(m, nonZeros, perm_rows);
+    sort_perm_rows(m, nonZeros, jad.perm);
 
     //вычисляем смещение по столбцам
-    jcp[0] = 0;
+    jad.jcp[0] = 0;
     int count = 0;
     for (int j = 0; j < maxnzr; ++j) {
         for (int i = 0; i < m; ++i) {
@@ -413,16 +410,16 @@ void convert_to_jad(const char filename[], const int m, const int maxnzr, const 
                 continue;
             }
         }
-        jcp[j+1] = count;
+        jad.jcp[j+1] = count;
     }
 
     //сеттим меасивы as и ja в новом порядке
     int index = 0;
     int j = 0;
     while (index < nnz && j < maxnzr) {
-        for (int i = 0; i < jcp[j + 1] - jcp[j]; i++) {
-            as[index] = csr_as[j + csr_irp[perm_rows[i]]];
-            ja[index] = csr_ja[j + csr_irp[perm_rows[i]]];
+        for (int i = 0; i < jad.jcp[j + 1] - jad.jcp[j]; i++) {
+            jad.as[index] = csr_as[j + csr_irp[jad.perm[i]]];
+            jad.ja[index] = csr_ja[j + csr_irp[jad.perm[i]]];
             index++;
         }
         j++;
@@ -433,6 +430,7 @@ void convert_to_jad(const char filename[], const int m, const int maxnzr, const 
     delete[] csr_irp;
     delete[] nonZeros;
 }
+
 
 /*!
  * Prints a sparse matrix represented in the ELLPACK format
@@ -522,65 +520,6 @@ void print_jad(const int m, const int nnz, const int maxnzr, double *as, int *ja
         std::cout << perm_rows[i] << "\t";
     }
     std::cout << std::endl;
-}
-
-/*!
- * Converts a sparse matrix to the JAD format
- * @param filename - path to the file with the matrix
- * @param m - number of rows in the matrix
- * @param maxnzr - maximum number of nonzeros per row
- * @param nnz - number of nonzeros in the matrix
- * @param lines - total number of lines with data
- * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
- * @param jad - reference to the JAD instance to be defined
- */
-void read_to_jad(const char *filename, const int m, const int maxnzr, const int nnz, const int lines, bool symmetric, jad_t &jad) {
-    auto *csr_as = new double[nnz]();
-    auto *csr_ja = new int [nnz]();
-    auto *csr_irp = new int[m + 1]();
-    auto *nonZeros = new int[m]();
-
-    convert_to_csr(filename, m, nnz, lines, symmetric, csr_as, csr_irp, csr_ja);
-
-    for (int i = 0; i < m; ++i) {
-        jad.perm[i] = i; // сеттим массив perm_rows значениями от 0 до m-1
-        nonZeros[i] = csr_irp[i + 1] - csr_irp[i]; // получаем кол-во ненулевых элементов в i строке
-    }
-
-    //сортируем массив индексов строк относительно кол-ва ненулевых элементов в строке по убыванию
-    sort_perm_rows(m, nonZeros, jad.perm);
-
-    //вычисляем смещение по столбцам
-    jad.jcp[0] = 0;
-    int count = 0;
-    for (int j = 0; j < maxnzr; ++j) {
-        for (int i = 0; i < m; ++i) {
-            if (nonZeros[i] > 0) {
-                nonZeros[i]--;
-                count++;
-            } else {
-                continue;
-            }
-        }
-        jad.jcp[j+1] = count;
-    }
-
-    //сеттим меасивы as и ja в новом порядке
-    int index = 0;
-    int j = 0;
-    while (index < nnz && j < maxnzr) {
-        for (int i = 0; i < jad.jcp[j + 1] - jad.jcp[j]; i++) {
-            jad.as[index] = csr_as[j + csr_irp[jad.perm[i]]];
-            jad.ja[index] = csr_ja[j + csr_irp[jad.perm[i]]];
-            index++;
-        }
-        j++;
-    }
-
-    delete[] csr_as;
-    delete[] csr_ja;
-    delete[] csr_irp;
-    delete[] nonZeros;
 }
 
 #endif //MATRIX_CONVERTER_CUH
