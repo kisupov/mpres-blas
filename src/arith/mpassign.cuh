@@ -86,7 +86,9 @@ GCC_FORCEINLINE void mp_set_mpfr(mp_float_ptr result, mpfr_srcptr x) {
     mpz_init(mpz_mant);
     mpz_init(rem);
     mp_exp_t exp;
-    std::string mantissa = mpfr_get_str(NULL, &exp, 2, 0, x, MPFR_RNDN);
+    char* cstr;
+    cstr = mpfr_get_str(NULL, &exp, 2, 0, x, MPFR_RNDN);
+    std::string mantissa(cstr);
     unsigned int num = 0;
     for (int i = (int) (mantissa.length() - 1); i > -1; i--) {
         if (mantissa[i] != '0') {
@@ -118,7 +120,7 @@ GCC_FORCEINLINE void mp_set_mpfr(mp_float_ptr result, mpfr_srcptr x) {
     rns_eval_compute(&result->eval[0], &result->eval[1], result->digits);
     mpz_clear(mpz_mant);
     mpz_clear(rem);
-    std::string().swap(mantissa);
+    mpfr_free_str(cstr);
 }
 
 /*!
