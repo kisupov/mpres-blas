@@ -25,9 +25,9 @@
 #include "sparse/matrix_converter.cuh"
 #include "sparse/mpmtx/dia/test_mpres_mpspmv_mpmtx_dia.cuh"
 #include "sparse/mpmtx/dia/test_campary_mpspmv_mpmtx_dia.cuh"
-#include "sparse/performance/dia/mp/test_cump_mpspmv_dia.cuh"
-#include "sparse/performance/dia/dbl/test_double_spmv_dia.cuh"
-#include "sparse/performance/csr/dbl/test_taco_spmv_csr.cuh"
+#include "sparse/performance/dia/test_cump_mpspmv_dia.cuh"
+#include "sparse/performance/dia/test_double_spmv_dia.cuh"
+#include "sparse/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::SPMV_MP_DIA_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::SPMV_MPMTX_DIA_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();

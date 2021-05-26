@@ -28,7 +28,7 @@
 #include "sparse/mpmtx/ell/test_campary_mpspmv_mpmtx_ell.cuh"
 #include "sparse/performance/ellpack/test_cump_mpspmv_ell.cuh"
 #include "sparse/performance/ellpack/test_double_spmv_ell.cuh"
-#include "sparse/performance/csr/dbl/test_taco_spmv_csr.cuh"
+#include "sparse/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::SPMV_MP_ELLPACK_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::SPMV_MPMTX_ELL_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();

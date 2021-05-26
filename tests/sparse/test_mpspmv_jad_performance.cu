@@ -1,5 +1,5 @@
 /*
- *  Performance test for SpMV routines using the JAD (JDS) matrix format (multiple precision matrix)
+ *  Performance test for SpMV routines using the JAD (JDS) matrix format (double precision matrix)
  *  Path to the matrix must be given as a command line argument, e.g., ../../tests/sparse/matrices/t3dl.mtx
 
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
@@ -23,10 +23,10 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/mpmtx/jad/test_mpres_mpspmv_mpmtx_jad.cuh"
-#include "sparse/mpmtx/jad/test_campary_mpspmv_mpmtx_jad.cuh"
-#include "sparse/performance/jad/test_cump_mpspmv_jad.cuh"
-#include "sparse/performance/jad/test_double_spmv_jad.cuh"
+#include "sparse/jad/test_double_spmv_jad.cuh"
+#include "sparse/jad/test_mpres_mpspmv_jad.cuh"
+#include "sparse/jad/test_campary_mpspmv_jad.cuh"
+#include "sparse/jad/test_cump_mpspmv_jad.cuh"
 #include "sparse/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
@@ -49,6 +49,7 @@ void initialize() {
 void finalize() {
 }
 
+
 void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int MAXNZR, const int NNZ, const bool SYMM, const string DATATYPE) {
 
     //Input arrays
@@ -64,8 +65,8 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     //Launch tests
     test_double_spmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_mpmtx_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
-    test_campary_mpspmv_mpmtx_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
+    test_mpres_mpspmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
+    test_campary_mpspmv_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
     test_cump_mpspmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
@@ -97,7 +98,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::SPMV_MPMTX_JAD_TEST);
+    Logger::beginTestDescription(Logger::SPMV_JAD_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();

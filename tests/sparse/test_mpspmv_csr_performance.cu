@@ -1,7 +1,7 @@
 /*
- *  Performance test for SpMV routines using the JAD (JDS) matrix format (multiple precision matrix)
+ *  Performance test for SpMV routines using the CSR matrix format (double precision matrix)
  *  Path to the matrix must be given as a command line argument, e.g., ../../tests/sparse/matrices/t3dl.mtx
-
+ *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
  *
  *  This file is part of the MPRES-BLAS library.
@@ -20,13 +20,16 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "mpfr.h"
 #include "logger.cuh"
-#include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/mpmtx/jad/test_mpres_mpspmv_mpmtx_jad.cuh"
-#include "sparse/mpmtx/jad/test_campary_mpspmv_mpmtx_jad.cuh"
-#include "sparse/performance/jad/test_cump_mpspmv_jad.cuh"
-#include "sparse/performance/jad/test_double_spmv_jad.cuh"
+#include "sparse/csr/test_mpfr_mpspmv_csr.cuh"
+#include "sparse/csr/test_mpres_mpspmv_csr_scalar.cuh"
+#include "sparse/csr/test_mpres_mpspmv_csr_vector.cuh"
+#include "sparse/csr/test_campary_mpspmv_csr_scalar.cuh"
+#include "sparse/csr/test_campary_mpspmv_csr_vector.cuh"
+#include "sparse/csr/test_cump_mpspmv_csr.cuh"
+#include "sparse/csr/test_double_spmv_csr.cuh"
 #include "sparse/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
@@ -49,24 +52,34 @@ void initialize() {
 void finalize() {
 }
 
-void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int MAXNZR, const int NNZ, const bool SYMM, const string DATATYPE) {
-
-    //Input arrays
+void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int NNZ, const bool SYMM, const string DATATYPE) {
+    //Inputs
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
     auto *AS = new double [NNZ]();
     auto *JA = new int[NNZ]();
-    auto *JCP = new int[MAXNZR + 1]();
-    auto *PERM_ROWS = new int[M]();
-
-    //Convert a sparse matrix to the double-precision JAD (JDS) format
-    convert_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, AS, JCP, JA, PERM_ROWS);
-
+    auto *IRP = new int[M + 1]();
+    //Convert a sparse matrix to the double-precision CSR format
+    convert_to_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, AS, IRP, JA);
     //Launch tests
-    test_double_spmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
-    //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_mpmtx_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
-    test_campary_mpspmv_mpmtx_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
-    test_cump_mpspmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_mpfr_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION);
+    test_double_spmv_csr(M, N, NNZ, IRP, JA, AS, vectorX);
+   // test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
+    Logger::printStars();
+    test_mpres_mpspmv_csr_scalar(M, N, NNZ, IRP, JA, AS, vectorX);
+    // test_mpres_mpspmv_csr_vector<2>(M, N, NNZ, IRP, JA, AS, vectorX);
+    //test_mpres_mpspmv_csr_vector<4>(M, N, NNZ, IRP, JA, AS, vectorX);
+    test_mpres_mpspmv_csr_vector<8>(M, N, NNZ, IRP, JA, AS, vectorX);
+    test_mpres_mpspmv_csr_vector<16>(M, N, NNZ, IRP, JA, AS, vectorX);
+    test_mpres_mpspmv_csr_vector<32>(M, N, NNZ, IRP, JA, AS, vectorX);
+    Logger::printStars();
+    test_campary_mpspmv_csr_scalar<CAMPARY_PRECISION>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    //test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 2>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    //test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 4>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 8>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 16>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 32>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    Logger::printStars();
+    test_cump_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -77,8 +90,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     delete[] vectorX;
     delete[] AS;
     delete[] JA;
-    delete[] JCP;
-    delete[] PERM_ROWS;
+    delete[] IRP;
     cudaDeviceReset();
 }
 
@@ -88,8 +100,8 @@ int main(int argc, char *argv[]) {
     int M = 0; //number of rows
     int N = 0; //number of columns
     int NNZ = 0; //number of nonzeros in matrix
-    int MAXNZR = 0; //Maximum number of nonzeros per row in the matrix A
-    int NZMD = 0; //number of nonzeros in main diagonal of the matrix
+    int MAXNZR = 0; //maximum number of nonzeros per row in the matrix A
+    int NZMD = 0; //number of nonzeros in the main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary
@@ -97,7 +109,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::SPMV_MPMTX_JAD_TEST);
+    Logger::beginTestDescription(Logger::SPMV_CSR_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();
@@ -125,7 +137,7 @@ int main(int argc, char *argv[]) {
     Logger::endSection(true);
 
     //Run the test
-    test(MATRIX_PATH, M, N, LINES, MAXNZR, NNZ, SYMM, DATATYPE);
+    test(MATRIX_PATH, M, N, LINES, NNZ, SYMM, DATATYPE);
 
     //Finalize
     finalize();

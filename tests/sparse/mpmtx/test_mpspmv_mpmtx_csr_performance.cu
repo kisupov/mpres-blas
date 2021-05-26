@@ -23,15 +23,15 @@
 #include "mpfr.h"
 #include "logger.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/performance/csr/mpd/test_mpfr_mpdspmv_csr.cuh"
+#include "sparse/csr/test_mpfr_mpspmv_csr.cuh"
 #include "sparse/mpmtx/csr/test_mpres_mpspmv_mpmtx_csr_2stage.cuh"
 #include "sparse/mpmtx/csr/test_mpres_mpspmv_mpmtx_csr_scalar.cuh"
 #include "sparse/mpmtx/csr/test_mpres_mpspmv_mpmtx_csr_vector.cuh"
 #include "sparse/mpmtx/csr/test_campary_mpspmv_mpmtx_csr_scalar.cuh"
 #include "sparse/mpmtx/csr/test_campary_mpspmv_mpmtx_csr_vector.cuh"
-#include "sparse/performance/csr/mp/test_cump_mpspmv_csr_scalar.cuh"
-#include "sparse/performance/csr/dbl/test_double_spmv_csr.cuh"
-#include "sparse/performance/csr/dbl/test_taco_spmv_csr.cuh"
+#include "sparse/csr/test_cump_mpspmv_csr.cuh"
+#include "sparse/csr/test_double_spmv_csr.cuh"
+#include "sparse/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -62,7 +62,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     //Convert a sparse matrix to the double-precision CSR format
     convert_to_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, AS, IRP, JA);
     //Launch tests
-    test_mpfr_mpdspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION);
+    test_mpfr_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION);
     test_double_spmv_csr(M, N, NNZ, IRP, JA, AS, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
     Logger::printStars();
@@ -81,7 +81,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     test_campary_mpspmv_mpmtx_csr_vector<CAMPARY_PRECISION, 32>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
     test_campary_mpspmv_mpmtx_csr_scalar<CAMPARY_PRECISION>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
     Logger::printStars();
-    test_cump_mpspmv_csr_scalar(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_cump_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
     //Cleanup
@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::SPMV_MP_CSR_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::SPMV_MPMTX_CSR_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();

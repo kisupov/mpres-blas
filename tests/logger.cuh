@@ -50,15 +50,15 @@ namespace Logger {
         RNS_EVAL_ACCURACY_TEST,
         EXTRANGE_CORRECTNESS_TEST,
         RNS_CMP_PERFORMANCE_TEST,
-        SPMV_MP_CSR_PERFORMANCE_TEST,
-        SPMV_MPD_CSR_PERFORMANCE_TEST,
-        SPMV_MP_ELLPACK_PERFORMANCE_TEST,
-        SPMV_MPD_ELLPACK_PERFORMANCE_TEST,
-        SPMV_MP_DIA_PERFORMANCE_TEST,
-        SPMV_MPD_DIA_PERFORMANCE_TEST,
-        SPMV_MP_JAD_PERFORMANCE_TEST,
-        SPMV_MPD_JAD_PERFORMANCE_TEST,
-        SPMV_MPD_PERFORMANCE_TEST
+        SPMV_MPMTX_CSR_TEST,
+        SPMV_CSR_TEST,
+        SPMV_MPMTX_ELL_TEST,
+        SPMV_ELL_TEST,
+        SPMV_MPMTX_DIA_TEST,
+        SPMV_DIA_TEST,
+        SPMV_MPMTX_JAD_TEST,
+        SPMV_JAD_TEST,
+        SPMV_TEST
     };
 
     const char *testHeaderAsString(enum TestHeader header) {
@@ -107,24 +107,24 @@ namespace Logger {
                 return "Test for checking the correctness of the extended-range floating-point routines";
             case RNS_CMP_PERFORMANCE_TEST:
                 return "Test for measure the performance of the RNS magnitude comparison algorithms";
-            case SPMV_MP_CSR_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using the CSR matrix storage format (multiple precision matrix)";
-            case SPMV_MPD_CSR_PERFORMANCE_TEST:
+            case SPMV_TEST:
+                return "Performance and memory consumption test for SpMV routines using various matrix storage formats (double precision matrix)";
+            case SPMV_CSR_TEST:
                 return "Performance test for SpMV routines using the CSR matrix storage format (double precision matrix)";
-            case SPMV_MP_ELLPACK_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using the ELLPACK matrix storage format (multiple precision matrix)";
-            case SPMV_MPD_ELLPACK_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using the ELLPACK matrix storage format (double precision matrix)";
-            case SPMV_MP_DIA_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using the DIA matrix storage format (multiple precision matrix)";
-            case SPMV_MPD_DIA_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using the DIA matrix storage format (double precision matrix)";
-            case SPMV_MP_JAD_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using the JAD matrix storage format (multiple precision matrix)";
-            case SPMV_MPD_JAD_PERFORMANCE_TEST:
+            case SPMV_JAD_TEST:
                 return "Performance test for SpMV routines using the JAD matrix storage format (double precision matrix)";
-            case SPMV_MPD_PERFORMANCE_TEST:
-                return "Performance test for SpMV routines using various matrix storage formats (double precision matrix)";
+            case SPMV_ELL_TEST:
+                return "Performance test for SpMV routines using the ELLPACK matrix storage format (double precision matrix)";
+            case SPMV_DIA_TEST:
+                return "Performance test for SpMV routines using the DIA matrix storage format (double precision matrix)";
+            case SPMV_MPMTX_CSR_TEST:
+                return "Performance test for SpMV routines using the CSR matrix storage format (multiple precision matrix)";
+            case SPMV_MPMTX_JAD_TEST:
+                return "Performance test for SpMV routines using the JAD matrix storage format (multiple precision matrix)";
+            case SPMV_MPMTX_ELL_TEST:
+                return "Performance test for SpMV routines using the ELLPACK matrix storage format (multiple precision matrix)";
+            case SPMV_MPMTX_DIA_TEST:
+                return "Performance test for SpMV routines using the DIA matrix storage format (multiple precision matrix)";
         }
         return "";
     }

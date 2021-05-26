@@ -1,5 +1,5 @@
 /*
- *  Performance test for SpMV routines using the JAD (JDS) matrix format (multiple precision matrix)
+ *  Performance test for SpMV routines using the ELLPACK matrix format (double precision matrix)
  *  Path to the matrix must be given as a command line argument, e.g., ../../tests/sparse/matrices/t3dl.mtx
 
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
@@ -23,10 +23,10 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/matrix_converter.cuh"
-#include "sparse/mpmtx/jad/test_mpres_mpspmv_mpmtx_jad.cuh"
-#include "sparse/mpmtx/jad/test_campary_mpspmv_mpmtx_jad.cuh"
-#include "sparse/performance/jad/test_cump_mpspmv_jad.cuh"
-#include "sparse/performance/jad/test_double_spmv_jad.cuh"
+#include "sparse/ell/test_double_spmv_ell.cuh"
+#include "sparse/ell/test_mpres_mpspmv_ell.cuh"
+#include "sparse/ell/test_campary_mpspmv_ell.cuh"
+#include "sparse/ell/test_cump_mpspmv_ell.cuh"
 #include "sparse/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
@@ -49,27 +49,21 @@ void initialize() {
 void finalize() {
 }
 
-void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int MAXNZR, const int NNZ, const bool SYMM, const string DATATYPE) {
-
+void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int MAXNZR, const bool SYMM, const string DATATYPE) {
     //Input arrays
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
-    auto *AS = new double [NNZ]();
-    auto *JA = new int[NNZ]();
-    auto *JCP = new int[MAXNZR + 1]();
-    auto *PERM_ROWS = new int[M]();
-
-    //Convert a sparse matrix to the double-precision JAD (JDS) format
-    convert_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, AS, JCP, JA, PERM_ROWS);
-
+    auto *AS = new double [M * MAXNZR]();
+    auto *JA = new int[M * MAXNZR]();
+    //Convert a sparse matrix to the double-precision ELLPACK format
+    convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
     //Launch tests
-    test_double_spmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
+    test_double_spmv_ell(M, N, MAXNZR, JA, AS, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_mpmtx_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
-    test_campary_mpspmv_mpmtx_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
-    test_cump_mpspmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_mpres_mpspmv_ell(M, N, MAXNZR, JA, AS, vectorX);
+    test_campary_mpspmv_ell<CAMPARY_PRECISION>(M, N, MAXNZR, JA, AS, vectorX, INP_DIGITS);
+    test_cump_mpspmv_ell(M, N, MAXNZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
-
     //Cleanup
     for(int i = 0; i < N; i++){
         mpfr_clear(vectorX[i]);
@@ -77,8 +71,6 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     delete[] vectorX;
     delete[] AS;
     delete[] JA;
-    delete[] JCP;
-    delete[] PERM_ROWS;
     cudaDeviceReset();
 }
 
@@ -87,9 +79,8 @@ int main(int argc, char *argv[]) {
     //The operation parameters. Read from an input file that contains a sparse matrix
     int M = 0; //number of rows
     int N = 0; //number of columns
-    int NNZ = 0; //number of nonzeros in matrix
-    int MAXNZR = 0; //Maximum number of nonzeros per row in the matrix A
-    int NZMD = 0; //number of nonzeros in main diagonal of the matrix
+    int MAXNZR = 0; //maximum number of nonzeros per row in the matrix A
+    int NZMD = 0; //number of nonzeros in the main diagonal of the matrix
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary
@@ -97,7 +88,7 @@ int main(int argc, char *argv[]) {
     initialize();
 
     //Start logging
-    Logger::beginTestDescription(Logger::SPMV_MPMTX_JAD_TEST);
+    Logger::beginTestDescription(Logger::SPMV_ELL_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();
@@ -109,7 +100,7 @@ int main(int argc, char *argv[]) {
     Logger::beginSection("Matrix properties:");
     Logger::printParam("Path", MATRIX_PATH);
     read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);
-    NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
+    int NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
     Logger::printParam("Number of rows, M", M);
     Logger::printParam("Number of column, N", N);
     Logger::printParam("Number of nonzeros, NNZ", NNZ);
@@ -125,7 +116,7 @@ int main(int argc, char *argv[]) {
     Logger::endSection(true);
 
     //Run the test
-    test(MATRIX_PATH, M, N, LINES, MAXNZR, NNZ, SYMM, DATATYPE);
+    test(MATRIX_PATH, M, N, LINES, MAXNZR, SYMM, DATATYPE);
 
     //Finalize
     finalize();
