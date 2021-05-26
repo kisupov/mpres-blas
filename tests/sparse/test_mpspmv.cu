@@ -24,6 +24,7 @@
 #include "mpfr.h"
 #include "logger.cuh"
 #include "sparse/matrix_converter.cuh"
+#include "sparse/utils/jad_utils.cuh"
 #include "sparse/csr/test_double_spmv_csr.cuh"
 #include "sparse/csr/test_mpfr_mpspmv_csr.cuh"
 #include "sparse/csr/test_mpres_mpspmv_csr_scalar.cuh"
@@ -140,12 +141,11 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     //Input vector
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
 
-    //Matrix storage arrays
+    //Matrix storage structures
+    jad_t JAD;
     double *AS;
     int *JA;
     int *IRP;
-    int *JCP;
-    int *PERM_ROWS;
     int *OFFSET;
     int NDIAG;
 
@@ -180,16 +180,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     delete[] IRP;
 
     //JAD
-    AS = new double [NNZ]();
-    JA = new int[NNZ]();
-    JCP = new int[MAXNZR + 1]();
-    PERM_ROWS = new int[M]();
-    convert_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, AS, JCP, JA, PERM_ROWS);
-    test_mpres_mpspmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
-    delete[] AS;
-    delete[] JA;
-    delete[] JCP;
-    delete[] PERM_ROWS;
+    jad_init(JAD, M, MAXNZR, NNZ);
+    read_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
+    test_mpres_mpspmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
+    jad_clear(JAD);
 
     //ELLPACK
     AS = new double [M * MAXNZR]();
@@ -229,16 +223,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     delete[] IRP;
 
     //JAD
-    AS = new double [NNZ]();
-    JA = new int[NNZ]();
-    JCP = new int[MAXNZR + 1]();
-    PERM_ROWS = new int[M]();
-    convert_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, AS, JCP, JA, PERM_ROWS);
-    test_campary_mpspmv_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
-    delete[] AS;
-    delete[] JA;
-    delete[] JCP;
-    delete[] PERM_ROWS;
+    jad_init(JAD, M, MAXNZR, NNZ);
+    read_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
+    test_campary_mpspmv_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JAD, vectorX, INP_DIGITS);
+    jad_clear(JAD);
 
     //ELLPACK
     AS = new double [M * MAXNZR]();
@@ -275,16 +263,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     delete[] IRP;
 
     //JAD
-    AS = new double [NNZ]();
-    JA = new int[NNZ]();
-    JCP = new int[MAXNZR + 1]();
-    PERM_ROWS = new int[M]();
-    convert_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, AS, JCP, JA, PERM_ROWS);
-    test_cump_mpspmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
-    delete[] AS;
-    delete[] JA;
-    delete[] JCP;
-    delete[] PERM_ROWS;
+    jad_init(JAD, M, MAXNZR, NNZ);
+    read_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
+    test_cump_mpspmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX, MP_PRECISION, INP_DIGITS);
+    jad_clear(JAD);
 
     //ELLPACK
     AS = new double [M * MAXNZR]();

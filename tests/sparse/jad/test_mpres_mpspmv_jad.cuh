@@ -25,13 +25,13 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "../../../src/sparse/mpspmv_jad.cuh"
+#include "sparse/mpspmv_jad.cuh"
+#include "sparse/utils/jad_utils.cuh"
 
 /////////
 //  SpMV jad kernel test
 /////////
-void test_mpres_mpspmv_jad(const int m, const int n, const int maxnzr, const int nnz, const int *ja, const int *jcp,
-                           const double *as, const int *perm_rows, const mpfr_t *x) {
+void test_mpres_mpspmv_jad(const int m, const int n, const int maxnzr, const int nnz, const jad_t &jad, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS JAD (mpspmv_jad)");
@@ -45,38 +45,22 @@ void test_mpres_mpspmv_jad(const int m, const int n, const int maxnzr, const int
     auto hx = new mp_float_t[n];
     auto hy = new mp_float_t[m];
 
-    // GPU data
+    // GPU vectors
     mp_float_ptr dx;
     mp_float_ptr dy;
-    double *das;
-    int *dja;
-    int *djcp;
-    int *dperm_rows;
-
-    //Init data
     cudaMalloc(&dx, sizeof(mp_float_t) * n);
     cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    cudaMalloc(&das, sizeof(double) * nnz);
-    cudaMalloc(&dja, sizeof(int) * nnz);
-    cudaMalloc(&djcp, sizeof(int) * (maxnzr + 1));
-    cudaMalloc(&dperm_rows, sizeof(int) * m);
-
-    // Convert from MPFR
     convert_vector(hx, x, n);
-
-    //Copying to the GPU
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, nnz * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(djcp, jcp, (maxnzr + 1) * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dperm_rows, perm_rows, m * sizeof(int), cudaMemcpyHostToDevice);
 
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
+    //GPU matrix
+    jad_t djad;
+    cuda::jad_init(djad, m, maxnzr, nnz);
+    cuda::jad_host2device(djad, jad, m, maxnzr, nnz);
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_jad<32><<<blocks, threads>>>(m, maxnzr, das, dja, djcp, dperm_rows, dx, dy);
+    cuda::mpspmv_jad<32><<<blocks, threads>>>(m, maxnzr, djad, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -91,10 +75,8 @@ void test_mpres_mpspmv_jad(const int m, const int n, const int maxnzr, const int
     delete[] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cudaFree(das);
-    cudaFree(dja);
-    cudaFree(djcp);
-    cudaFree(dperm_rows);
+    cuda::jad_clear(djad);
+
 }
 
 #endif //TEST_MPRES_MPSPMV_JAD_CUH

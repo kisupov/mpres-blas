@@ -27,6 +27,7 @@
 #include "../arith/mpadd.cuh"
 #include "../arith/mpmuld.cuh"
 #include "../arith/mpassign.cuh"
+#include "utils/jad_utils.cuh"
 
 namespace cuda {
 
@@ -42,15 +43,12 @@ namespace cuda {
      * @tparam threads - thread block size
      * @param m - number of rows in matrix
      * @param maxnzr - maximum number of nonzeros per row in the matrix A
-     * @param as - multiple-precision coefficients array (entries of the matrix A in the JAD (JDS) format), size nnz (number of nonzeros in matrix)
-     * @param ja - column indices array to access the corresponding elements of the vector x, size = nnz
-     * @param jcp - col start pointers array of size maxnzr + 1, last element of jcp equals to nnz
-     * @param perm_rows - permutated row indices, size = m
+     * @param jad -sparse double-precision matrix in the JAD storage format
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
     template<int threads>
-    __global__ void mpspmv_jad(const int m, const int maxnzr, const double *as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_jad(const int m, const int maxnzr, const jad_t jad, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         __shared__ mp_float_t sums[threads];
         __shared__ mp_float_t prods[threads];
@@ -58,12 +56,12 @@ namespace cuda {
             auto j = 0;
             auto index = row;
             sums[threadIdx.x] = cuda::MP_ZERO;
-            while (j < maxnzr && index < jcp[j + 1]) {
-                cuda::mp_mul_d(&prods[threadIdx.x], &x[ja[index]], as[index]);
+            while (j < maxnzr && index < jad.jcp[j + 1]) {
+                cuda::mp_mul_d(&prods[threadIdx.x], &x[jad.ja[index]], jad.as[index]);
                 cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
-                index = row + jcp[++j];
+                index = row + jad.jcp[++j];
             }
-            cuda::mp_set(&y[perm_rows[row]], &sums[threadIdx.x]);
+            cuda::mp_set(&y[jad.perm[row]], &sums[threadIdx.x]);
             row +=  gridDim.x * blockDim.x;
         }
     }

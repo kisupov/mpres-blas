@@ -104,4 +104,14 @@ typedef struct {
 } mp_collection_t;
 
 
+/*!
+ * Jagged Diagonals (JAD) structure for representing a sparse matrix
+ */
+typedef struct {
+    double * as;  // Nonzero matrix entries
+    int * ja;     // Column indices
+    int * jcp;    // Column start pointers
+    int * perm;   // Row permutation
+} jad_t;
+
 #endif //MPRES_TYPES_CUH

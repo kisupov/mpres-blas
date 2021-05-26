@@ -48,7 +48,7 @@ __global__ void cump_mpspmv_jad_kernel(const int m, const int maxnzr, const int 
     }
 }
 
-void test_cump_mpspmv_jad(const int m, const int n, const int maxnzr, const int nnz, const int *ja, const int *jcp, const double *as, const int *perm_rows, mpfr_t *x, const int prec, const int convert_digits){
+void test_cump_mpspmv_jad(const int m, const int n, const int maxnzr, const int nnz, const jad_t &jad, mpfr_t *x, const int prec, const int convert_digits){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CUMP SpMV JAD (JDS) (multiple precision matrix)");
@@ -74,7 +74,7 @@ void test_cump_mpspmv_jad(const int m, const int n, const int maxnzr, const int 
     cumpf_array_t dbuf;
     int *dja;
     int *djcp;
-    int *dperm_rows;
+    int *dperm;
 
     cumpf_array_init2(dx, n, prec);
     cumpf_array_init2(dy, m, prec);
@@ -82,7 +82,7 @@ void test_cump_mpspmv_jad(const int m, const int n, const int maxnzr, const int 
     cumpf_array_init2(dbuf, m, prec);
     cudaMalloc(&dja, sizeof(int) * nnz);
     cudaMalloc(&djcp, sizeof(int) * (maxnzr + 1));
-    cudaMalloc(&dperm_rows, sizeof(int) * m);
+    cudaMalloc(&dperm, sizeof(int) * m);
 
     //Convert from MPFR
     for(int i = 0; i < n; i++){
@@ -96,20 +96,20 @@ void test_cump_mpspmv_jad(const int m, const int n, const int maxnzr, const int 
     //Convert from double
     for(int i = 0; i < nnz; i++){
         mpf_init2(has[i], prec);
-        mpf_set_d(has[i], as[i]);
+        mpf_set_d(has[i], jad.as[i]);
     }
 
     //Copying to the GPU
     cumpf_array_set_mpf(dx, hx, n);
     cumpf_array_set_mpf(dy, hy, m);
     cumpf_array_set_mpf(das, has, nnz);
-    cudaMemcpy(dja, ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(djcp, jcp, sizeof(int) * (maxnzr + 1), cudaMemcpyHostToDevice);
-    cudaMemcpy(dperm_rows, perm_rows, sizeof(int) * m, cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, jad.ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
+    cudaMemcpy(djcp, jad.jcp, sizeof(int) * (maxnzr + 1), cudaMemcpyHostToDevice);
+    cudaMemcpy(dperm, jad.perm, sizeof(int) * m, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();
-    cump_mpspmv_jad_kernel<<<blocks, threads>>>(m, maxnzr, dja, das, djcp, dperm_rows, dx, dy, dbuf);
+    cump_mpspmv_jad_kernel<<<blocks, threads>>>(m, maxnzr, dja, das, djcp, dperm, dx, dy, dbuf);
     EndCudaTimer();
     PrintCudaTimer("took");
 
@@ -139,7 +139,7 @@ void test_cump_mpspmv_jad(const int m, const int n, const int maxnzr, const int 
     cumpf_array_clear(dbuf);
     cudaFree(dja);
     cudaFree(djcp);
-    cudaFree(dperm_rows);
+    cudaFree(dperm);
 }
 
 
