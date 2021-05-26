@@ -25,8 +25,7 @@
 #include "sparse/matrix_converter.cuh"
 #include "sparse/mpmtx/jad/test_mpres_mpspmv_mpmtx_jad.cuh"
 #include "sparse/mpmtx/jad/test_campary_mpspmv_mpmtx_jad.cuh"
-#include "sparse/performance/jad/test_cump_mpspmv_jad.cuh"
-#include "sparse/performance/jad/test_double_spmv_jad.cuh"
+#include "sparse/mpmtx/jad/test_cump_mpspmv_mpmtx_jad.cuh"
 #include "sparse/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
@@ -62,11 +61,10 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     convert_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, AS, JCP, JA, PERM_ROWS);
 
     //Launch tests
-    test_double_spmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
     test_mpres_mpspmv_mpmtx_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX);
     test_campary_mpspmv_mpmtx_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, INP_DIGITS);
-    test_cump_mpspmv_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_cump_mpspmv_mpmtx_jad(M, N, MAXNZR, NNZ, JA, JCP, AS, PERM_ROWS, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
