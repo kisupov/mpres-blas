@@ -1,5 +1,5 @@
 /*
- *  Sparse matrix helper routines
+ *  Routines for reading Matrix Market coordinate format (mtx) and building the CSR, JAD, ELL, and DIA structures
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
  *
@@ -20,8 +20,8 @@
  */
 
 
-#ifndef MATRIX_CONVERTER_CUH
-#define MATRIX_CONVERTER_CUH
+#ifndef MTX_READER_CUH
+#define MTX_READER_CUH
 
 #include <algorithm>
 #include <vector>
@@ -36,18 +36,19 @@ using namespace std;
 //TODO ни один конвертер + функция считывания параметров матрицы не учитывает нули, которые могут быть внутри .mtx файла
 
 /*!
- * Reads metadata from a file that contains a sparse matrix
+ * Collects sparse matrix statistics from mtx file
+ * Input:
  * @param filename - path to the file with the matrix
- *
- * @param m - number of rows in matrix (output parameter)
- * @param n - number of columns in matrix (output parameter)
- * @param lines - total number of lines with data (output parameter)
- * @param maxnzr - maximum number of nonzeros per row in the matrix (output parameter)
- * @param nzmd - number of nonzeros in the main diagonal of the matrix (output parameter)
+ * Output:
+ * @param m - number of rows in matrix
+ * @param n - number of columns in matrix
+ * @param lines - total number of lines with data
+ * @param maxnzr - maximum number of nonzeros per row in the matrix
+ * @param nzmd - number of nonzeros in the main diagonal of the matrix
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  * @param datatype - type of data according to the matrix market format - real, integer, binary
  */
-void read_matrix_properties(const char filename[], int &m, int &n, int &lines, int &maxnzr, int &nzmd, bool &symmetric, string &datatype) {
+void collect_mtx_stats(const char *filename, int &m, int &n, int &lines, int &maxnzr, int &nzmd, bool &symmetric, string &datatype) {
 
     //Create stream
     std::ifstream file(filename);
@@ -95,6 +96,39 @@ void read_matrix_properties(const char filename[], int &m, int &n, int &lines, i
     maxnzr = *std::max_element(nonZeros, nonZeros + m);
     delete[] nonZeros;
     file.close();
+}
+
+/*!
+ * Calculates the number of nonzero diagonals in the sparse matrix
+ * @param filename - path to the file with the matrix
+ * @param lines - total number of lines with data
+ * @param ndiag - number of nonzero diagonals
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
+ */
+int calc_ndiag(const char filename[], const int lines, bool symmetric) {
+    std::ifstream file(filename);
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::vector<int> diagOffsets(lines);
+    for (int l = 0; l < lines; l++) {
+        double fileData = 0.0;
+        int row = 0, col = 0;
+        file >> row >> col >> fileData;
+        diagOffsets[l] = col-row;
+    }
+    std::sort(diagOffsets.begin(), diagOffsets.end());
+    diagOffsets.erase(std::unique(diagOffsets.begin(), diagOffsets.end()), diagOffsets.end());
+    int ndiag = (int) diagOffsets.size();
+    if (symmetric) {
+        for (int i = ndiag-2; i > -1; i--) {
+            diagOffsets.push_back(-diagOffsets[i]);
+        }
+        ndiag = (int) diagOffsets.size();
+    }
+    file.close();
+    diagOffsets.clear();
+    diagOffsets.shrink_to_fit();
+    return ndiag;
 }
 
 
@@ -281,7 +315,7 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
     //Create stream
     std::ifstream file(filename);
 
-    //TODO читаем файл дважды в методе. Вкупе с методом read_matrix_properties получается 3
+    //TODO читаем файл дважды в методе. Вкупе с методом collect_mtx_stats получается 3
 
     // Ignore comments headers
     while (file.peek() == '%') file.ignore(2048, '\n');
@@ -339,38 +373,6 @@ void convert_to_dia(const char filename[], const int m, const int lines, bool sy
     diagOffsets.shrink_to_fit();
 }
 
-/*!
- * Calculates the number of nonzero diagonals in the sparse matrix
- * @param filename - path to the file with the matrix
- * @param lines - total number of lines with data
- * @param ndiag - number of nonzero diagonals
- * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
- */
-int calc_ndiag(const char filename[], const int lines, bool symmetric) {
-    std::ifstream file(filename);
-    while (file.peek() == '%') file.ignore(2048, '\n');
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::vector<int> diagOffsets(lines);
-    for (int l = 0; l < lines; l++) {
-        double fileData = 0.0;
-        int row = 0, col = 0;
-        file >> row >> col >> fileData;
-        diagOffsets[l] = col-row;
-    }
-    std::sort(diagOffsets.begin(), diagOffsets.end());
-    diagOffsets.erase(std::unique(diagOffsets.begin(), diagOffsets.end()), diagOffsets.end());
-    int ndiag = (int) diagOffsets.size();
-    if (symmetric) {
-        for (int i = ndiag-2; i > -1; i--) {
-            diagOffsets.push_back(-diagOffsets[i]);
-        }
-        ndiag = (int) diagOffsets.size();
-    }
-    file.close();
-    diagOffsets.clear();
-    diagOffsets.shrink_to_fit();
-    return ndiag;
-}
 
 /*!
  * Converts a sparse matrix to the JAD format
@@ -382,7 +384,7 @@ int calc_ndiag(const char filename[], const int lines, bool symmetric) {
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  * @param jad - reference to the JAD instance to be defined
  */
-void read_to_jad(const char *filename, const int m, const int maxnzr, const int nnz, const int lines, bool symmetric, jad_t &jad) {
+void build_jad(const char *filename, const int m, const int maxnzr, const int nnz, const int lines, bool symmetric, jad_t &jad) {
     auto *csr_as = new double[nnz]();
     auto *csr_ja = new int [nnz]();
     auto *csr_irp = new int[m + 1]();
@@ -522,4 +524,4 @@ void print_jad(const int m, const int nnz, const int maxnzr, double *as, int *ja
     std::cout << std::endl;
 }
 
-#endif //MATRIX_CONVERTER_CUH
+#endif //MTX_READER_CUH

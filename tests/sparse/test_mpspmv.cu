@@ -23,7 +23,7 @@
 
 #include "mpfr.h"
 #include "logger.cuh"
-#include "sparse/matrix_converter.cuh"
+#include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/jad_utils.cuh"
 #include "sparse/csr/test_double_spmv_csr.cuh"
 #include "sparse/csr/test_mpfr_mpspmv_csr.cuh"
@@ -181,7 +181,7 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
 
     //JAD
     jad_init(JAD, M, MAXNZR, NNZ);
-    read_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
+    build_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
     test_mpres_mpspmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
     jad_clear(JAD);
 
@@ -224,7 +224,7 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
 
     //JAD
     jad_init(JAD, M, MAXNZR, NNZ);
-    read_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
+    build_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
     test_campary_mpspmv_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JAD, vectorX, INP_DIGITS);
     jad_clear(JAD);
 
@@ -264,7 +264,7 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
 
     //JAD
     jad_init(JAD, M, MAXNZR, NNZ);
-    read_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
+    build_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
     test_cump_mpspmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX, MP_PRECISION, INP_DIGITS);
     jad_clear(JAD);
 
@@ -315,7 +315,7 @@ int main(int argc, char *argv[]) {
 
     Logger::beginSection("Matrix properties:");
     Logger::printParam("Path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);
+    collect_mtx_stats(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);
     NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
     Logger::printParam("Number of rows, M", M);
     Logger::printParam("Number of column, N", N);

@@ -22,7 +22,7 @@
 
 #include "logger.cuh"
 #include "tsthelper.cuh"
-#include "sparse/matrix_converter.cuh"
+#include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/jad_utils.cuh"
 #include "sparse/jad/test_double_spmv_jad.cuh"
 #include "sparse/jad/test_mpres_mpspmv_jad.cuh"
@@ -129,7 +129,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     jad_t JAD;
     jad_init(JAD, M, MAXNZR, NNZ);
     //Convert a sparse matrix to the double-precision JAD (JDS) format
-    read_to_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
+    build_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
 
     //Launch tests
     test_double_spmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
@@ -176,7 +176,7 @@ int main(int argc, char *argv[]) {
 
     Logger::beginSection("Matrix properties:");
     Logger::printParam("Path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);
+    collect_mtx_stats(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);
     NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
     Logger::printParam("Number of rows, M", M);
     Logger::printParam("Number of column, N", N);

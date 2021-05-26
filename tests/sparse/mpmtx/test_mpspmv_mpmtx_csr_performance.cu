@@ -22,7 +22,7 @@
 
 #include "mpfr.h"
 #include "logger.cuh"
-#include "sparse/matrix_converter.cuh"
+#include "sparse/utils/mtx_reader.cuh"
 #include "sparse/csr/test_mpfr_mpspmv_csr.cuh"
 #include "sparse/mpmtx/csr/test_mpres_mpspmv_mpmtx_csr_2stage.cuh"
 #include "sparse/mpmtx/csr/test_mpres_mpspmv_mpmtx_csr_scalar.cuh"
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
 
     Logger::beginSection("Matrix properties:");
     Logger::printParam("Path", MATRIX_PATH);
-    read_matrix_properties(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);
+    collect_mtx_stats(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);
     NNZ = SYMM ? ( (LINES - NZMD) * 2 + NZMD) : LINES;
     Logger::printParam("Number of rows, M", M);
     Logger::printParam("Number of column, N", N);
