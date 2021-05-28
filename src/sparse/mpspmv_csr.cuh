@@ -1,5 +1,6 @@
 /*
  *  Multiple-precision sparse matrix-vector multiplication (SpMV) on GPU using the CSR sparse matrix format (double precision matrix, multiple precision vectors)
+ *  Computes the product of a sparse matrix and a dense vector
  *  Scalar CSR kernel - one thread is assigned to each row of the matrix
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
@@ -20,8 +21,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPSPMV_CSR_SCALAR_CUH
-#define MPSPMV_CSR_SCALAR_CUH
+#ifndef MPSPMV_CSR_CUH
+#define MPSPMV_CSR_CUH
 
 #include "../arith/mpadd.cuh"
 #include "../arith/mpmuld.cuh"
@@ -31,11 +32,11 @@ namespace cuda {
 
     /*!
      * Performs the matrix-vector operation y = A * x, where x and y are dense vectors and A is a sparse matrix.
-     * Scalar kernel - one thread is assigned to each row of the matrix, i.e. one element of the vector y.
      * The matrix should be stored in the CSR format: entries are stored in a dense array of nonzeros in row major order.
      *
      * @note The matrix is represented in double precision
      * @note Each operation using multiple precision is performed as a single thread
+     * @note Scalar kernel - one thread is assigned to each row of the matrix, i.e. one element of the vector y.
      * @note No global memory buffer is required
      *
      * @tparam threads - thread block size
@@ -47,7 +48,7 @@ namespace cuda {
      * @param y - output vector, size at least m
      */
     template<int threads>
-    __global__ void mpspmv_csr_scalar(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_csr(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         __shared__ mp_float_t sums[threads];
         __shared__ mp_float_t prods[threads];
@@ -66,4 +67,4 @@ namespace cuda {
 
 } // namespace cuda
 
-#endif //MPSPMV_CSR_SCALAR_CUH
+#endif //MPSPMV_CSR_CUH

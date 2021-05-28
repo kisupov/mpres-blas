@@ -26,6 +26,7 @@
 #include "sparse/utils/jad_utils.cuh"
 #include "sparse/jad/test_double_spmv_jad.cuh"
 #include "sparse/jad/test_mpres_mpspmv_jad.cuh"
+#include "sparse/jad/test_mpres_mpspmv_jad_vector.cuh"
 #include "sparse/jad/test_campary_mpspmv_jad.cuh"
 #include "sparse/jad/test_cump_mpspmv_jad.cuh"
 #include "sparse/csr/test_taco_spmv_csr.cuh"
@@ -136,6 +137,11 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
     test_mpres_mpspmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
     test_mpres_mpspmv_jad_smem_free(M, N, MAXNZR, NNZ, JAD, vectorX);
+    test_mpres_mpspmv_jad_vector<2>(M, N, MAXNZR, NNZ, JAD, vectorX);
+    test_mpres_mpspmv_jad_vector<4>(M, N, MAXNZR, NNZ, JAD, vectorX);
+    test_mpres_mpspmv_jad_vector<8>(M, N, MAXNZR, NNZ, JAD, vectorX);
+    test_mpres_mpspmv_jad_vector<16>(M, N, MAXNZR, NNZ, JAD, vectorX);
+    test_mpres_mpspmv_jad_vector<32>(M, N, MAXNZR, NNZ, JAD, vectorX);
     test_campary_mpspmv_jad<CAMPARY_PRECISION>(M, N, MAXNZR, NNZ, JAD, vectorX, INP_DIGITS);
     test_cump_mpspmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());

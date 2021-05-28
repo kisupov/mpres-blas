@@ -79,7 +79,7 @@ template<int prec, int threadsPerRow>
 void test_campary_mpspmv_csr_vector(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, mpfr_t *x, const int convert_prec) {
     Logger::printDash();
     InitCudaTimer();
-    PrintTimerName("[GPU] CAMPARY SpMV CSR vector (double precision matrix)");
+    PrintTimerName("[GPU] CAMPARY SpMV CSR Vector (double precision matrix)");
 
     //Execution configuration
     const int threads = 32;

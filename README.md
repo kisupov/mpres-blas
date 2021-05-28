@@ -27,9 +27,10 @@ Underlying algorithms for multiple-precision floating-point arithmetic as well a
 
 2. The following sparse matrix-vector multiplication (SpMV) routines are supported:
     
-    * Multiple-precision CSR kernel for double-precision matrix using one thread per matrix row (`mpspmv_csr_scalar`)
+    * Multiple-precision CSR kernel for double-precision matrix using one thread per matrix row (`mpspmv_csr`)
     * Multiple-precision CSR kernel for double-precision matrix using a group (up to 32) of threads per matrix row (`mpspmv_csr_vector`)
     * Multiple-precision JAD kernel for double-precision matrix using one thread per matrix row (`mpspmv_jad`)
+    * Multiple-precision JAD kernel for double-precision matrix using a group (up to 32) of threads per matrix row (`mpspmv_jad_vector`)
     * Multiple-precision ELLPACK kernel for double-precision matrix using one thread per matrix row (`mpspmv_ell`)
     * Multiple-precision DIA kernel for double-precision matrix using one thread per matrix row (`mpspmv_dia`)
 

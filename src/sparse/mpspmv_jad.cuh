@@ -1,7 +1,7 @@
 /*
  *  Multiple-precision SpMV (Sparse matrix-vector multiplication) on GPU using the JAD (JDS) sparse matrix format (double precision matrix)
  *  Computes the product of a sparse matrix and a dense vector
- *  SpMV JAD (JDS) implementation
+ *  Scalar kernel - one thread is assigned to compute one dot product, i.e. one element of the vector y
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko
  *
@@ -37,7 +37,7 @@ namespace cuda {
      *
      * @note The matrix is represented in double precision
      * @note Each operation using multiple precision is performed as a single thread
-     * @note One thread is assigned to compute one dot product, i.e. one element of the vector n
+     * @note Scalar kernel - one thread is assigned to compute one dot product, i.e. one element of the vector y
      * @note No global memory buffer is required
      *
      * @tparam threads - thread block size

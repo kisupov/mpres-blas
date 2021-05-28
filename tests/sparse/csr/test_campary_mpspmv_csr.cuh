@@ -20,8 +20,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_CAMPARY_MPSPMV_CSR_SCALAR_CUH
-#define TEST_CAMPARY_MPSPMV_CSR_SCALAR_CUH
+#ifndef TEST_CAMPARY_MPSPMV_CSR_CUH
+#define TEST_CAMPARY_MPSPMV_CSR_CUH
 
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
@@ -35,7 +35,7 @@
  * The matrix should be stored in the CSR format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
 template<int threads, int prec>
-__global__ void campary_mpspmv_csr_scalar_kernel(const int m, const int *irp, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
+__global__ void campary_mpspmv_csr_kernel(const int m, const int *irp, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     __shared__ multi_prec<prec> sums[threads];
     __shared__ multi_prec<prec> prods[threads];
@@ -52,10 +52,10 @@ __global__ void campary_mpspmv_csr_scalar_kernel(const int m, const int *irp, co
 }
 
 template<int prec>
-void test_campary_mpspmv_csr_scalar(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, mpfr_t *x, const int convert_prec) {
+void test_campary_mpspmv_csr(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, mpfr_t *x, const int convert_prec) {
     Logger::printDash();
     InitCudaTimer();
-    PrintTimerName("[GPU] CAMPARY SpMV CSR scalar (double precision matrix)");
+    PrintTimerName("[GPU] CAMPARY SpMV CSR (double precision matrix)");
 
     //Execution configuration
     int threads = 32;
@@ -95,7 +95,7 @@ void test_campary_mpspmv_csr_scalar(const int m, const int n, const int nnz, con
 
     //Launch
     StartCudaTimer();
-    campary_mpspmv_csr_scalar_kernel<32, prec><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
+    campary_mpspmv_csr_kernel<32, prec><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -119,4 +119,4 @@ void test_campary_mpspmv_csr_scalar(const int m, const int n, const int nnz, con
 }
 
 
-#endif //TEST_CAMPARY_MPSPMV_CSR_SCALAR_CUH
+#endif //TEST_CAMPARY_MPSPMV_CSR_CUH

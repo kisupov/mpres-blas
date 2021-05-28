@@ -27,12 +27,13 @@
 #include "sparse/utils/jad_utils.cuh"
 #include "sparse/csr/test_double_spmv_csr.cuh"
 #include "sparse/csr/test_mpfr_mpspmv_csr.cuh"
-#include "sparse/csr/test_mpres_mpspmv_csr_scalar.cuh"
+#include "sparse/csr/test_mpres_mpspmv_csr.cuh"
 #include "sparse/csr/test_mpres_mpspmv_csr_vector.cuh"
-#include "sparse/csr/test_campary_mpspmv_csr_scalar.cuh"
+#include "sparse/csr/test_campary_mpspmv_csr.cuh"
 #include "sparse/csr/test_campary_mpspmv_csr_vector.cuh"
 #include "sparse/csr/test_cump_mpspmv_csr.cuh"
 #include "sparse/jad/test_mpres_mpspmv_jad.cuh"
+#include "sparse/jad/test_mpres_mpspmv_jad_vector.cuh"
 #include "sparse/jad/test_campary_mpspmv_jad.cuh"
 #include "sparse/jad/test_cump_mpspmv_jad.cuh"
 #include "sparse/ell/test_mpres_mpspmv_ell.cuh"
@@ -171,9 +172,9 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     Logger::beginSection("***** MPRES-BLAS Tests *****");
 
     //CSR
-    test_mpres_mpspmv_csr_scalar(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<4>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<16>(M, N, NNZ, IRP, JA, AS, vectorX);
+    test_mpres_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX);
+    test_mpres_mpspmv_csr_vector<2>(M, N, NNZ, IRP, JA, AS, vectorX);
+    test_mpres_mpspmv_csr_vector<8>(M, N, NNZ, IRP, JA, AS, vectorX);
     test_mpres_mpspmv_csr_vector<32>(M, N, NNZ, IRP, JA, AS, vectorX);
     delete[] AS;
     delete[] JA;
@@ -183,6 +184,9 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     jad_init(JAD, M, MAXNZR, NNZ);
     build_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
     test_mpres_mpspmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
+    test_mpres_mpspmv_jad_vector<2>(M, N, MAXNZR, NNZ, JAD, vectorX);
+    test_mpres_mpspmv_jad_vector<8>(M, N, MAXNZR, NNZ, JAD, vectorX);
+    test_mpres_mpspmv_jad_vector<32>(M, N, MAXNZR, NNZ, JAD, vectorX);
     jad_clear(JAD);
 
     //ELLPACK
@@ -215,9 +219,9 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     JA = new int[NNZ]();
     IRP = new int[M + 1]();
     convert_to_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, AS, IRP, JA);
-    test_campary_mpspmv_csr_scalar<CAMPARY_PRECISION>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 4>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 8>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    test_campary_mpspmv_csr<CAMPARY_PRECISION>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    /*test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 4>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 8>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);*/
     delete[] AS;
     delete[] JA;
     delete[] IRP;
