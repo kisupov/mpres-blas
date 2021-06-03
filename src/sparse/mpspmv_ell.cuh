@@ -26,6 +26,7 @@
 #include "../arith/mpadd.cuh"
 #include "../arith/mpmuld.cuh"
 #include "../arith/mpassign.cuh"
+#include "utils/ell_utils.cuh"
 
 namespace cuda {
 
@@ -47,15 +48,15 @@ namespace cuda {
      * @param y - output vector, size at least m
      */
     template<int threads>
-    __global__ void mpspmv_ell(const int m, const int maxnzr, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_ell(const int m, const int maxnzr, const ell_t ell, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         __shared__ mp_float_t sums[threads];
         __shared__ mp_float_t prods[threads];
         while (row < m) {
             sums[threadIdx.x] = cuda::MP_ZERO;
             for (int col = 0; col < maxnzr; col++) {
-                int j = ja[col * m + row];
-                double val = as[col * m + row];
+                int j = ell.ja[col * m + row];
+                double val = ell.as[col * m + row];
                 if(val != 0){
                     cuda::mp_mul_d(&prods[threadIdx.x], &x[j], val);
                     cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);

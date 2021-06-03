@@ -53,16 +53,17 @@ void finalize() {
 void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int MAXNZR, const bool SYMM, const string DATATYPE) {
     //Input arrays
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
-    auto *AS = new double [M * MAXNZR]();
-    auto *JA = new int[M * MAXNZR]();
+    ell_t ELL;
+    ell_init(ELL, M, MAXNZR);
     //Convert a sparse matrix to the double-precision ELLPACK format
-    convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
+    build_ell(MATRIX_PATH, M, MAXNZR, LINES, SYMM, ELL);
+
     //Launch tests
-    test_double_spmv_ell(M, N, MAXNZR, JA, AS, vectorX);
+    test_double_spmv_ell(M, N, MAXNZR, ELL, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_ell(M, N, MAXNZR, JA, AS, vectorX);
-    test_campary_mpspmv_ell<CAMPARY_PRECISION>(M, N, MAXNZR, JA, AS, vectorX, INP_DIGITS);
-    test_cump_mpspmv_ell(M, N, MAXNZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_mpres_mpspmv_ell(M, N, MAXNZR, ELL, vectorX);
+    test_campary_mpspmv_ell<CAMPARY_PRECISION>(M, N, MAXNZR, ELL, vectorX, INP_DIGITS);
+    test_cump_mpspmv_ell(M, N, MAXNZR, ELL, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
     //Cleanup
@@ -70,8 +71,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
         mpfr_clear(vectorX[i]);
     }
     delete[] vectorX;
-    delete[] AS;
-    delete[] JA;
+    ell_clear(ELL);
     cudaDeviceReset();
 }
 

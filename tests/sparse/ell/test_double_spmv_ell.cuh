@@ -29,21 +29,22 @@
 /////////
 // Double precision
 /////////
-__global__ static void double_spmv_ell_kernel(const int m, const int maxnzr, const int *ja, const double *as, const double *x, double *y) {
+__global__ static void double_spmv_ell_kernel(const int m, const int maxnzr, const ell_t ell, const double *x, double *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if(row < m){
         double dot = 0;
         for (int col = 0; col < maxnzr; col++) {
-            int index = ja[col * m + row];
-            if(index != -1){
-                dot += as[col * m + row] * x[index];
+            int j = ell.ja[col * m + row];
+            double val = ell.as[col * m + row];
+            if(val != 0){
+                dot += val * x[j];
             }
         }
         y[row] = dot;
     }
 }
 
-void test_double_spmv_ell(const int m, const int n, const int maxnzr, const int *ja, const double *as, const mpfr_t *x) {
+void test_double_spmv_ell(const int m, const int n, const int maxnzr, const ell_t &ell, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] double SpMV ELLPACK");
@@ -52,34 +53,27 @@ void test_double_spmv_ell(const int m, const int n, const int maxnzr, const int 
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    printf("\tMatrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * maxnzr));
 
     //host data
     auto *hx = new double[n];
     auto *hy = new double[m];
 
-    //GPU data
-    double *das;
-    int *dja;
+    // GPU vectors
     double *dx;
     double *dy;
-
-    cudaMalloc(&das, sizeof(double) * m * maxnzr);
-    cudaMalloc(&dja, sizeof(int) * m * maxnzr);
     cudaMalloc(&dx, sizeof(double) * n);
     cudaMalloc(&dy, sizeof(double) * m);
-
-    // Convert from MPFR
     convert_vector(hx, x, n);
-
-    //Copying data to the GPU
-    cudaMemcpy(das, as, sizeof(double) * m * maxnzr, cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, sizeof(int) * m * maxnzr, cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
+
+    //GPU matrix
+    ell_t dell;
+    cuda::ell_init(dell, m, maxnzr);
+    cuda::ell_host2device(dell, ell, m, maxnzr);
 
     //Launch
     StartCudaTimer();
-    double_spmv_ell_kernel<<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy);
+    double_spmv_ell_kernel<<<blocks, threads>>>(m, maxnzr, dell, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -91,10 +85,9 @@ void test_double_spmv_ell(const int m, const int n, const int maxnzr, const int 
 
     delete [] hx;
     delete [] hy;
-    cudaFree(das);
-    cudaFree(dja);
     cudaFree(dx);
     cudaFree(dy);
+    cuda::ell_clear(dell);
 }
 
 #endif //TEST_DOUBLE_SPMV_ELL_CUH

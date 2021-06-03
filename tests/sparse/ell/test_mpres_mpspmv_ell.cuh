@@ -30,7 +30,7 @@
 /////////
 //  SpMV ELLPACK kernel test
 /////////
-void test_mpres_mpspmv_ell(const int m, const int n, const int maxnzr, const int *ja, const double *as, const mpfr_t *x){
+void test_mpres_mpspmv_ell(const int m, const int n, const int maxnzr, const ell_t &ell, const mpfr_t *x){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS ELLPACK (mpspmv_ell)");
@@ -44,32 +44,22 @@ void test_mpres_mpspmv_ell(const int m, const int n, const int maxnzr, const int
     auto hx = new mp_float_t[n];
     auto hy = new mp_float_t[m];
 
-    // GPU data
+    //GPU vectors
     mp_float_ptr dx;
     mp_float_ptr dy;
-    double *das;
-    int *dja;
-
-    //Init data
     cudaMalloc(&dx, sizeof(mp_float_t) * n);
     cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    cudaMalloc(&das, sizeof(double) * m * maxnzr);
-    cudaMalloc(&dja, sizeof(int) * m * maxnzr);
-
-    // Convert from MPFR
     convert_vector(hx, x, n);
-
-    //Copying to the GPU
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, m * maxnzr * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, m * maxnzr * sizeof(int), cudaMemcpyHostToDevice);
 
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
+    //GPU matrix
+    ell_t dell;
+    cuda::ell_init(dell, m, maxnzr);
+    cuda::ell_host2device(dell, ell, m, maxnzr);
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_ell<32><<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy);
+    cuda::mpspmv_ell<32><<<blocks, threads>>>(m, maxnzr, dell, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -84,8 +74,7 @@ void test_mpres_mpspmv_ell(const int m, const int n, const int maxnzr, const int
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cudaFree(das);
-    cudaFree(dja);
+    cuda::ell_clear(dell);
 }
 
 #endif //TEST_MPRES_MPSPMV_ELL_CUH

@@ -40,8 +40,9 @@ __global__ void cump_mpspmv_jad_kernel(const int m, const int maxnzr, const int 
         auto j = 0;
         auto index = row;
         while (j < maxnzr && index < jcp[j + 1]) {
-            mpf_mul(buf[perm_rows[row]], x[ja[index]], as[index]);
-            mpf_add(y[perm_rows[row]], y[perm_rows[row]], buf[perm_rows[row]]);
+            int r = perm_rows[row];
+            mpf_mul(buf[r], x[ja[index]], as[index]);
+            mpf_add(y[r], y[r], buf[r]);
             index = row + jcp[++j];
         }
         row +=  gridDim.x * blockDim.x;

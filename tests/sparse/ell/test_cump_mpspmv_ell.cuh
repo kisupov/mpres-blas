@@ -47,7 +47,7 @@ __global__ void cump_mpspmv_ell_kernel(const int m, const int maxnzr, const int 
     }
 }
 
-void test_cump_mpspmv_ell(const int m, const int n, const int maxnzr, const int *ja, const double *as, mpfr_t *x, const int prec, const int convert_digits){
+void test_cump_mpspmv_ell(const int m, const int n, const int maxnzr, const ell_t &ell, mpfr_t *x, const int prec, const int convert_digits){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CUMP SpMV ELLPACK (multiple precision matrix)");
@@ -91,14 +91,14 @@ void test_cump_mpspmv_ell(const int m, const int n, const int maxnzr, const int 
     //Convert from double
     for(int i = 0; i < m * maxnzr; i++){
         mpf_init2(has[i], prec);
-        mpf_set_d(has[i], as[i]);
+        mpf_set_d(has[i], ell.as[i]);
     }
 
     //Copying to the GPU
     cumpf_array_set_mpf(dx, hx, n);
     cumpf_array_set_mpf(dy, hy, m);
     cumpf_array_set_mpf(das, has, m * maxnzr);
-    cudaMemcpy(dja, ja, sizeof(int) * m * maxnzr, cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, ell.ja, sizeof(int) * m * maxnzr, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();

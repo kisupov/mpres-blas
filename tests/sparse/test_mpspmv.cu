@@ -147,6 +147,7 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
 
     //Matrix storage structures
     jad_t JAD;
+    ell_t ELL;
     double *AS;
     int *JA;
     int *IRP;
@@ -193,12 +194,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     jad_clear(JAD);
 
     //ELLPACK
-    AS = new double [M * MAXNZR]();
-    JA = new int[M * MAXNZR]();
-    convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
-    test_mpres_mpspmv_ell(M, N, MAXNZR, JA, AS, vectorX);
-    delete[] AS;
-    delete[] JA;
+    ell_init(ELL, M, MAXNZR);
+    build_ell(MATRIX_PATH, M, MAXNZR, LINES, SYMM, ELL);
+    test_mpres_mpspmv_ell(M, N, MAXNZR, ELL, vectorX);
+    ell_clear(ELL);
 
     //DIA
     if(TEST_DIA) {
@@ -236,12 +235,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     jad_clear(JAD);
 
     //ELLPACK
-    AS = new double [M * MAXNZR]();
-    JA = new int[M * MAXNZR]();
-    convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
-    test_campary_mpspmv_ell<CAMPARY_PRECISION>(M, N, MAXNZR, JA, AS, vectorX, INP_DIGITS);
-    delete[] AS;
-    delete[] JA;
+    ell_init(ELL, M, MAXNZR);
+    build_ell(MATRIX_PATH, M, MAXNZR, LINES, SYMM, ELL);
+    test_campary_mpspmv_ell<CAMPARY_PRECISION>(M, N, MAXNZR, ELL, vectorX, INP_DIGITS);
+    ell_clear(ELL);
 
     //DIA
     if(TEST_DIA) {
@@ -276,12 +273,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     jad_clear(JAD);
 
     //ELLPACK
-    AS = new double [M * MAXNZR]();
-    JA = new int[M * MAXNZR]();
-    convert_to_ellpack(MATRIX_PATH, M, MAXNZR, LINES, SYMM, AS, JA);
-    test_cump_mpspmv_ell(M, N, MAXNZR, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
-    delete[] AS;
-    delete[] JA;
+    ell_init(ELL, M, MAXNZR);
+    build_ell(MATRIX_PATH, M, MAXNZR, LINES, SYMM, ELL);
+    test_cump_mpspmv_ell(M, N, MAXNZR, ELL, vectorX, MP_PRECISION, INP_DIGITS);
+    ell_clear(ELL);
 
     //DIA
     if(TEST_DIA) {

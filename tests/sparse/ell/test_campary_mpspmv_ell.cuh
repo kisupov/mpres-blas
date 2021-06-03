@@ -34,15 +34,15 @@
  * The matrix should be stored in the ELLPACK format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
 template<int threads, int prec>
-__global__ void campary_mpspmv_ell_kernel(const int m, const int maxnzr, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
+__global__ void campary_mpspmv_ell_kernel(const int m, const int maxnzr, const ell_t ell, const multi_prec<prec> *x, multi_prec<prec> *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     __shared__ multi_prec<prec> sums[threads];
     __shared__ multi_prec<prec> prods[threads];
     if (row < m) {
         sums[threadIdx.x] = 0.0;
         for (int col = 0; col < maxnzr; col++) {
-            auto j = ja[col * m + row];
-            auto val = as[col * m + row];
+            auto j = ell.ja[col * m + row];
+            auto val = ell.as[col * m + row];
             if(val != 0){
                 prods[threadIdx.x] = val * x[j];
                 sums[threadIdx.x]  +=  prods[threadIdx.x];
@@ -53,7 +53,7 @@ __global__ void campary_mpspmv_ell_kernel(const int m, const int maxnzr, const i
 }
 
 template<int prec>
-void test_campary_mpspmv_ell(const int m, const int n, const int maxnzr, const int *ja, const double *as, mpfr_t *x, const int convert_prec) {
+void test_campary_mpspmv_ell(const int m, const int n, const int maxnzr, const ell_t &ell, mpfr_t *x, const int convert_prec) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY SpMV ELLPACK (double precision matrix)");
@@ -67,33 +67,25 @@ void test_campary_mpspmv_ell(const int m, const int n, const int maxnzr, const i
     multi_prec<prec> *hx = new multi_prec<prec>[n];
     multi_prec<prec> *hy = new multi_prec<prec>[m];
 
-    //GPU data
+    //GPU vectors
     multi_prec<prec> *dx;
     multi_prec<prec> *dy;
-    double *das;
-    int *dja;
-
     cudaMalloc(&dx, sizeof(multi_prec<prec>) * n);
     cudaMalloc(&dy, sizeof(multi_prec<prec>) * m);
-    cudaMalloc(&das, sizeof(double) * m * maxnzr);
-    cudaMalloc(&dja, sizeof(int) * m * maxnzr);
-
-    //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
         hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
     }
-
-    //Copying to the GPU
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, sizeof(double) * m * maxnzr, cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, sizeof(int) * m * maxnzr, cudaMemcpyHostToDevice);
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
+
+    //GPU matrix
+    ell_t dell;
+    cuda::ell_init(dell, m, maxnzr);
+    cuda::ell_host2device(dell, ell, m, maxnzr);
 
     //Launch
     StartCudaTimer();
-    campary_mpspmv_ell_kernel<32, prec><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, maxnzr, dja, das, dx, dy);
+    campary_mpspmv_ell_kernel<32, prec><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, maxnzr, dell, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -111,8 +103,7 @@ void test_campary_mpspmv_ell(const int m, const int n, const int maxnzr, const i
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cudaFree(das);
-    cudaFree(dja);
+    cuda::ell_clear(dell);
 }
 
 #endif //TEST_CAMPARY_MPSPMV_ELL_CUH

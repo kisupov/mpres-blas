@@ -240,50 +240,6 @@ void convert_to_coo(const char filename[], const int m, const int lines, bool sy
 }
 
 /*!
- * Converts a sparse matrix to the ELLPACK format
- * @param filename - path to the file with the matrix
- * @param m - number of rows in the matrix
- * @param maxnzr - maximum number of nonzeros per row in the matrix
- * @param lines - total number of lines with data
- * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
- * @param as - coefficients array (ELLPACK data): an array of size m * maxnzr containing a matrix in the ELLPACK format (output parameter)
- * @param ja - column indices array (ELLPACK indices): an array of size m * maxnzr containing the indices of nonzero elements in the matrix (output parameter)
- */
-void convert_to_ellpack(const char filename[], const int m, const int maxnzr, const int lines, bool symmetric, double *as, int *ja) {
-
-    //Set default values
-    std::fill(ja, ja + m * maxnzr, -1);
-    std::fill(as, as + m * maxnzr, 0);
-
-    //Create stream
-    std::ifstream file(filename);
-
-    // Ignore comments headers
-    while (file.peek() == '%') file.ignore(2048, '\n');
-    //Skip one line with the matrix properties
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-
-    int *colNum = new int[m]();
-
-    // Iterating over the matrix
-    for (int l = 0; l < lines; l++) {
-        double fileData = 0.0;
-        int row = 0, col = 0;
-        file >> row >> col >> fileData;
-        as[colNum[(row - 1)] * m + (row - 1)] = fileData;
-        ja[colNum[(row - 1)] * m + (row - 1)] = (col - 1);
-        colNum[row - 1]++;
-        if (symmetric && (row != col)) {
-            as[colNum[(col - 1)] * m + (col - 1)] = fileData;
-            ja[colNum[(col - 1)] * m + (col - 1)] = (row - 1);
-            colNum[col - 1]++;
-        }
-    }
-    delete[] colNum;
-    file.close();
-}
-
-/*!
  * Converts a sparse matrix to the CSR format
  * @param filename - path to the file with the matrix
  * @param m - number of rows in the matrix
@@ -433,6 +389,48 @@ void build_jad(const char *filename, const int m, const int maxnzr, const int nn
     delete[] nonZeros;
 }
 
+/*!
+ * Converts a sparse matrix to the ELLPACK format
+ * @param filename - path to the file with the matrix
+ * @param m - number of rows in the matrix
+ * @param maxnzr - maximum number of nonzeros per row in the matrix
+ * @param lines - total number of lines with data
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
+ * @param ell - reference to the ELLPACK instance to be defined
+ */
+void build_ell(const char filename[], const int m, const int maxnzr, const int lines, bool symmetric, ell_t &ell) {
+
+    //Set default values
+    std::fill(ell.ja, ell.ja + m * maxnzr, -1);
+    std::fill(ell.as, ell.as + m * maxnzr, 0);
+
+    //Create stream
+    std::ifstream file(filename);
+
+    // Ignore comments headers
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    //Skip one line with the matrix properties
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    int *colNum = new int[m]();
+
+    // Iterating over the matrix
+    for (int l = 0; l < lines; l++) {
+        double fileData = 0.0;
+        int row = 0, col = 0;
+        file >> row >> col >> fileData;
+        ell.as[colNum[(row - 1)] * m + (row - 1)] = fileData;
+        ell.ja[colNum[(row - 1)] * m + (row - 1)] = (col - 1);
+        colNum[row - 1]++;
+        if (symmetric && (row != col)) {
+            ell.as[colNum[(col - 1)] * m + (col - 1)] = fileData;
+            ell.ja[colNum[(col - 1)] * m + (col - 1)] = (row - 1);
+            colNum[col - 1]++;
+        }
+    }
+    delete[] colNum;
+    file.close();
+}
 
 /*!
  * Prints a sparse matrix represented in the ELLPACK format
