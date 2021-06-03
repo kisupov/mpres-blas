@@ -103,6 +103,14 @@ typedef struct {
     er_float_t * eval;   // Interval evaluations: [low bound of x1]...[low bound of x_N] [upp bound of x1]...[upp bound of x_N]
 } mp_collection_t;
 
+/*!
+ * Compressed Sparse Row (CSR) structure for representing a sparse matrix
+ */
+typedef struct {
+    double * as;  // Nonzero matrix entries
+    int * ja;     // Column indices
+    int * irp;    // Row start pointers
+} csr_t;
 
 /*!
  * Jagged Diagonals (JAD) structure for representing a sparse matrix
@@ -113,5 +121,21 @@ typedef struct {
     int * jcp;    // Column start pointers
     int * perm;   // Row permutation
 } jad_t;
+
+/*!
+ * ELLPACK structure for representing a sparse matrix
+ */
+typedef struct {
+    double * as;  // Nonzero matrix entries
+    int * ja;     // Column indices
+} ell_t;
+
+/*!
+ * Diagonal (DIA) structure for representing a sparse matrix
+ */
+typedef struct {
+    double * as;  // Nonzero matrix entries
+    int * offset; // Offset for diagonals
+} dia_t;
 
 #endif //MPRES_TYPES_CUH

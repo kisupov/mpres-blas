@@ -23,6 +23,7 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/utils/mtx_reader.cuh"
+#include "sparse/utils/ell_utils.cuh"
 #include "sparse/ell/test_double_spmv_ell.cuh"
 #include "sparse/ell/test_mpres_mpspmv_ell.cuh"
 #include "sparse/ell/test_campary_mpspmv_ell.cuh"

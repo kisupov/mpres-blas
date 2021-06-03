@@ -23,6 +23,7 @@
 #include "mpfr.h"
 #include "logger.cuh"
 #include "sparse/utils/mtx_reader.cuh"
+#include "sparse/utils/csr_utils.cuh"
 #include "sparse/csr/test_mpfr_mpspmv_csr.cuh"
 #include "sparse/csr/test_mpres_mpspmv_csr.cuh"
 #include "sparse/csr/test_mpres_mpspmv_csr_vector.cuh"
