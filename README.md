@@ -2,11 +2,11 @@
 ###### Version 1.4.3, released 2021-08-03
 
 
-The MPRES-BLAS library implements a number of linear algebra operations, like the BLAS (Basic Linear Algebra Subprograms) routines, with [multiple precision](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) on CUDA-enabled graphics processing units. The library uses a residue number system ([RNS](https://en.wikipedia.org/wiki/Residue_number_system)) to represent multiple-precision floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS a good tool for high-performance computing on many-core architectures such as GPUs.
+The MPRES-BLAS library implements a number of dense (BLAS-like) and sparse (SpMV) linear algebra operations with [multiple precision](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) on CUDA-enabled graphics processing units. The library uses a residue number system ([RNS](https://en.wikipedia.org/wiki/Residue_number_system)) to represent multiple-precision floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS a good tool for high-performance computing on many-core architectures such as GPUs.
 
 Underlying algorithms for multiple-precision floating-point arithmetic as well as algorithms for vectors of multiple-precision numbers used in MPRES-BLAS are discussed in [this paper](http://doi.org/10.1016/j.jpdc.2020.02.006). For further reading see References below.
 
-1. The current version of MPRES-BLAS supports the following dense operations with multiple precision:
+1. List of dense operations:
 
     * ASUM --- Sum of absolute values (`mpasum`)
     * DOT --- Dot product of two vectors (`mpdot`)
@@ -25,7 +25,7 @@ Underlying algorithms for multiple-precision floating-point arithmetic as well a
     * GE_LRSCALE --- Two-sided diagonal scaling (`mpgelrscale`)
     * GE_NORM --- Matrix norms (`mpgenorm`)
 
-2. The following sparse matrix-vector multiplication (SpMV) routines are supported:
+2. List of sparse matrix-vector multiplication (SpMV) operations:
     
     * Multiple-precision CSR kernel for double-precision matrix using one thread per matrix row (`mpspmv_csr`)
     * Multiple-precision CSR kernel for double-precision matrix using a group (up to 32) of threads per matrix row (`mpspmv_csr_vector`)
@@ -48,7 +48,7 @@ The corresponding benchmarks are also provided.
 
 4. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/arith/`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
 
-5. In addition, the library implements a number of optimized RNS algorithms, such as magnitude comparison and power-of-two scaling (see `src/rns.cuh`), and also supports extended-range floating-point arithmetic with working precision (see `src/extrange.cuh`), which prevents underflow and overflow in a computation involving extremely large or small quantities.
+5. The library also implements several optimized RNS algorithms, such as magnitude comparison and power-of-two scaling (see `src/rns.cuh`), and also supports extended-range floating-point arithmetic with working precision (see `src/extrange.cuh`), which prevents underflow and overflow in a computation involving extremely large or small quantities.
 
 For samples of usage, see `tests/` directory. Some benchmarks require third-party libraries.
 Please check `tests/3rdparty/` and `tests/blas/performance/` subdirectories for details.
