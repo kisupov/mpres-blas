@@ -1,4 +1,4 @@
-# MPRES-BLAS: Multiple-Precision GPU Accelerated BLAS Routines based on Residue Number System
+# MPRES-BLAS: Multiple-Precision GPU Accelerated Linear Algebra Routines
 ###### Version 1.4.3, released 2021-08-03
 
 
