@@ -148,12 +148,15 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     //Matrix storage structures
     jad_t JAD;
     ell_t ELL;
+    dia_t DIA;
     double *AS;
     int *JA;
     int *IRP;
-    int *OFFSET;
     int NDIAG;
 
+    if(TEST_DIA) {
+        NDIAG = calc_ndiag(MATRIX_PATH, LINES, SYMM);
+    }
     /*
      * Double and MPFR CSR tests
      */
@@ -201,10 +204,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
 
     //DIA
     if(TEST_DIA) {
-        convert_to_dia(MATRIX_PATH, M, LINES, SYMM, NDIAG, AS, OFFSET);
-        test_mpres_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
-        delete[] AS;
-        delete[] OFFSET;
+        dia_init(DIA, M, NDIAG);
+        build_dia(MATRIX_PATH, M, LINES, SYMM, DIA);
+        test_mpres_mpspmv_dia(M, N, NDIAG, DIA, vectorX);
+        dia_clear(DIA);
     }
     Logger::printDash();
 
@@ -242,11 +245,12 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
 
     //DIA
     if(TEST_DIA) {
-        convert_to_dia(MATRIX_PATH, M, LINES, SYMM, NDIAG, AS, OFFSET);
-        test_campary_mpspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
-        delete[] AS;
-        delete[] OFFSET;
+        dia_init(DIA, M, NDIAG);
+        build_dia(MATRIX_PATH, M, LINES, SYMM, DIA);
+        test_campary_mpspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, DIA, vectorX, INP_DIGITS);
+        dia_clear(DIA);
     }
+
     Logger::printDash();
 
     /*
@@ -280,10 +284,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
 
     //DIA
     if(TEST_DIA) {
-        convert_to_dia(MATRIX_PATH, M, LINES, SYMM, NDIAG, AS, OFFSET);
-        test_cump_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX, MP_PRECISION, INP_DIGITS);
-        delete[] AS;
-        delete[] OFFSET;
+        dia_init(DIA, M, NDIAG);
+        build_dia(MATRIX_PATH, M, LINES, SYMM, DIA);
+        test_cump_mpspmv_dia(M, N, NDIAG, DIA, vectorX, MP_PRECISION, INP_DIGITS);
+        dia_clear(DIA);
     }
     cudaDeviceReset();
 }

@@ -29,13 +29,13 @@
 /////////
 // Double precision
 /////////
-__global__ static void double_spmv_dia_kernel(const int m, const int n, const int ndiag, const int *offset, const double *as, const double *x, double *y) {
+__global__ static void double_spmv_dia_kernel(const int m, const int n, const int ndiag, const dia_t dia, const double *x, double *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if(row < m) {
         double dot = 0;
         for (int i = 0; i < ndiag; i++) {
-            int col = row + offset[i];
-            double val = as[m * i + row];
+            int col = row + dia.offset[i];
+            double val = dia.as[m * i + row];
             if(col  >= 0 && col < n && val != 0)
                 dot += val * x[col];
         }
@@ -43,7 +43,7 @@ __global__ static void double_spmv_dia_kernel(const int m, const int n, const in
     }
 }
 
-void test_double_spmv_dia(const int m, const int n, const int ndiag, const int *offset, const double *as, const mpfr_t *x) {
+void test_double_spmv_dia(const int m, const int n, const int ndiag, const dia_t &dia, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] double SpMV DIA");
@@ -58,28 +58,22 @@ void test_double_spmv_dia(const int m, const int n, const int ndiag, const int *
     auto *hx = new double[n];
     auto *hy = new double[m];
 
-    //GPU data
-    auto *das = new double[m * ndiag];
-    auto *doffset = new int[ndiag];
-    auto *dx = new double[n];
-    auto *dy = new double[m];
-
-    cudaMalloc(&das, sizeof(double) * m * ndiag);
-    cudaMalloc(&doffset, sizeof(int) * ndiag);
+    //GPU vectors
+    double *dx;
+    double *dy;
     cudaMalloc(&dx, sizeof(double) * n);
     cudaMalloc(&dy, sizeof(double) * m);
-
-    // Convert from MPFR
     convert_vector(hx, x, n);
-
-    //Copying data to the GPU
-    cudaMemcpy(das, as, sizeof(double) * m * ndiag, cudaMemcpyHostToDevice);
-    cudaMemcpy(doffset, offset, sizeof(int) * ndiag, cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
+
+    //GPU matrix
+    dia_t ddia;
+    cuda::dia_init(ddia, m, ndiag);
+    cuda::dia_host2device(ddia, dia, m, ndiag);
 
     //Launch
     StartCudaTimer();
-    double_spmv_dia_kernel<<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy);
+    double_spmv_dia_kernel<<<blocks, threads>>>(m, n, ndiag, ddia, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -91,10 +85,9 @@ void test_double_spmv_dia(const int m, const int n, const int ndiag, const int *
 
     delete [] hx;
     delete [] hy;
-    cudaFree(das);
-    cudaFree(doffset);
     cudaFree(dx);
     cudaFree(dy);
+    cuda::dia_clear(ddia);
 }
 
 #endif //TEST_DOUBLE_SPMV_DIA_CUH

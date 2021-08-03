@@ -47,7 +47,7 @@ __global__ void cump_mpspmv_dia_kernel(const int m, const int n, const int ndiag
     }
 }
 
-void test_cump_mpspmv_dia(const int m, const int n, const int ndiag, const int *offset, const double *as, mpfr_t *x, const int prec, const int convert_digits){
+void test_cump_mpspmv_dia(const int m, const int n, const int ndiag, const dia_t &dia, mpfr_t *x, const int prec, const int convert_digits){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CUMP SpMV DIA");
@@ -59,7 +59,7 @@ void test_cump_mpspmv_dia(const int m, const int n, const int ndiag, const int *
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
-    printf("(exec. config: blocks = %i, threads = %i)\n", blocks, threads);
+    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
     //Host data
     mpf_t *hx = new mpf_t[n];
@@ -71,7 +71,7 @@ void test_cump_mpspmv_dia(const int m, const int n, const int ndiag, const int *
     cumpf_array_t dy;
     cumpf_array_t das;
     cumpf_array_t dbuf;
-    int *doffset = new int[ndiag];
+    int *doffset;
 
     cumpf_array_init2(dx, n, prec);
     cumpf_array_init2(dy, m, prec);
@@ -91,14 +91,14 @@ void test_cump_mpspmv_dia(const int m, const int n, const int ndiag, const int *
     //Convert from double
     for(int i = 0; i < m * ndiag; i++){
         mpf_init2(has[i], prec);
-        mpf_set_d(has[i], as[i]);
+        mpf_set_d(has[i], dia.as[i]);
     }
 
     //Copying to the GPU
     cumpf_array_set_mpf(dx, hx, n);
     cumpf_array_set_mpf(dy, hy, m);
     cumpf_array_set_mpf(das, has, m * ndiag);
-    cudaMemcpy(doffset, offset, sizeof(int) * ndiag, cudaMemcpyHostToDevice);
+    cudaMemcpy(doffset, dia.offset, sizeof(int) * ndiag, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();

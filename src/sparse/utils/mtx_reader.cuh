@@ -262,66 +262,50 @@ void convert_to_csr(const char filename[], const int m, const int nnz, const int
  * @param filename - path to the file with the matrix
  * @param m - number of rows in the matrix
  * @param lines - total number of lines with data
- * @param ndiag - number of nonzero diagonals
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
- * @param as - coefficients array (DIA data): an array of size (m * ndiag) containing a matrix data in the DIA format (output parameter)
- * @param offset - offset for diagonals (output parameter)
+ * @param dia - reference to the DIA instance to be defined
  */
-void convert_to_dia(const char filename[], const int m, const int lines, bool symmetric, int &ndiag, double *&as, int *&offset) {
-    //Create stream
+void build_dia(const char filename[], const int m, const int lines, bool symmetric, dia_t & dia) {
+    //читаем файл дважды в методе. Вместе с методом collect_mtx_stats получается 3
     std::ifstream file(filename);
-
-    //TODO читаем файл дважды в методе. Вкупе с методом collect_mtx_stats получается 3
-
-    // Ignore comments headers
     while (file.peek() == '%') file.ignore(2048, '\n');
-    //Skip one line with the matrix properties
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); //Skip one line with the matrix properties
     std::vector<int> diagOffsets(lines);
-
     for (int l = 0; l < lines; l++) {
         double fileData = 0.0;
         int row = 0, col = 0;
         file >> row >> col >> fileData;
         diagOffsets[l] = col-row;
     }
-
     std::sort(diagOffsets.begin(), diagOffsets.end());
     diagOffsets.erase(std::unique(diagOffsets.begin(), diagOffsets.end()), diagOffsets.end());
-    ndiag = (int) diagOffsets.size();
-
+    auto ndiag = (int) diagOffsets.size();
     if (symmetric) {
         for (int i = ndiag-2; i > -1; i--) {
             diagOffsets.push_back(-diagOffsets[i]);
         }
         ndiag = (int) diagOffsets.size();
     }
-
-
-    as = new double[m * ndiag]();
-    offset = new int[ndiag];
-
+    dia.as = new double[m * ndiag]();
+    dia.offset = new int[ndiag];
     for (int i = 0; i < ndiag; ++i) {
-        offset[i] = diagOffsets[i];
+        dia.offset[i] = diagOffsets[i];
     }
-
     //again from beginning of file
     file.seekg(0, ios::beg);
     // Ignore comments headers
     while (file.peek() == '%') file.ignore(2048, '\n');
     //Skip one line with the matrix properties
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-
     for (int l = 0; l < lines; ++l) {
         double fileData = 0.0;
         int row = 0, col = 0, index = 0;
         file >> row >> col >> fileData;
         index = (int) std::distance(diagOffsets.begin(), std::find(diagOffsets.begin(), diagOffsets.end(), (col-row)));
-        as[m * index + (row-1)] = fileData;
+        dia.as[m * index + (row-1)] = fileData;
         if (symmetric) {
             index = (int) std::distance(diagOffsets.begin(), std::find(diagOffsets.begin(), diagOffsets.end(), (row-col)));
-            as[m * index + (col-1)] = fileData;
+            dia.as[m * index + (col-1)] = fileData;
         }
     }
     file.close();

@@ -23,10 +23,11 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "sparse/utils/mtx_reader.cuh"
+#include "sparse/utils/dia_utils.cuh"
 #include "sparse/mpmtx/dia/test_mpres_mpspmv_mpmtx_dia.cuh"
 #include "sparse/mpmtx/dia/test_campary_mpspmv_mpmtx_dia.cuh"
-#include "sparse/performance/dia/test_cump_mpspmv_dia.cuh"
-#include "sparse/performance/dia/test_double_spmv_dia.cuh"
+#include "sparse/dia/test_cump_mpspmv_dia.cuh"
+#include "sparse/dia/test_double_spmv_dia.cuh"
 #include "sparse/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
@@ -53,19 +54,17 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
 
     //Input arrays
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
-    double *AS;
-    int *OFFSET;
-    int NDIAG;
-
-    //Convert a sparse matrix to the double-precision DIA format
-    convert_to_dia(MATRIX_PATH, M, LINES, SYMM, NDIAG, AS, OFFSET);
+    int NDIAG = calc_ndiag(MATRIX_PATH, LINES, SYMM);
+    dia_t DIA;
+    dia_init(DIA, M, NDIAG);
+    build_dia(MATRIX_PATH, M, LINES, SYMM, DIA);
 
     //Launch tests
-    test_double_spmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
+    test_double_spmv_dia(M, N, NDIAG, DIA, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_mpmtx_dia(M, N, NDIAG, OFFSET, AS, vectorX);
-    test_campary_mpspmv_mpmtx_dia<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
-    test_cump_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_mpres_mpspmv_mpmtx_dia(M, N, NDIAG, DIA.offset, DIA.as, vectorX);
+    test_campary_mpspmv_mpmtx_dia<CAMPARY_PRECISION>(M, N, NDIAG, DIA.offset, DIA.as, vectorX, INP_DIGITS);
+    test_cump_mpspmv_dia(M, N, NDIAG, DIA, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -74,8 +73,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
         mpfr_clear(vectorX[i]);
     }
     delete[] vectorX;
-    delete[] AS;
-    delete[] OFFSET;
+    dia_clear(DIA);
     cudaDeviceReset();
 }
 

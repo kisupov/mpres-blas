@@ -30,7 +30,7 @@
 /////////
 //  SpMV DIA kernel test
 /////////
-void test_mpres_mpspmv_dia(const int m, const int n, const int ndiag, const int *offset, const double *as, const mpfr_t *x) {
+void test_mpres_mpspmv_dia(const int m, const int n, const int ndiag, const dia_t &dia, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS DIA (mpspmv_dia)");
@@ -44,32 +44,22 @@ void test_mpres_mpspmv_dia(const int m, const int n, const int ndiag, const int 
     auto hx = new mp_float_t[n];
     auto hy = new mp_float_t[m];
 
-    // GPU data
+    // GPU vectors
     mp_float_ptr dx;
     mp_float_ptr dy;
-    double *das;
-    int *doffset;
-
-    //Init data
     cudaMalloc(&dx, sizeof(mp_float_t) * n);
     cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    cudaMalloc(&das, sizeof(double) * m * ndiag);
-    cudaMalloc(&doffset, sizeof(int) * ndiag);
-
-    // Convert from MPFR
     convert_vector(hx, x, n);
-
-    //Copying to the GPU
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, m * ndiag * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(doffset, offset, ndiag * sizeof(int), cudaMemcpyHostToDevice);
 
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
+    //GPU matrix
+    dia_t ddia;
+    cuda::dia_init(ddia, m, ndiag);
+    cuda::dia_host2device(ddia, dia, m, ndiag);
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_dia<32><<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy);
+    cuda::mpspmv_dia<32><<<blocks, threads>>>(m, n, ndiag, ddia, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -84,8 +74,7 @@ void test_mpres_mpspmv_dia(const int m, const int n, const int ndiag, const int 
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cudaFree(das);
-    cudaFree(doffset);
+    cuda::dia_clear(ddia);
 }
 
 #endif //TEST_MPRES_MPSPMV_DIA_CUH

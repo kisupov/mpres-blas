@@ -41,9 +41,8 @@ namespace cuda {
      *
      * @tparam threads - thread block size
      * @param m - number of rows in matrix
-     * @param maxnzr - maximum number of nonzeros per row in the matrix A
-     * @param ja - column indices array to access the corresponding elements of the vector x, size m * maxnzr (the same as for A)
-     * @param as - double-precision coefficients array (entries of the matrix A in the ELLPACK format), size m * maxnzr
+     * @param maxnzr - maximum number of nonzeros per row in the sparse matrix
+     * @param ell - sparse double-precision matrix in the ELLPACK storage format
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */

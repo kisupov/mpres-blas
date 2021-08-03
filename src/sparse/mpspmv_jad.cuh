@@ -43,7 +43,7 @@ namespace cuda {
      * @tparam threads - thread block size
      * @param m - number of rows in matrix
      * @param maxnzr - maximum number of nonzeros per row in the matrix A
-     * @param jad -sparse double-precision matrix in the JAD storage format
+     * @param jad - sparse double-precision matrix in the JAD storage format
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */

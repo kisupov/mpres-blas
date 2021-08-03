@@ -55,19 +55,18 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
 
     //Input arrays
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
-    double *AS;
-    int *OFFSET;
-    int NDIAG;
-
+    int NDIAG = calc_ndiag(MATRIX_PATH, LINES, SYMM);
+    dia_t DIA;
+    dia_init(DIA, M, NDIAG);
     //Convert a sparse matrix to the double-precision DIA format
-    convert_to_dia(MATRIX_PATH, M, LINES, SYMM, NDIAG, AS, OFFSET);
+    build_dia(MATRIX_PATH, M, LINES, SYMM, DIA);
 
     //Launch tests
-    test_double_spmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
+    test_double_spmv_dia(M, N, NDIAG, DIA, vectorX);
     //test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
-    test_mpres_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX);
-    test_campary_mpspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, OFFSET, AS, vectorX, INP_DIGITS);
-    test_cump_mpspmv_dia(M, N, NDIAG, OFFSET, AS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_mpres_mpspmv_dia(M, N, NDIAG, DIA, vectorX);
+    test_campary_mpspmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, DIA, vectorX, INP_DIGITS);
+    test_cump_mpspmv_dia(M, N, NDIAG, DIA, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -76,8 +75,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
         mpfr_clear(vectorX[i]);
     }
     delete[] vectorX;
-    delete[] AS;
-    delete[] OFFSET;
+    dia_clear(DIA);
     cudaDeviceReset();
 }
 

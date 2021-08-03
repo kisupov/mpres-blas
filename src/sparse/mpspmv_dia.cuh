@@ -43,21 +43,20 @@ namespace cuda {
      * @param m - number of rows in matrix
      * @param n - number of columns in matrix
      * @param ndiag - number of nonzero diagonals
-     * @param offset - offset for diagonals
-     * @param as - multiple-precision coefficients array (entries of the matrix A in the DIA format), size m * ndiag
+     * @param dia - sparse double-precision matrix in the DIA storage format
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
     template<int threads>
-    __global__ void mpspmv_dia(const int m, const int n, const int ndiag, const int *offset, const double *as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_dia(const int m, const int n, const int ndiag, const dia_t dia, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         __shared__ mp_float_t sums[threads];
         __shared__ mp_float_t prods[threads];
         while (row < m) {
             sums[threadIdx.x] = cuda::MP_ZERO;
             for (int i = 0; i < ndiag; i++) {
-                int j = row + offset[i];
-                double val = as[m * i + row];
+                int j = row + dia.offset[i];
+                double val = dia.as[m * i + row];
                 if(j >= 0 && j < n && val != 0) {
                     cuda::mp_mul_d(&prods[threadIdx.x], &x[j], val);
                     cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
