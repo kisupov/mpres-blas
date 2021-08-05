@@ -29,21 +29,21 @@
 /////////
 // Double precision
 /////////
-__global__ static void double_spmv_csr_kernel(const int m, const int *irp, const int *ja, const double *as, const double *x, double *y) {
+__global__ static void double_spmv_csr_kernel(const int m, const csr_t csr, const double *x, double *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if(row < m){
         double dot = 0;
-        int row_start = irp[row];
-        int row_end = irp[row+1];
+        int row_start = csr.irp[row];
+        int row_end = csr.irp[row+1];
         for (int i = row_start; i < row_end; i++) {
-            dot += as[i] * x[ja[i]];
+            dot += csr.as[i] * x[csr.ja[i]];
         }
         y[row] = dot;
     }
 }
 
 
-void test_double_spmv_csr(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, const mpfr_t *x) {
+void test_double_spmv_csr(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] double SpMV CSR");
@@ -53,35 +53,26 @@ void test_double_spmv_csr(const int m, const int n, const int nnz, const int *ir
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
-    //host data
+    //Host data
     auto *hx = new double[n];
     auto *hy = new double[m];
 
-    //GPU data
-    double *das;
-    int *dirp;
-    int *dja;
+    // GPU vectors
     double *dx;
     double *dy;
-
-    cudaMalloc(&das, sizeof(double) * nnz);
-    cudaMalloc(&dirp, sizeof(int) * (m +1));
-    cudaMalloc(&dja, sizeof(int) * nnz);
     cudaMalloc(&dx, sizeof(double) * n);
     cudaMalloc(&dy, sizeof(double) * m);
-
-    // Convert from MPFR
     convert_vector(hx, x, n);
-
-    //Copying data to the GPU
-    cudaMemcpy(das, as, sizeof(double) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(dirp, irp, sizeof(int) * (m +1), cudaMemcpyHostToDevice);
     cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
+
+    //GPU matrix
+    csr_t dcsr;
+    cuda::csr_init(dcsr, m, nnz);
+    cuda::csr_host2device(dcsr, csr, m, nnz);
 
     //Launch
     StartCudaTimer();
-    double_spmv_csr_kernel<<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
+    double_spmv_csr_kernel<<<blocks, threads>>>(m, dcsr, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -93,11 +84,9 @@ void test_double_spmv_csr(const int m, const int n, const int nnz, const int *ir
 
     delete [] hx;
     delete [] hy;
-    cudaFree(das);
-    cudaFree(dja);
-    cudaFree(dirp);
     cudaFree(dx);
     cudaFree(dy);
+    cuda::csr_clear(dcsr);
 }
 
 #endif //TEST_DOUBLE_SPMV_CSR_CUH

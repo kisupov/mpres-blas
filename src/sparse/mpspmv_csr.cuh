@@ -41,23 +41,21 @@ namespace cuda {
      *
      * @tparam threads - thread block size
      * @param m - number of rows in matrix
-     * @param irp - row start pointers array of size m + 1, last element of irp equals to nnz (number of nonzeros in matrix)
-     * @param ja - column indices array to access the corresponding elements of the vector x, size = nnz
-     * @param as - double-precision coefficients array (entries of the matrix A in the CSR format), size = nnz
+     * @param csr - sparse double-precision matrix in the CSR storage format
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
     template<int threads>
-    __global__ void mpspmv_csr(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_csr(const int m, const csr_t csr, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         __shared__ mp_float_t sums[threads];
         __shared__ mp_float_t prods[threads];
         while (row < m) {
             sums[threadIdx.x] = cuda::MP_ZERO;
-            int row_start = irp[row];
-            int row_end = irp[row+1];
+            int row_start = csr.irp[row];
+            int row_end = csr.irp[row+1];
             for (int i = row_start; i < row_end; i++) {
-                cuda::mp_mul_d(&prods[threadIdx.x], &x[ja[i]], as[i]);
+                cuda::mp_mul_d(&prods[threadIdx.x], &x[csr.ja[i]], csr.as[i]);
                 cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
             }
             cuda::mp_set(&y[row], &sums[threadIdx.x]);

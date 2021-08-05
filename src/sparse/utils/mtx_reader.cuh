@@ -28,6 +28,7 @@
 #include <iostream>
 #include <fstream>
 #include <types.cuh>
+#include "csr_utils.cuh"
 #include <common.cuh>
 #include <cassert>
 
@@ -246,14 +247,12 @@ void convert_to_coo(const char filename[], const int m, const int lines, bool sy
  * @param nnz - number of nonzeros in the matrix
  * @param lines - total number of lines with data
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
- * @param as - coefficients array (CSR data): an array of size lines containing a matrix data in the CSR format (output parameter)
- * @param irp - row start pointers array (CSR offsets): an array of size m + 1 containing the offset of i-th row in irp[i] (output parameter)
- * @param ja - column indices array (CSR column indices): an array of size lines containing the column indices (output parameter)
+ * @param csr - reference to the CSR instance to be defined
  */
-void convert_to_csr(const char filename[], const int m, const int nnz, const int lines, bool symmetric, double *as, int *irp, int *ja) {
+void build_csr(const char filename[], const int m, const int nnz, const int lines, const bool symmetric, csr_t &csr) {
     int *ia = new int[nnz]();
-    convert_to_coo(filename, m, lines, symmetric, as, ia, ja);
-    make_irp_array(m, nnz, ia, irp);
+    convert_to_coo(filename, m, lines, symmetric, csr.as, ia, csr.ja);
+    make_irp_array(m, nnz, ia, csr.irp);
     delete[] ia;
 }
 
@@ -265,7 +264,7 @@ void convert_to_csr(const char filename[], const int m, const int nnz, const int
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  * @param dia - reference to the DIA instance to be defined
  */
-void build_dia(const char filename[], const int m, const int lines, bool symmetric, dia_t & dia) {
+void build_dia(const char filename[], const int m, const int lines, const bool symmetric, dia_t & dia) {
     //читаем файл дважды в методе. Вместе с методом collect_mtx_stats получается 3
     std::ifstream file(filename);
     while (file.peek() == '%') file.ignore(2048, '\n');
@@ -324,22 +323,17 @@ void build_dia(const char filename[], const int m, const int lines, bool symmetr
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  * @param jad - reference to the JAD instance to be defined
  */
-void build_jad(const char *filename, const int m, const int maxnzr, const int nnz, const int lines, bool symmetric, jad_t &jad) {
-    auto *csr_as = new double[nnz]();
-    auto *csr_ja = new int [nnz]();
-    auto *csr_irp = new int[m + 1]();
+void build_jad(const char *filename, const int m, const int maxnzr, const int nnz, const int lines, const bool symmetric, jad_t &jad) {
+    csr_t csr;
+    csr_init(csr, m, nnz);
     auto *nonZeros = new int[m]();
-
-    convert_to_csr(filename, m, nnz, lines, symmetric, csr_as, csr_irp, csr_ja);
-
+    build_csr(filename, m, nnz, lines, symmetric, csr);
     for (int i = 0; i < m; ++i) {
         jad.perm[i] = i; // сеттим массив perm_rows значениями от 0 до m-1
-        nonZeros[i] = csr_irp[i + 1] - csr_irp[i]; // получаем кол-во ненулевых элементов в i строке
+        nonZeros[i] = csr.irp[i + 1] - csr.irp[i]; // получаем кол-во ненулевых элементов в i строке
     }
-
     //сортируем массив индексов строк относительно кол-ва ненулевых элементов в строке по убыванию
     sort_perm_rows(m, nonZeros, jad.perm);
-
     //вычисляем смещение по столбцам
     jad.jcp[0] = 0;
     int count = 0;
@@ -354,22 +348,18 @@ void build_jad(const char *filename, const int m, const int maxnzr, const int nn
         }
         jad.jcp[j+1] = count;
     }
-
     //сеттим меасивы as и ja в новом порядке
     int index = 0;
     int j = 0;
     while (index < nnz && j < maxnzr) {
         for (int i = 0; i < jad.jcp[j + 1] - jad.jcp[j]; i++) {
-            jad.as[index] = csr_as[j + csr_irp[jad.perm[i]]];
-            jad.ja[index] = csr_ja[j + csr_irp[jad.perm[i]]];
+            jad.as[index] = csr.as[j + csr.irp[jad.perm[i]]];
+            jad.ja[index] = csr.ja[j + csr.irp[jad.perm[i]]];
             index++;
         }
         j++;
     }
-
-    delete[] csr_as;
-    delete[] csr_ja;
-    delete[] csr_irp;
+    csr_clear(csr);
     delete[] nonZeros;
 }
 
@@ -382,7 +372,7 @@ void build_jad(const char *filename, const int m, const int maxnzr, const int nn
  * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
  * @param ell - reference to the ELLPACK instance to be defined
  */
-void build_ell(const char filename[], const int m, const int maxnzr, const int lines, bool symmetric, ell_t &ell) {
+void build_ell(const char filename[], const int m, const int maxnzr, const int lines, const bool symmetric, ell_t &ell) {
 
     //Set default values
     std::fill(ell.ja, ell.ja + m * maxnzr, -1);

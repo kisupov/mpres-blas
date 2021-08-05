@@ -35,16 +35,16 @@
  * The matrix should be stored in the CSR format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
 template<int threads, int prec>
-__global__ void campary_mpspmv_csr_kernel(const int m, const int *irp, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
+__global__ void campary_mpspmv_csr_kernel(const int m, const csr_t csr, const multi_prec<prec> *x, multi_prec<prec> *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     __shared__ multi_prec<prec> sums[threads];
     __shared__ multi_prec<prec> prods[threads];
     if (row < m) {
         sums[threadIdx.x] = 0.0;
-        int row_start = irp[row];
-        int row_end = irp[row + 1];
+        int row_start = csr.irp[row];
+        int row_end = csr.irp[row + 1];
         for (int i = row_start; i < row_end; i++) {
-            prods[threadIdx.x] = as[i] * x[ja[i]];
+            prods[threadIdx.x] = csr.as[i] * x[csr.ja[i]];
             sums[threadIdx.x] += prods[threadIdx.x];
         }
         y[row] = sums[threadIdx.x];
@@ -52,7 +52,7 @@ __global__ void campary_mpspmv_csr_kernel(const int m, const int *irp, const int
 }
 
 template<int prec>
-void test_campary_mpspmv_csr(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, mpfr_t *x, const int convert_prec) {
+void test_campary_mpspmv_csr(const int m, const int n, const int nnz, const csr_t &csr, mpfr_t *x, const int convert_prec) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY SpMV CSR (double precision matrix)");
@@ -66,36 +66,25 @@ void test_campary_mpspmv_csr(const int m, const int n, const int nnz, const int 
     multi_prec<prec> *hx = new multi_prec<prec>[n];
     multi_prec<prec> *hy = new multi_prec<prec>[m];
 
-    //GPU data
+    //GPU vectors
     multi_prec<prec> *dx;
     multi_prec<prec> *dy;
-    double *das;
-    int *dirp;
-    int *dja;
-
     cudaMalloc(&dx, sizeof(multi_prec<prec>) * n);
     cudaMalloc(&dy, sizeof(multi_prec<prec>) * m);
-    cudaMalloc(&das, sizeof(double) * nnz);
-    cudaMalloc(&dirp, sizeof(int) * (m + 1));
-    cudaMalloc(&dja, sizeof(int) * nnz);
-
-    //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
         hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
     }
-
-    //Copying to the GPU
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, sizeof(double) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(dirp, irp, sizeof(int) * (m + 1), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
+
+    //GPU matrix
+    csr_t dcsr;
+    cuda::csr_init(dcsr, m, nnz);
+    cuda::csr_host2device(dcsr, csr, m, nnz);
 
     //Launch
     StartCudaTimer();
-    campary_mpspmv_csr_kernel<32, prec><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
+    campary_mpspmv_csr_kernel<32, prec><<<blocks, threads>>>(m, dcsr, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -113,9 +102,7 @@ void test_campary_mpspmv_csr(const int m, const int n, const int nnz, const int 
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cudaFree(dirp);
-    cudaFree(dja);
-    cudaFree(das);
+    cuda::csr_clear(dcsr);
 }
 
 

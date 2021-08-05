@@ -52,7 +52,7 @@ void mpfr_mpspmv_csr(const int m, const int *irp, const int *ja, const double *a
 }
 
 
-void test_mpfr_mpspmv_csr(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, const mpfr_t *x, const int prec) {
+void test_mpfr_mpspmv_csr(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t *x, const int prec) {
     InitCpuTimer();
     Logger::printDash();
     PrintTimerName("[CPU] MPFR SpMV CSR");
@@ -66,7 +66,7 @@ void test_mpfr_mpspmv_csr(const int m, const int n, const int nnz, const int *ir
 
     //Launch
     StartCpuTimer();
-    mpfr_mpspmv_csr(m, irp, ja, as, x, y, prec);
+    mpfr_mpspmv_csr(m, csr.irp, csr.ja, csr.as, x, y, prec);
     EndCpuTimer();
     PrintCpuTimer("took");
     print_mpfr_sum(y, m);

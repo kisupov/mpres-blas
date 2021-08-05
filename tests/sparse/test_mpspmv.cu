@@ -146,12 +146,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
 
     //Matrix storage structures
+    csr_t CSR;
     jad_t JAD;
     ell_t ELL;
     dia_t DIA;
-    double *AS;
-    int *JA;
-    int *IRP;
     int NDIAG;
 
     if(TEST_DIA) {
@@ -162,12 +160,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
      */
     Logger::beginSection("***** Double precision and MPFR Tests *****");
 
-    AS = new double [NNZ]();
-    JA = new int[NNZ]();
-    IRP = new int[M + 1]();
-    convert_to_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, AS, IRP, JA);
-    test_double_spmv_csr(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpfr_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION);
+    csr_init(CSR,M,NNZ);
+    build_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, CSR);
+    test_double_spmv_csr(M, N, NNZ, CSR, vectorX);
+    test_mpfr_mpspmv_csr(M, N, NNZ, CSR, vectorX, MP_PRECISION);
     Logger::printDash();
 
 
@@ -179,13 +175,11 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     Logger::beginSection("***** MPRES-BLAS Tests *****");
 
     //CSR
-    test_mpres_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<2>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<8>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<32>(M, N, NNZ, IRP, JA, AS, vectorX);
-    delete[] AS;
-    delete[] JA;
-    delete[] IRP;
+    test_mpres_mpspmv_csr(M, N, NNZ, CSR, vectorX);
+    test_mpres_mpspmv_csr_vector<2>(M, N, NNZ, CSR, vectorX);
+    test_mpres_mpspmv_csr_vector<8>(M, N, NNZ, CSR, vectorX);
+    test_mpres_mpspmv_csr_vector<32>(M, N, NNZ, CSR, vectorX);
+    csr_clear(CSR);
 
     //JAD
     jad_init(JAD, M, MAXNZR, NNZ);
@@ -220,16 +214,12 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     Logger::beginSection("***** CAMPARY Tests *****");
 
     //CSR
-    AS = new double [NNZ]();
-    JA = new int[NNZ]();
-    IRP = new int[M + 1]();
-    convert_to_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, AS, IRP, JA);
-    test_campary_mpspmv_csr<CAMPARY_PRECISION>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    /*test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 4>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 8>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);*/
-    delete[] AS;
-    delete[] JA;
-    delete[] IRP;
+    csr_init(CSR,M,NNZ);
+    build_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, CSR);
+    test_campary_mpspmv_csr<CAMPARY_PRECISION>(M, N, NNZ, CSR, vectorX, INP_DIGITS);
+    /*test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 4>(M, N, NNZ, CSR, vectorX, INP_DIGITS);
+    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 8>(M, N, NNZ, CSR, vectorX, INP_DIGITS);*/
+    csr_clear(CSR);
 
     //JAD
     jad_init(JAD, M, MAXNZR, NNZ);
@@ -261,14 +251,10 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     Logger::beginSection("***** CUMP Tests *****");
 
     //CSR
-    AS = new double [NNZ]();
-    JA = new int[NNZ]();
-    IRP = new int[M + 1]();
-    convert_to_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, AS, IRP, JA);
-    test_cump_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
-    delete[] AS;
-    delete[] JA;
-    delete[] IRP;
+    csr_init(CSR,M,NNZ);
+    build_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, CSR);
+    test_cump_mpspmv_csr(M, N, NNZ, CSR, vectorX, MP_PRECISION, INP_DIGITS);
+    csr_clear(CSR);
 
     //JAD
     jad_init(JAD, M, MAXNZR, NNZ);

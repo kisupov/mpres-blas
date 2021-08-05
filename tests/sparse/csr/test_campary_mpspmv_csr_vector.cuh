@@ -35,7 +35,7 @@
  * The matrix should be stored in the CSR format: entries are stored in a dense array in column major order and explicit zeros are stored if necessary (zero padding)
  */
 template<int threads, int threadsPerRow, int prec>
-__global__ void campary_mpspmv_csr_vector_kernel(const int m, const int *irp, const int *ja, const double *as, const multi_prec<prec> *x, multi_prec<prec> *y) {
+__global__ void campary_mpspmv_csr_vector_kernel(const int m, const csr_t csr, const multi_prec<prec> *x, multi_prec<prec> *y) {
     __shared__ multi_prec<prec> sums[threads];
     __shared__ multi_prec<prec> prods[threads];
     auto threadId = threadIdx.x + blockIdx.x * blockDim.x; // global thread index
@@ -43,12 +43,12 @@ __global__ void campary_mpspmv_csr_vector_kernel(const int m, const int *irp, co
     auto lane = threadId & (threadsPerRow - 1); // thread index within the group
     auto row = groupId; // one group per row
     while (row < m) {
-        int row_start = irp[row];
-        int row_end = irp[row + 1];
+        int row_start = csr.irp[row];
+        int row_end = csr.irp[row + 1];
         // compute running sum per thread
         sums[threadIdx.x] = 0.0;
         for (auto i = row_start + lane; i < row_end; i += threadsPerRow) {
-            prods[threadIdx.x] = x[ja[i]] * as[i];
+            prods[threadIdx.x] = x[csr.ja[i]] * csr.as[i];
             sums[threadIdx.x] += prods[threadIdx.x];
         }
         // parallel reduction in shared memory
@@ -76,7 +76,7 @@ __global__ void campary_mpspmv_csr_vector_kernel(const int m, const int *irp, co
 }
 
 template<int prec, int threadsPerRow>
-void test_campary_mpspmv_csr_vector(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, mpfr_t *x, const int convert_prec) {
+void test_campary_mpspmv_csr_vector(const int m, const int n, const int nnz, const csr_t &csr, mpfr_t *x, const int convert_prec) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY SpMV CSR Vector (double precision matrix)");
@@ -90,36 +90,25 @@ void test_campary_mpspmv_csr_vector(const int m, const int n, const int nnz, con
     auto *hx = new multi_prec<prec>[n];
     auto *hy = new multi_prec<prec>[m];
 
-    //GPU data
+    //GPU vectors
     multi_prec<prec> *dx;
     multi_prec<prec> *dy;
-    double *das;
-    int *dirp;
-    int *dja;
-
     cudaMalloc(&dx, sizeof(multi_prec<prec>) * n);
     cudaMalloc(&dy, sizeof(multi_prec<prec>) * m);
-    cudaMalloc(&das, sizeof(double) * nnz);
-    cudaMalloc(&dirp, sizeof(int) * (m + 1));
-    cudaMalloc(&dja, sizeof(int) * nnz);
-
-    //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
         hx[i] = convert_to_string_sci(x[i], convert_prec).c_str();
     }
-
-    //Copying to the GPU
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, sizeof(double) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(dirp, irp, sizeof(int) * (m + 1), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
+
+    //GPU matrix
+    csr_t dcsr;
+    cuda::csr_init(dcsr, m, nnz);
+    cuda::csr_host2device(dcsr, csr, m, nnz);
 
     //Launch
     StartCudaTimer();
-    campary_mpspmv_csr_vector_kernel<32, threadsPerRow, prec><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
+    campary_mpspmv_csr_vector_kernel<32, threadsPerRow, prec><<<blocks, threads>>>(m, dcsr, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -137,9 +126,7 @@ void test_campary_mpspmv_csr_vector(const int m, const int n, const int nnz, con
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cudaFree(dirp);
-    cudaFree(dja);
-    cudaFree(das);
+    cuda::csr_clear(dcsr);
 }
 
 #endif //TEST_CAMPARY_MPSPMV_CSR_VECTOR_CUH

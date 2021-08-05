@@ -31,7 +31,7 @@
 //  SpMV CSR vector kernel with multiple threads per matrix row
 /////////
 template<int threadsPerRow>
-void test_mpres_mpspmv_csr_vector(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, const mpfr_t * x){
+void test_mpres_mpspmv_csr_vector(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS CSR Vector (mpspmv_csr_vector)");
@@ -47,35 +47,22 @@ void test_mpres_mpspmv_csr_vector(const int m, const int n, const int nnz, const
     auto hx = new mp_float_t[n];
     auto hy = new mp_float_t[m];
 
-    // GPU data
+    // GPU vectors
     mp_float_ptr dx;
     mp_float_ptr dy;
-    double *das;
-    int *dirp;
-    int *dja;
-
-    //Init data
     cudaMalloc(&dx, sizeof(mp_float_t) * n);
     cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    cudaMalloc(&das, sizeof(double) * nnz);
-    cudaMalloc(&dirp, sizeof(int) * (m + 1));
-    cudaMalloc(&dja, sizeof(int) * nnz);
-
-    // Convert from MPFR
     convert_vector(hx, x, n);
-
-    //Copying to the GPU
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(das, as, nnz * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(dirp, irp, (m + 1) * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
 
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
+    //GPU matrix
+    csr_t dcsr;
+    cuda::csr_init(dcsr, m, nnz);
+    cuda::csr_host2device(dcsr, csr, m, nnz);
 
     //Launch
     StartCudaTimer();
-    cuda::mpspmv_csr_vector<32, threadsPerRow><<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
+    cuda::mpspmv_csr_vector<32, threadsPerRow><<<blocks, threads>>>(m, dcsr, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -90,9 +77,7 @@ void test_mpres_mpspmv_csr_vector(const int m, const int n, const int nnz, const
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cudaFree(das);
-    cudaFree(dirp);
-    cudaFree(dja);
+    cuda::csr_clear(dcsr);
 }
 
 #endif //TEST_MPRES_MPSPMV_CSR_VECTOR_CUH

@@ -46,7 +46,7 @@ __global__ void cump_mpspmv_csr_scalar_kernel(const int m, const int *irp,  cons
     }
 }
 
-void test_cump_mpspmv_csr(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, mpfr_t *x, const int prec, const int convert_digits){
+void test_cump_mpspmv_csr(const int m, const int n, const int nnz, const csr_t &csr, mpfr_t *x, const int prec, const int convert_digits){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CUMP SpMV CSR scalar (multiple precision matrix)");
@@ -92,15 +92,15 @@ void test_cump_mpspmv_csr(const int m, const int n, const int nnz, const int *ir
     //Convert from double
     for(int i = 0; i < nnz; i++){
         mpf_init2(has[i], prec);
-        mpf_set_d(has[i], as[i]);
+        mpf_set_d(has[i], csr.as[i]);
     }
 
     //Copying to the GPU
     cumpf_array_set_mpf(dx, hx, n);
     cumpf_array_set_mpf(dy, hy, m);
     cumpf_array_set_mpf(das, has, nnz);
-    cudaMemcpy(dirp, irp, sizeof(int) * (m+1), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
+    cudaMemcpy(dirp, csr.irp, sizeof(int) * (m+1), cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, csr.ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();

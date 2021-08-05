@@ -41,14 +41,12 @@ namespace cuda {
      * @tparam threads - thread block size
      * @tparam threadsPerRow - number of threads assigned to compute one row of the matrix (must be a power of two from 1 to 32, i.e., 1, 2, 4, 8, 16, or 32)
      * @param m - number of rows in matrix
-     * @param irp - row start pointers array of size m + 1, last element of irp equals to nnz (number of nonzeros in matrix)
-     * @param ja - column indices array to access the corresponding elements of the vector x, size = nnz
-     * @param as - double-precision coefficients array (entries of the matrix A in the CSR format), size = nnz
+     * @param csr - sparse double-precision matrix in the CSR storage format
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
     template<int threads, int threadsPerRow>
-    __global__ void mpspmv_csr_vector(const int m, const int *irp, const int *ja, const double *as, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mpspmv_csr_vector(const int m, const csr_t csr, mp_float_ptr x, mp_float_ptr y) {
         __shared__ mp_float_t sums[threads];
         __shared__ mp_float_t prods[threads];
         auto threadId = threadIdx.x + blockIdx.x * blockDim.x;  // global thread index
@@ -56,12 +54,12 @@ namespace cuda {
         auto lane = threadId & (threadsPerRow - 1);             // thread index within the group
         auto row = groupId;                                     // one group per row
         while (row < m) {
-            int row_start = irp[row];
-            int row_end = irp[row + 1];
+            int row_start = csr.irp[row];
+            int row_end = csr.irp[row + 1];
             // compute running sum per thread
             sums[threadIdx.x] = cuda::MP_ZERO;
             for (auto i = row_start + lane; i < row_end; i += threadsPerRow) {
-                cuda::mp_mul_d(&prods[threadIdx.x], &x[ja[i]], as[i]);
+                cuda::mp_mul_d(&prods[threadIdx.x], &x[csr.ja[i]], csr.as[i]);
                 cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
             }
             // parallel reduction in shared memory

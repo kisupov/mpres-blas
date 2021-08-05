@@ -56,29 +56,28 @@ void finalize() {
 void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int NNZ, const bool SYMM, const string DATATYPE) {
     //Inputs
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
-    auto *AS = new double [NNZ]();
-    auto *JA = new int[NNZ]();
-    auto *IRP = new int[M + 1]();
+    csr_t CSR;
+    csr_init(CSR, M, NNZ);
     //Convert a sparse matrix to the double-precision CSR format
-    convert_to_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, AS, IRP, JA);
+    build_csr(MATRIX_PATH, M, NNZ, LINES, SYMM, CSR);
     //Launch tests
-    test_mpfr_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION);
-    test_double_spmv_csr(M, N, NNZ, IRP, JA, AS, vectorX);
-   // test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
+    test_mpfr_mpspmv_csr(M, N, NNZ, CSR, vectorX, MP_PRECISION);
+    test_double_spmv_csr(M, N, NNZ, CSR, vectorX);
+    test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
     Logger::printStars();
-    test_mpres_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<2>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<4>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<8>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<16>(M, N, NNZ, IRP, JA, AS, vectorX);
-    test_mpres_mpspmv_csr_vector<32>(M, N, NNZ, IRP, JA, AS, vectorX);
+    test_mpres_mpspmv_csr(M, N, NNZ, CSR, vectorX);
+    test_mpres_mpspmv_csr_vector<2>(M, N, NNZ, CSR, vectorX);
+    test_mpres_mpspmv_csr_vector<4>(M, N, NNZ, CSR, vectorX);
+    test_mpres_mpspmv_csr_vector<8>(M, N, NNZ, CSR, vectorX);
+    test_mpres_mpspmv_csr_vector<16>(M, N, NNZ, CSR, vectorX);
+    test_mpres_mpspmv_csr_vector<32>(M, N, NNZ, CSR, vectorX);
     Logger::printStars();
-    test_campary_mpspmv_csr<CAMPARY_PRECISION>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 4>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 16>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
-    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 32>(M, N, NNZ, IRP, JA, AS, vectorX, INP_DIGITS);
+    test_campary_mpspmv_csr<CAMPARY_PRECISION>(M, N, NNZ, CSR, vectorX, INP_DIGITS);
+    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 4>(M, N, NNZ, CSR, vectorX, INP_DIGITS);
+    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 16>(M, N, NNZ, CSR, vectorX, INP_DIGITS);
+    test_campary_mpspmv_csr_vector<CAMPARY_PRECISION, 32>(M, N, NNZ, CSR, vectorX, INP_DIGITS);
     Logger::printStars();
-    test_cump_mpspmv_csr(M, N, NNZ, IRP, JA, AS, vectorX, MP_PRECISION, INP_DIGITS);
+    test_cump_mpspmv_csr(M, N, NNZ, CSR, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -87,9 +86,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
         mpfr_clear(vectorX[i]);
     }
     delete[] vectorX;
-    delete[] AS;
-    delete[] JA;
-    delete[] IRP;
+    csr_clear(CSR);
     cudaDeviceReset();
 }
 

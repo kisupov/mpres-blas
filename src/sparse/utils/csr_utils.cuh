@@ -29,7 +29,7 @@
 void csr_init(csr_t &csr, const int m, const int nnz) {
     csr.as = new double[nnz]();
     csr.ja = new int[nnz]();
-    csr.irp = new int[m + 1]();
+    csr.irp = new int[m + 1](); //last element of irp equals to nnz (number of nonzeros in matrix)
 }
 
 void csr_clear(csr_t &csr) {
