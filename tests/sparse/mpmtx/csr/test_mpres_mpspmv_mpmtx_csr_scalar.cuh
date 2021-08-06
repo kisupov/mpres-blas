@@ -30,7 +30,7 @@
 /////////
 //  SpMV CSR scalar kernel
 /////////
-void test_mpres_mpspmv_mpmtx_csr_scalar(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, const mpfr_t * x){
+void test_mpres_mpspmv_mpmtx_csr_scalar(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS mpspmv_mpmtx_csr_scalar");
@@ -62,13 +62,13 @@ void test_mpres_mpspmv_mpmtx_csr_scalar(const int m, const int n, const int nnz,
 
     // Convert from MPFR
     convert_vector(hx, x, n);
-    convert_vector(has, as, nnz);
+    convert_vector(has, csr.as, nnz);
 
     //Copying to the GPU
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
     cudaMemcpy(das, has, nnz * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(dirp, irp, (m + 1) * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dirp, csr.irp, (m + 1) * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, csr.ja, nnz * sizeof(int), cudaMemcpyHostToDevice);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();

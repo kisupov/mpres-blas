@@ -32,7 +32,7 @@
 /////////
 // SpMV CSR two-stage implementation
 /////////
-void test_mpres_mpspmv_mpmtx_csr_2stage(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, const mpfr_t * x){
+void test_mpres_mpspmv_mpmtx_csr_2stage(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] MPRES-BLAS mpspmv_mpmtx_csr_2stage");
@@ -68,13 +68,13 @@ void test_mpres_mpspmv_mpmtx_csr_2stage(const int m, const int n, const int nnz,
 
     // Convert from MPFR and double
     convert_vector(hx, x, n);
-    convert_vector(has, as, nnz);
+    convert_vector(has, csr.as, nnz);
 
     //Copying to the GPU
     cuda::mp_array_host2device(dx, hx, n);
     cuda::mp_collection_host2device(das, has, nnz);
-    cudaMemcpy(dirp, irp, sizeof(int) * (m + 1), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
+    cudaMemcpy(dirp, csr.irp, sizeof(int) * (m + 1), cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, csr.ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

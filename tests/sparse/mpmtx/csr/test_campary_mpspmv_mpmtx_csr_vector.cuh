@@ -77,7 +77,7 @@ __global__ void campary_mpspmv_csr_vector_kernel(const int m, const int *irp, co
 
 
 template<int prec, int threadsPerRow>
-void test_campary_mpspmv_mpmtx_csr_vector(const int m, const int n, const int nnz, const int *irp, const int *ja, const double *as, mpfr_t *x, const int convert_prec) {
+void test_campary_mpspmv_mpmtx_csr_vector(const int m, const int n, const int nnz, const csr_t &csr, mpfr_t *x, const int convert_prec) {
     Logger::printDash();
     InitCudaTimer();
     PrintTimerName("[GPU] CAMPARY SpMV CSR vector (multiple precision matrix)");
@@ -116,14 +116,14 @@ void test_campary_mpspmv_mpmtx_csr_vector(const int m, const int n, const int nn
     //Convert from double
     #pragma omp parallel for
     for(int i = 0; i < nnz; i++){
-        has[i] = as[i];
+        has[i] = csr.as[i];
     }
 
     //Copying to the GPU
     cudaMemcpy(dx, hx, sizeof(multi_prec<prec>) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(das, has, sizeof(multi_prec<prec>) * nnz, cudaMemcpyHostToDevice);
-    cudaMemcpy(dirp, irp, sizeof(int) * (m + 1), cudaMemcpyHostToDevice);
-    cudaMemcpy(dja, ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
+    cudaMemcpy(dirp, csr.irp, sizeof(int) * (m + 1), cudaMemcpyHostToDevice);
+    cudaMemcpy(dja, csr.ja, sizeof(int) * nnz, cudaMemcpyHostToDevice);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
