@@ -28,6 +28,11 @@ enum mblas_trans_type {
     mblas_conj_trans = 113
 };
 
+enum mblas_uplo_type  {
+    mblas_upper = 121,
+    mblas_lower = 122
+};
+
 enum mblas_side_type {
     mblas_left_side  = 141,
     mblas_right_side = 142
