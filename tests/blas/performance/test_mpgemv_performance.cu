@@ -34,8 +34,8 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
-#include "../../../src/arith/mpmul.cuh"
-#include "../../../src/blas/mpgemv.cuh"
+#include "../../../src/arith/mul.cuh"
+#include "../../../src/blas/gemv.cuh"
 #include "3rdparty.cuh"
 
 

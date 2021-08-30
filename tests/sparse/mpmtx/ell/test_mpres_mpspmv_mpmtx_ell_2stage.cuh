@@ -27,7 +27,7 @@
 #include "../../../timers.cuh"
 #include "../../../../src/mparray.cuh"
 #include "../../../../src/mpcollection.cuh"
-#include "../../../../src/sparse/mpmtx/mpspmv_mpmtx_ell_2stage.cuh"
+#include "../../../../src/sparse/mpmtx/spmv_mpmtx_ell2st.cuh"
 
 /////////
 // MPRES-BLAS SpMV two-stage implementation

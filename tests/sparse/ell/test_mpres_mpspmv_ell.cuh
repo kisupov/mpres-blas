@@ -25,7 +25,7 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "../../../src/sparse/mpspmv_ell.cuh"
+#include "../../../src/sparse/spmv_ell.cuh"
 
 /////////
 //  SpMV ELLPACK kernel test

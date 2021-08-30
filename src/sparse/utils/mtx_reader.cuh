@@ -1,5 +1,5 @@
 /*
- *  Routines for reading Matrix Market coordinate format (mtx) and building the CSR, JAD, ELL, and DIA structures
+ *  Utilities for reading Matrix Market coordinate format (mtx) and building the CSR, JAD, ELL, and DIA structures
  *
  *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
  *
@@ -20,8 +20,8 @@
  */
 
 
-#ifndef MTX_READER_CUH
-#define MTX_READER_CUH
+#ifndef MPRES_MTX_READER_CUH
+#define MPRES_MTX_READER_CUH
 
 #include <algorithm>
 #include <vector>
@@ -131,7 +131,6 @@ int calc_ndiag(const char filename[], const int lines, bool symmetric) {
     diagOffsets.shrink_to_fit();
     return ndiag;
 }
-
 
 //сортирует 3 массива одинакового размера относительно массива ia (COO rows) по возрастанию
 static void sort_coo_rows(const int nnz, double* as, int* ia, int* ja) {
@@ -406,94 +405,4 @@ void build_ell(const char filename[], const int m, const int maxnzr, const int l
     file.close();
 }
 
-/*!
- * Prints a sparse matrix represented in the ELLPACK format
- */
-void print_ellpack(const int m, const int maxnzr, double *as, int *ja) {
-    std::cout << std::endl << "AS:";
-    for (int i = 0; i < m; i++) {
-        std::cout << std::endl;
-        for (int j = 0; j < maxnzr; j++) {
-            std::cout << as[i + m * j] << "\t";
-        }
-    }
-    std::cout << std::endl << "JA:";
-    for (int i = 0; i < m; i++) {
-        std::cout << std::endl;
-        for (int j = 0; j < maxnzr; j++) {
-            std::cout << ja[i + m * j] << "\t";
-        }
-    }
-}
-
-/*!
- * Prints a sparse matrix represented in the CSR format
- */
-void print_csr(const int m, const int nnz, double *as, int *irp, int *ja) {
-    std::cout << std::endl << "AS:" << std::endl;
-    for (int i = 0; i < nnz; i++) {
-        std::cout << as[i] << "\t";
-    }
-
-    std::cout << std::endl << "IRP:" << std::endl;
-    for (int i = 0; i < m + 1; i++) {
-        std::cout << irp[i] << "\t";
-    }
-
-    std::cout << std::endl << "JA:" << std::endl;
-    for (int i = 0; i < nnz; i++) {
-        std::cout << ja[i] << "\t";
-    }
-}
-
-/*!
- * Prints a sparse matrix represented in the DIA format
- */
-void print_dia(const int m, const int ndiag, double *as, int *offset) {
-    std::cout << std::endl << "OFFSET:";
-    std::cout << std::endl;
-    for (int j = 0; j < ndiag; j++) {
-        std::cout << offset[j] << "\t";
-    }
-
-    std::cout << std::endl << "AS:";
-    for (int i = 0; i < m; i++) {
-        std::cout << std::endl;
-        for (int j = 0; j < ndiag; j++) {
-            std::cout << as[i + m * j] << "\t";
-        }
-    }
-    std::cout << std::endl;
-}
-
-/*!
- * Prints a sparse matrix represented in the JAD (JDS) format
- */
-void print_jad(const int m, const int nnz, const int maxnzr, double *as, int *ja, int *jcp, int *perm_rows) {
-    std::cout << std::endl << "JA:";
-    std::cout << std::endl;
-    for (int j = 0; j < nnz; j++) {
-        std::cout << ja[j] << "\t";
-    }
-
-    std::cout << std::endl << "AS:";
-    std::cout << std::endl;
-    for (int i = 0; i < nnz; i++) {
-        std::cout << as[i] << "\t";
-    }
-
-    std::cout << std::endl << "JCP:";
-    std::cout << std::endl;
-    for (int i = 0; i < maxnzr + 1; i++) {
-        std::cout << jcp[i] << "\t";
-    }
-
-    std::cout << std::endl << "PERM_ROWS:";
-    std::cout << std::endl;
-    for (int i = 0; i < m; i++) {
-        std::cout << perm_rows[i] << "\t";
-    }
-    std::cout << std::endl;
-}
-
-#endif //MTX_READER_CUH
+#endif //MPRES_MTX_READER_CUH

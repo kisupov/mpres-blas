@@ -27,7 +27,7 @@
 #include "../../../timers.cuh"
 #include "../../../../src/mparray.cuh"
 #include "../../../../src/mpcollection.cuh"
-#include "../../../../src/sparse/mpmtx/mpspmv_mpmtx_csr_2stage.cuh"
+#include "../../../../src/sparse/mpmtx/spmv_mpmtx_csr2st.cuh"
 
 /////////
 // SpMV CSR two-stage implementation

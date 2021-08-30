@@ -34,7 +34,7 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mpgelrscale.cuh"
+#include "../../../src/blas/gelrscale.cuh"
 #include "3rdparty.cuh"
 
 #define M 300  // Number of matrix rows and the vector X dimension
@@ -71,14 +71,6 @@ static void initialize(){
 
 static void finalize(){
 }
-
-static void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
-    int width = rows * cols;
-    for( int i = 0; i < width; i++ ){
-        mp_set_mpfr(&dest[i], source[i]);
-    }
-}
-
 
 /********************* GE_LRSCALE implementations and benchmarks *********************/
 

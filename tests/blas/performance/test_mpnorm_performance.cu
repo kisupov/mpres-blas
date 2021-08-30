@@ -36,7 +36,7 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mpnorm.cuh"
+#include "../../../src/blas/norm.cuh"
 #include "3rdparty.cuh"
 
 

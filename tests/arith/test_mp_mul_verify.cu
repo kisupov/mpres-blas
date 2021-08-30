@@ -20,8 +20,8 @@
  */
 
 
-#include "../../src/arith/mpmul.cuh"
-#include "../../src/arith/mpassign.cuh"
+#include "../../src/arith/mul.cuh"
+#include "../../src/arith/assign.cuh"
 #include "../../src/mparray.cuh"
 
 static __global__ void testCudaMul(mp_float_ptr dz, mp_float_ptr dx, mp_float_ptr dy){

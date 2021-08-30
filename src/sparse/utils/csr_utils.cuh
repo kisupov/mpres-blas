@@ -20,8 +20,8 @@
  */
 
 
-#ifndef CSR_UTILS_CUH
-#define CSR_UTILS_CUH
+#ifndef MPRES_CSR_UTILS_CUH
+#define MPRES_CSR_UTILS_CUH
 
 #include <types.cuh>
 #include <common.cuh>
@@ -63,4 +63,4 @@ namespace cuda {
     }
 }
 
-#endif //CSR_UTILS_CUH
+#endif //MPRES_CSR_UTILS_CUH

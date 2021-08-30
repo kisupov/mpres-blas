@@ -25,7 +25,7 @@
 #include "../../../tsthelper.cuh"
 #include "../../../logger.cuh"
 #include "../../../timers.cuh"
-#include "../../../../src/sparse/mpmtx/mpspmv_mpmtx_jad.cuh"
+#include "../../../../src/sparse/mpmtx/spmv_mpmtx_jad.cuh"
 
 /////////
 //  SpMV jad scalar kernel

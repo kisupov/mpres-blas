@@ -22,7 +22,7 @@
 #ifndef MPRES_MPMATRIX_CUH
 #define MPRES_MPMATRIX_CUH
 
-#include "arith/mpcommon.cuh"
+#include "arith/arith_utils.cuh"
 
 namespace cuda {
 

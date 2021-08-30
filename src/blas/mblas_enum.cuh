@@ -19,8 +19,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPRES_BLAS_ENUM_CUH
-#define MPRES_BLAS_ENUM_CUH
+#ifndef MPRES_MBLAS_ENUM_CUH
+#define MPRES_MBLAS_ENUM_CUH
 
 enum mblas_trans_type {
     mblas_no_trans   = 111,
@@ -44,4 +44,4 @@ enum mblas_norm_type {
 };
 
 
-#endif //MPRES_BLAS_ENUM_CUH
+#endif //MPRES_MBLAS_ENUM_CUH

@@ -36,7 +36,7 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mprot.cuh"
+#include "../../../src/blas/rot.cuh"
 #include "3rdparty.cuh"
 
 #define N 1000000 //Operation size

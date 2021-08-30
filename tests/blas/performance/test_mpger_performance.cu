@@ -35,7 +35,7 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mpger.cuh"
+#include "../../../src/blas/ger.cuh"
 #include "3rdparty.cuh"
 
 #define M 500  // Number of matrix rows and the vector X dimension

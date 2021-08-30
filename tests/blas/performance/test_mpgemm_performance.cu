@@ -35,7 +35,7 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mpgemm.cuh"
+#include "../../../src/blas/gemm.cuh"
 #include "3rdparty.cuh"
 
 
@@ -78,14 +78,6 @@ static void initialize(){
 }
 
 static void finalize(){
-}
-
-static void convert_matrix(mp_float_ptr dest, mpfr_t *source, int rows, int cols){
-    int width = rows * cols;
-    #pragma omp parallel for
-    for( int i = 0; i < width; i++ ){
-        mp_set_mpfr(&dest[i], source[i]);
-    }
 }
 
 

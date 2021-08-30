@@ -20,8 +20,8 @@
  */
 
 
-#include "../../src/arith/mpadd.cuh"
-#include "../../src/arith/mpassign.cuh"
+#include "../../src/arith/add.cuh"
+#include "../../src/arith/assign.cuh"
 #include "../../src/mparray.cuh"
 
 static __global__ void testCudaAdd(mp_float_ptr dz, mp_float_ptr dx, mp_float_ptr dy){

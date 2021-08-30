@@ -20,8 +20,8 @@
  */
 
 
-#ifndef JAD_UTILS_CUH
-#define JAD_UTILS_CUH
+#ifndef MPRES_JAD_UTILS_CUH
+#define MPRES_JAD_UTILS_CUH
 
 #include <types.cuh>
 #include <common.cuh>

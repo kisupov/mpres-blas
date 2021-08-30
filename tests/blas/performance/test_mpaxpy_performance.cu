@@ -32,7 +32,7 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mpaxpy.cuh"
+#include "../../../src/blas/axpy.cuh"
 #include "3rdparty.cuh"
 
 #define N 1000000 //Operation size

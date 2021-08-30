@@ -20,7 +20,7 @@
  */
 
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mpdot.cuh"
+#include "../../../src/blas/dot.cuh"
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 

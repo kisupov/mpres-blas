@@ -27,8 +27,8 @@
 #include <random>
 #include <chrono>
 #include <timers.cuh>
-#include "../src/arith/mpassign.cuh"
-#include "../src/arith/mpadd.cuh"
+#include "../src/arith/assign.cuh"
+#include "../src/arith/add.cuh"
 
 
 /*

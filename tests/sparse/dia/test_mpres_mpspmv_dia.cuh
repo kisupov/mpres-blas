@@ -25,7 +25,7 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "../../../src/sparse/mpspmv_dia.cuh"
+#include "../../../src/sparse/spmv_dia.cuh"
 
 /////////
 //  SpMV DIA kernel test

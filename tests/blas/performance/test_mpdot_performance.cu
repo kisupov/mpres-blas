@@ -31,7 +31,7 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mpdot.cuh"
+#include "../../../src/blas/dot.cuh"
 #include "3rdparty.cuh"
 
 #define N 1000000 //Operation size

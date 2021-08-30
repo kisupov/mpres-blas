@@ -20,8 +20,8 @@
  */
 
 
-#ifndef ELL_UTILS_CUH
-#define ELL_UTILS_CUH
+#ifndef MPRES_ELL_UTILS_CUH
+#define MPRES_ELL_UTILS_CUH
 
 #include <types.cuh>
 #include <common.cuh>
@@ -58,4 +58,4 @@ namespace cuda {
     }
 }
 
-#endif //ELL_UTILS_CUH
+#endif //MPRES_ELL_UTILS_CUH

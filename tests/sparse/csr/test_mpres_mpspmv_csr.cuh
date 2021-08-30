@@ -25,7 +25,7 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "../../../src/sparse/mpspmv_csr.cuh"
+#include "../../../src/sparse/spmv_csr.cuh"
 
 /////////
 //  SpMV CSR scalar kernel

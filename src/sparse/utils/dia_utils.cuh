@@ -20,8 +20,8 @@
  */
 
 
-#ifndef DIA_UTILS_CUH
-#define DIA_UTILS_CUH
+#ifndef MPRES_DIA_UTILS_CUH
+#define MPRES_DIA_UTILS_CUH
 
 #include <types.cuh>
 #include <common.cuh>
@@ -58,4 +58,4 @@ namespace cuda {
     }
 }
 
-#endif //DIA_UTILS_CUH
+#endif //MPRES_DIA_UTILS_CUH

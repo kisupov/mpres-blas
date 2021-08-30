@@ -20,7 +20,7 @@
  */
 
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mpaxpy.cuh"
+#include "../../../src/blas/axpy.cuh"
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 

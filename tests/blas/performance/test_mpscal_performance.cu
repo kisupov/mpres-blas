@@ -31,7 +31,7 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mpscal.cuh"
+#include "../../../src/blas/scal.cuh"
 #include "3rdparty.cuh"
 
 #define N 1000000 //Operation size

@@ -25,7 +25,7 @@
 #include "../../../tsthelper.cuh"
 #include "../../../logger.cuh"
 #include "../../../timers.cuh"
-#include "../../../../src/sparse/mpmtx/mpspmv_mpmtx_ell.cuh"
+#include "../../../../src/sparse/mpmtx/spmv_mpmtx_ell.cuh"
 
 /////////
 //  SpMV ELLPACK scalar kernel

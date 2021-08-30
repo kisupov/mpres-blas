@@ -25,7 +25,7 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "../../../src/sparse/mpspmv_csr_vector.cuh"
+#include "../../../src/sparse/spmv_csrv.cuh"
 
 /////////
 //  SpMV CSR vector kernel with multiple threads per matrix row

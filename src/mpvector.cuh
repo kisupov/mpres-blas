@@ -22,7 +22,7 @@
 #ifndef MPRES_MPVECTOR_CUH
 #define MPRES_MPVECTOR_CUH
 
-#include "arith/mpcommon.cuh"
+#include "arith/arith_utils.cuh"
 
 namespace cuda {
 
@@ -33,7 +33,7 @@ namespace cuda {
     /*!
      * Parallel element-wise vector multiplication (result = x * y)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
-     * @note For example of usage, see mpdot.cuh
+     * @note For example of usage, see dot.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
@@ -82,7 +82,7 @@ namespace cuda {
     /*!
      * Parallel element-wise vector multiplication (result = x * y)
      * Kernel #2 --- Computing the significands in the RNS (digits)
-     * @note For example of usage, see mpdot.cuh
+     * @note For example of usage, see dot.cuh
      * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
      * or RNS_MODULI_SIZE as declared in the calling subprogram
      * @param result - pointer to the result vector in the GPU memory
@@ -128,7 +128,7 @@ namespace cuda {
     /*!
      * Parallel element-wise multiplication of a vector by a scalar (result = alpha * x)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
-     * @note For example of usage, see mpscal.cuh
+     * @note For example of usage, see scal.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the vector in the GPU memory
@@ -182,7 +182,7 @@ namespace cuda {
     /*!
      * Parallel element-wise multiplication of a vector by a scalar (result = alpha * x)
      * Kernel #2 --- Computing the significands in the RNS (digits)
-     * @note For example of usage, see mpscal.cuh
+     * @note For example of usage, see scal.cuh
      * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
      * or RNS_MODULI_SIZE as declared in the calling subprogram
      * @param result - pointer to the result vector in the GPU memory
@@ -225,7 +225,7 @@ namespace cuda {
     /*!
      * Parallel element-wise vector addition (result = x + y)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
-     * @note For example of usage, see mpaxpy.cuh
+     * @note For example of usage, see axpy.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory
@@ -408,7 +408,7 @@ namespace cuda {
     /*!
      * Parallel element-wise vector addition (result = x + y)
      * Kernel #2 --- Computing the significands in the RNS (digits)
-     * @note For example of usage, see mpaxpy.cuh
+     * @note For example of usage, see axpy.cuh
      * @note For this kernel, the block size is specified by either BLOCK_SIZE_FOR_RESIDUES (see kernel_config.cuh)
      * or RNS_MODULI_SIZE as declared in the calling subprogram
      * @param result - pointer to the result vector in the GPU memory
@@ -479,7 +479,7 @@ namespace cuda {
      * Parallel element-wise vector subtraction (result = x - y)
      * Kernel #1 --- Computing the exponents, signs, and interval evaluations (e-s-i)
      * @note Kernel 2 is the same as for vector addition algorithm --- mp_vector_add_digits_kernel
-     * @note For example of usage, see mprot.cuh
+     * @note For example of usage, see rot.cuh
      * @param result - pointer to the result vector in the GPU memory
      * @param incr - storage spacing between elements of result (must be non-zero)
      * @param x - pointer to the first vector in the GPU memory

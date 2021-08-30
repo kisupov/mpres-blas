@@ -36,7 +36,7 @@
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
-#include "../../../src/blas/mpaxpydot.cuh"
+#include "../../../src/blas/axpydot.cuh"
 #include "3rdparty.cuh"
 
 

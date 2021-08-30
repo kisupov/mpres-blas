@@ -23,9 +23,9 @@
 #ifndef MPRES_MPREDUCT_CUH
 #define MPRES_MPREDUCT_CUH
 
-#include "arith/mpadd.cuh"
-#include "arith/mpaddabs.cuh"
-#include "arith/mpcmpabs.cuh"
+#include "arith/add.cuh"
+#include "arith/addabs.cuh"
+#include "arith/cmpabs.cuh"
 
 namespace cuda {
 
