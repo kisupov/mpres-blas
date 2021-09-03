@@ -43,7 +43,7 @@
 #define N 1000000 //Operation size
 #define REPEAT_TEST 10 //Number of repeats
 
-//Execution configuration for mpaxpydot
+//Execution configuration for mp_axpy_dot
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND   512
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
@@ -148,7 +148,7 @@ void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     for (int i = 0; i < REPEAT_TEST; i++) {
         cuda::mp_array_host2device(dw, hw, n);
         StartCudaTimer();
-        cuda::mpaxpydot<
+        cuda::mp_axpy_dot<
                 MPRES_CUDA_BLOCKS_FIELDS_ROUND,
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
                 MPRES_CUDA_BLOCKS_RESIDUES,

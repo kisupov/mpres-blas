@@ -67,7 +67,7 @@ namespace cuda
      * All the matrices should be stored in column-major order.
      */
     template<int blockDim1x, int blockDim1y, int gridDim2x, int gridDim2y, int blockDim3>
-    void mpgemm(enum mblas_trans_type transa, enum mblas_trans_type transb, const int m, const int n, const int k, mp_array_t &alpha, mp_array_t &A, const int lda, mp_array_t &B, const int ldb, mp_array_t &beta, mp_array_t &C, const int ldc, mp_array_t &buffer){
+    void mp_gemm(enum mblas_trans_type transa, enum mblas_trans_type transb, const int m, const int n, const int k, mp_array_t &alpha, mp_array_t &A, const int lda, mp_array_t &B, const int ldb, mp_array_t &beta, mp_array_t &C, const int ldc, mp_array_t &buffer){
 
         /*
          * Quick return if possible

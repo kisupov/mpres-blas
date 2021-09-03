@@ -46,7 +46,7 @@ namespace cuda {
      * @param buffer2 - auxiliary array of size n in the global GPU memory
      */
     template <int gridDim1, int blockDim1, int gridDim2>
-    void mprot(const int n, mp_array_t &x, const int incx, mp_array_t &y, const int incy, mp_array_t &c, mp_array_t &s, mp_array_t &buffer1, mp_array_t &buffer2) {
+    void mp_rot(const int n, mp_array_t &x, const int incx, mp_array_t &y, const int incy, mp_array_t &c, mp_array_t &s, mp_array_t &buffer1, mp_array_t &buffer2) {
 
         // Only positive operation size is permitted for ROT
         if(n <= 0){
@@ -76,10 +76,10 @@ namespace cuda {
         mp_vector_round_kernel<<< gridDim1, blockDim1 >>> (buffer2, 1, n);
 
         // Computing x = c * x
-        mpscal< gridDim1, blockDim1,gridDim2 >(n, c, x, 1);
+        mp_scal< gridDim1, blockDim1,gridDim2 >(n, c, x, 1);
 
         // Computing y = c * y
-        mpscal< gridDim1, blockDim1,gridDim2 >(n, c, y, 1);
+        mp_scal< gridDim1, blockDim1,gridDim2 >(n, c, y, 1);
 
         //Addition x = x + buffer2 (in fact, we have x = c*x + s*y) - Computing the signs, exponents, and interval evaluations
         mp_vector_add_esi_kernel<<< gridDim1, blockDim1 >>> (x, incx, x, incx, buffer2, 1, n);

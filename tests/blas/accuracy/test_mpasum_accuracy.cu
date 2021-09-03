@@ -1,5 +1,5 @@
 /*
- *  Accuracy test for the ASUM (mpasum) routine
+ *  Accuracy test for the ASUM (mp_asum) routine
  *
  *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
  *
@@ -25,7 +25,7 @@
 #include "../../logger.cuh"
 
 #define SIZE 1000000 //Operation size
-//Execution configuration for mpasum
+//Execution configuration for mp_asum
 #define MPRES_CUDA_BLOCKS_REDUCE   256
 #define MPRES_CUDA_THREADS_REDUCE  128
 int REFERENCE_PRECISION; //Precision for reference results
@@ -163,7 +163,7 @@ int main() {
         mpfr_add(mpfr_result, mpfr_result, mpfr_x[i], MPFR_RNDN);
     }
     //Calculation of the MPRES-BLAS result with MP_PRECISION bits of precision
-    cuda::mpasum<MPRES_CUDA_BLOCKS_REDUCE, MPRES_CUDA_THREADS_REDUCE>(SIZE, mp_dev_x, 1, mp_dev_result);
+    cuda::mp_asum<MPRES_CUDA_BLOCKS_REDUCE, MPRES_CUDA_THREADS_REDUCE>(SIZE, mp_dev_x, 1, mp_dev_result);
     cuda::mp_array_device2host(&mp_result, mp_dev_result, 1);
     cudaDeviceSynchronize();
 

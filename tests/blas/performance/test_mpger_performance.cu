@@ -45,7 +45,7 @@
 #define INCY 1 // Specifies the increment for the elements of y.
 #define REPEAT_TEST 10 //Number of repeats
 
-//Execution configuration for mpger
+//Execution configuration for mp_ger
 #define MPRES_BLOCK_SIZE_X_ESI 32
 #define MPRES_BLOCK_SIZE_Y_ESI 1
 #define MPRES_GRID_SIZE_X_DIGITS 128
@@ -174,7 +174,7 @@ void mpres_test(int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int l
     for (int i = 0; i < REPEAT_TEST; i++) {
         cuda::mp_array_host2device(dA, hA, lda * n);
         StartCudaTimer();
-        cuda::mpger<
+        cuda::mp_ger<
                 MPRES_BLOCK_SIZE_X_ESI,
                 MPRES_BLOCK_SIZE_Y_ESI,
                 MPRES_GRID_SIZE_X_DIGITS,

@@ -145,6 +145,11 @@ add_executable(test_mpgenorm_performance blas/performance/test_mpgenorm_performa
 target_compile_options(test_mpgenorm_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mpgenorm_performance gmp mpfr OpenMP::OpenMP_CXX)
 
+# Performance test for SYMV
+add_executable(test_mpsymv_performance blas/performance/test_mpsymv_performance.cu)
+target_compile_options(test_mpsymv_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mpsymv_performance gmp mpfr openblas gmpxx mpfrcxx mblas_mpfr mpc OpenMP::OpenMP_CXX cublas cump)
+
 #########################
 ## Accuracy tests for BLAS routines
 #########################
@@ -174,50 +179,50 @@ target_link_libraries(test_mpaxpy_accuracy gmp mpfr OpenMP::OpenMP_CXX)
 #########################
 
 # Performance and memory consumption test for SpMV using various sparse matrix storage formats
-add_executable(test_mpspmv sparse/test_mpspmv.cu)
-target_compile_options(test_mpspmv PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv gmp mpfr OpenMP::OpenMP_CXX cump)
+add_executable(test_spmv sparse/test_spmv.cu)
+target_compile_options(test_spmv PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv gmp mpfr OpenMP::OpenMP_CXX cump)
 
 # Performance test for SpMV in CSR format
-add_executable(test_mpspmv_csr_performance sparse/test_mpspmv_csr_performance.cu)
-target_compile_options(test_mpspmv_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+add_executable(test_spmv_csr_performance sparse/test_spmv_csr_performance.cu)
+target_compile_options(test_spmv_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 # Performance test for SpMV in JAD (JDS) format
-add_executable(test_mpspmv_jad_performance sparse/test_mpspmv_jad_performance.cu)
-target_compile_options(test_mpspmv_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+add_executable(test_spmv_jad_performance sparse/test_spmv_jad_performance.cu)
+target_compile_options(test_spmv_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 # Performance test for SpMV in ELLPACK format
-add_executable(test_mpspmv_ell_performance sparse/test_mpspmv_ell_performance.cu)
-target_compile_options(test_mpspmv_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+add_executable(test_spmv_ell_performance sparse/test_spmv_ell_performance.cu)
+target_compile_options(test_spmv_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 # Performance test for SpMV in DIA format
-add_executable(test_mpspmv_dia_performance sparse/test_mpspmv_dia_performance.cu)
-target_compile_options(test_mpspmv_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+add_executable(test_spmv_dia_performance sparse/test_spmv_dia_performance.cu)
+target_compile_options(test_spmv_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 #########################
 ## Benchmarks for SpMV routines with multiple-precision matrix
 #########################
 
 # Performance test for SpMV in CSR format
-add_executable(test_mpspmv_mpmtx_csr_performance sparse/mpmtx/test_mpspmv_mpmtx_csr_performance.cu)
-target_compile_options(test_mpspmv_mpmtx_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_mpmtx_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+add_executable(test_spmv_mpmtx_csr_performance sparse/mpmtx/test_spmv_mpmtx_csr_performance.cu)
+target_compile_options(test_spmv_mpmtx_csr_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv_mpmtx_csr_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 # Performance test for SpMV in ELLPACK format
-add_executable(test_mpspmv_mpmtx_ell_performance sparse/mpmtx/test_mpspmv_mpmtx_ell_performance.cu)
-target_compile_options(test_mpspmv_mpmtx_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_mpmtx_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+add_executable(test_spmv_mpmtx_ell_performance sparse/mpmtx/test_spmv_mpmtx_ell_performance.cu)
+target_compile_options(test_spmv_mpmtx_ell_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv_mpmtx_ell_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 # Performance test for SpMV in DIA format
-add_executable(test_mpspmv_mpmtx_dia_performance sparse/mpmtx/test_mpspmv_mpmtx_dia_performance.cu)
-target_compile_options(test_mpspmv_mpmtx_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_mpmtx_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+add_executable(test_spmv_mpmtx_dia_performance sparse/mpmtx/test_spmv_mpmtx_dia_performance.cu)
+target_compile_options(test_spmv_mpmtx_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv_mpmtx_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
 # Performance test for SpMV in JAD (JDS) format
-add_executable(test_mpspmv_mpmtx_jad_performance sparse/mpmtx/test_mpspmv_mpmtx_jad_performance.cu)
-target_compile_options(test_mpspmv_mpmtx_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_mpspmv_mpmtx_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+add_executable(test_spmv_mpmtx_jad_performance sparse/mpmtx/test_spmv_mpmtx_jad_performance.cu)
+target_compile_options(test_spmv_mpmtx_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv_mpmtx_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)

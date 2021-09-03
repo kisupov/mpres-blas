@@ -47,7 +47,7 @@
 #define INCY 1 // Specifies the increment for the elements of y.
 #define REPEAT_TEST 10 //Number of repeats
 
-//Execution configuration for mpgemv
+//Execution configuration for mp_gemv
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND 256
 #define MPRES_CUDA_THREADS_FIELDS_ROUND 128
 #define MPRES_CUDA_BLOCKS_RESIDUES 256
@@ -314,8 +314,7 @@ void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, m
     for (int i = 0; i < REPEAT_TEST; i++) {
         cuda::mp_array_host2device(dy, hy, leny);
         StartCudaTimer();
-
-        cuda::mpgemv<
+        cuda::mp_gemv<
                 MPRES_CUDA_BLOCKS_FIELDS_ROUND,
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
                 MPRES_CUDA_BLOCKS_RESIDUES,

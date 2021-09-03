@@ -46,7 +46,7 @@ namespace cuda {
      * @param y - output vector, size at least m
      */
     template<int threads, int threadsPerRow>
-    __global__ void mpspmv_csr_vector(const int m, const csr_t csr, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mp_spmv_csrv(const int m, const csr_t csr, mp_float_ptr x, mp_float_ptr y) {
         __shared__ mp_float_t sums[threads];
         __shared__ mp_float_t prods[threads];
         auto threadId = threadIdx.x + blockIdx.x * blockDim.x;  // global thread index

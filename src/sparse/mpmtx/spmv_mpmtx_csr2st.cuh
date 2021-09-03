@@ -103,7 +103,7 @@ namespace cuda {
      * @param buffer - auxiliary array in the global GPU memory for storing the intermediate matrix, size = nnz
      */
     template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
-    void mpspmv_mpmtx_csr_2stage(const int m, const int n, const int nnz, const int *irp, const int *ja, mp_collection_t &as, mp_array_t &x, mp_array_t &y, mp_collection_t &buffer) {
+    void mp_spmv_mpmtx_csr2st(const int m, const int n, const int nnz, const int *irp, const int *ja, mp_collection_t &as, mp_array_t &x, mp_array_t &y, mp_collection_t &buffer) {
 
         //We consider the vector x as a diagonal matrix and perform the right diagonal scaling, buffer = A * x.
         //The result is written to the intermediate buffer of size = nnz.

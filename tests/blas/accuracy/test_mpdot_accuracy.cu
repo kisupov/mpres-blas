@@ -1,5 +1,5 @@
 /*
- *  Accuracy test for the DOT (mpdot) routine
+ *  Accuracy test for the DOT (mp_dot) routine
  *
  *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
  *
@@ -25,7 +25,7 @@
 #include "../../logger.cuh"
 
 #define SIZE 1000000 //Operation size
-//Execution configuration for mpdot
+//Execution configuration for mp_dot
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND   512
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
@@ -237,7 +237,7 @@ int main(){
     delete [] mp_y;
 
     //Computing the MPRES-BLAS dot product
-    cuda::mpdot<
+    cuda::mp_dot<
             MPRES_CUDA_BLOCKS_FIELDS_ROUND,
             MPRES_CUDA_THREADS_FIELDS_ROUND,
             MPRES_CUDA_BLOCKS_RESIDUES,

@@ -44,7 +44,7 @@
 #define LDC (M) // Specifies the leading dimension of C as declared in the calling (sub)program.
 #define REPEAT_TEST 10 //Number of repeats
 
-//Execution configuration for mpger
+//Execution configuration for mp_ger
 #define MPRES_BLOCK_SIZE_X_ESI 32
 #define MPRES_BLOCK_SIZE_Y_ESI 1
 #define MPRES_GRID_SIZE_X_DIGITS 128
@@ -181,7 +181,7 @@ void mpres_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t beta, mpf
     //Launch
     for (int i = 0; i < REPEAT_TEST; i++) {
         StartCudaTimer();
-                cuda::mpgeadd<
+        cuda::mp_ge_add<
                 MPRES_BLOCK_SIZE_X_ESI,
                 MPRES_BLOCK_SIZE_Y_ESI,
                 MPRES_GRID_SIZE_X_DIGITS,

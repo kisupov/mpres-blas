@@ -37,7 +37,7 @@
 #define N 1000000 //Operation size
 #define REPEAT_TEST 10 //Number of repeats
 
-//Execution configuration for mpdot
+//Execution configuration for mp_dot
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND   512
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
@@ -359,7 +359,7 @@ void mpres_test(mpfr_t *x, mpfr_t *y, int n){
     //Launch
     StartCudaTimer();
     for (int i = 0; i < REPEAT_TEST; i++) {
-        cuda::mpdot<
+        cuda::mp_dot<
                 MPRES_CUDA_BLOCKS_FIELDS_ROUND,
                 MPRES_CUDA_THREADS_FIELDS_ROUND,
                 MPRES_CUDA_BLOCKS_RESIDUES,

@@ -49,7 +49,7 @@
 #define TRANSB "N" // Specifies the form of op(B) used in the matrix multiplication
 #define REPEAT_TEST 1 //Number of repeats
 
-//Execution configuration for mpgemm
+//Execution configuration for mp_gemm
 #define MPRES_BLOCK_SIZE_X_ESI 32
 #define MPRES_BLOCK_SIZE_Y_ESI 1
 #define MPRES_GRID_SIZE_X_DIGITS 128
@@ -176,7 +176,7 @@ void mpres_test_notrans(const int m, const int n, const int k, mpfr_t alpha, mpf
     for (int i = 0; i < REPEAT_TEST; i++) {
         cuda::mp_array_host2device(dC, hC, ldc * n);
         StartCudaTimer();
-        cuda::mpgemm<
+        cuda::mp_gemm<
                 MPRES_BLOCK_SIZE_X_ESI,
                 MPRES_BLOCK_SIZE_Y_ESI,
                 MPRES_GRID_SIZE_X_DIGITS,

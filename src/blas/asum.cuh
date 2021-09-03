@@ -38,7 +38,7 @@ namespace cuda {
      * @param r - pointer to the sum (vector of length one) in the GPU memory
      */
     template <int gridDim1, int blockDim1>
-    void mpasum(const int n, mp_array_t &x, const int incx, mp_array_t &r) {
+    void mp_asum(const int n, mp_array_t &x, const int incx, mp_array_t &r) {
 
         // Only positive operation size and vector stride are permitted for ASUM
         if(n <= 0 || incx <= 0){

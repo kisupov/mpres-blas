@@ -190,7 +190,7 @@ static void mpres_test(int n, mpfr_t *x, int incx){
     //Launch
     StartCudaTimer();
     for (int i = 0; i < REPEAT_TEST; i++) {
-        cuda::mpnorm<MPRES_CUDA_BLOCKS_REDUCE, MPRES_CUDA_THREADS_REDUCE>
+        cuda::mp_norm<MPRES_CUDA_BLOCKS_REDUCE, MPRES_CUDA_THREADS_REDUCE>
                 ((NORM_TYPE == "ONE" ? mblas_one_norm : mblas_inf_norm), n, dx, incx, dresult);
     }
     EndCudaTimer();

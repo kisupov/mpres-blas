@@ -178,7 +178,7 @@ void mpres_test(int m, int n, mpfr_t *D, int incd, mpfr_t *A, int lda, int lend)
     for (int i = 0; i < REPEAT_TEST; i++) {
         cuda::mp_array_host2device(dA, hA, lda * n);
         StartCudaTimer();
-                cuda::mpgediagscale<
+        cuda::mp_ge_diag_scale<
                         MPRES_GRID_SIZE_X_ESI,
                         MPRES_BLOCK_SIZE_ESI,
                         MPRES_GRID_SIZE_DIGITS>

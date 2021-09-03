@@ -48,7 +48,7 @@ namespace cuda {
      * @param y - output vector, size at least m
      */
     template<int threads>
-    __global__ void mpspmv_dia(const int m, const int n, const int ndiag, const dia_t dia, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mp_spmv_dia(const int m, const int n, const int ndiag, const dia_t dia, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         __shared__ mp_float_t sums[threads];
         __shared__ mp_float_t prods[threads];

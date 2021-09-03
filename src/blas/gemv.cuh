@@ -148,7 +148,7 @@ namespace cuda
      * @param buffer2 - auxiliary array, size m * n, in the global GPU memory for storing the intermediate matrix
      */
     template<int gridDim1, int blockDim1, int gridDim2, int blockDim3>
-    void mpgemv(enum mblas_trans_type trans, const int m, const int n, mp_array_t &alpha, mp_array_t &A, const int lda,
+    void mp_gemv(enum mblas_trans_type trans, const int m, const int n, mp_array_t &alpha, mp_array_t &A, const int lda,
             mp_array_t &x, const int incx, mp_array_t &beta, mp_array_t &y, const int incy, mp_array_t &buffer1, mp_array_t &buffer2){
 
         //Quick return if possible

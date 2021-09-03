@@ -139,7 +139,7 @@ namespace cuda {
      * @param buffer - auxiliary array in the global GPU memory, size at least n for one-norm and at least m for infinity-norm.
      */
     template <int gridDim1, int blockDim1>
-    void mpgenorm(enum mblas_norm_type norm, const int m, const int n, mp_array_t &A, const int lda, mp_array_t &r, mp_array_t &buffer) {
+    void mp_ge_norm(enum mblas_norm_type norm, const int m, const int n, mp_array_t &A, const int lda, mp_array_t &r, mp_array_t &buffer) {
 
         //Quick return if possible
         if( (m <= 0) || (n <= 0) ){
@@ -158,8 +158,8 @@ namespace cuda {
             // Compute column sums
             matrix_col_sum_abs_kernel<<<n, blockDim1, sizeof(mp_float_t) * blockDim1>>>(m, n, A, lda, buffer, POW);
 
-            // Call to the mpnorm to compute the maximum value of the elements of buffer
-            mpnorm<gridDim1, blockDim1> (mblas_inf_norm, n, buffer, 1, r);
+            // Call mp_norm to compute the maximum value of the buffer's elements
+            mp_norm<gridDim1, blockDim1> (mblas_inf_norm, n, buffer, 1, r);
 
         }
         else { // infinity-norm (max row sum)
@@ -167,8 +167,8 @@ namespace cuda {
             // Compute row sums
             matrix_row_sum_abs_kernel<<<m, blockDim1, sizeof(mp_float_t) * blockDim1>>>(m, n, A, lda, buffer, POW);
 
-            // Call to the mpnorm to compute the maximum value of the elements of buffer
-            mpnorm<gridDim1, blockDim1> (mblas_inf_norm, m, buffer, 1, r);
+            // Call mp_norm to compute the maximum value of the buffer's elements
+            mp_norm<gridDim1, blockDim1> (mblas_inf_norm, m, buffer, 1, r);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- *  Accuracy test for the SCAL (mpscal) routine
+ *  Accuracy test for the SCAL (mp_scal) routine
  *
  *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
  *
@@ -25,7 +25,7 @@
 #include "../../logger.cuh"
 
 #define SIZE 1000000 //Operation size
-//Execution configuration for mpscal
+//Execution configuration for mp_scal
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND   512
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
@@ -200,8 +200,8 @@ int main() {
         mpfr_mul(mpfr_x[i], mpfr_x[i], mpfr_alpha[0], MPFR_RNDN);
     }
 
-    //Call to mpscal
-    cuda::mpscal<
+    //Call to mp_scal
+    cuda::mp_scal<
             MPRES_CUDA_BLOCKS_FIELDS_ROUND,
             MPRES_CUDA_THREADS_FIELDS_ROUND,
             MPRES_CUDA_BLOCKS_RESIDUES>

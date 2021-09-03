@@ -29,10 +29,7 @@ enum er_test_type {
     sub_test,
     mul_test,
     div_test,
-    mul_div_test,
-    cmp_test,
-    ucmp_test,
-    scalbn_test
+    mul_div_test
 };
 
 static void printResult(const  char * name, er_float_ptr result){

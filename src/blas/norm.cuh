@@ -40,10 +40,10 @@ namespace cuda {
      * @param r - pointer to the computed norm (result) --- a vector of length one in the GPU memory
      */
     template <int gridDim1, int blockDim1>
-    void mpnorm(enum mblas_norm_type norm, const int n, mp_array_t &x, const int incx, mp_array_t &r) {
+    void mp_norm(enum mblas_norm_type norm, const int n, mp_array_t &x, const int incx, mp_array_t &r) {
 
         if(norm == mblas_one_norm){ // one-norm
-            mpasum<gridDim1, blockDim1>(n, x, incx, r);
+            mp_asum<gridDim1, blockDim1>(n, x, incx, r);
             return;
         }
         else{ // infinity-norm

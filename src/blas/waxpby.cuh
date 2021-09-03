@@ -48,7 +48,7 @@ namespace cuda {
      * @param buffer - array of size n in the global GPU memory
      */
     template <int gridDim1, int blockDim1, int gridDim2>
-    void mpwaxpby(const int n, mp_array_t &alpha, mp_array_t &x, const int incx, mp_array_t &beta, mp_array_t &y, const int incy, mp_array_t &w, const int incw, mp_array_t &buffer) {
+    void mp_waxpby(const int n, mp_array_t &alpha, mp_array_t &x, const int incx, mp_array_t &beta, mp_array_t &y, const int incy, mp_array_t &w, const int incw, mp_array_t &buffer) {
 
         // Only positive operation size is permitted for AXPY
         if(n <= 0){

@@ -1,5 +1,5 @@
 # MPRES-BLAS: Multiple-Precision GPU Accelerated Linear Algebra Routines
-###### Version 1.4.5, released 2021-08-30
+###### Version 1.4.5, released 2021-09-03
 
 
 The MPRES-BLAS library implements a number of dense (BLAS-like) and sparse (SpMV) linear algebra operations with [multiple precision](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) on CUDA-enabled graphics processing units. The library uses a residue number system ([RNS](https://en.wikipedia.org/wiki/Residue_number_system)) to represent multiple-precision floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS a good tool for high-performance computing on many-core architectures such as GPUs.
@@ -8,43 +8,43 @@ Underlying algorithms for multiple-precision floating-point arithmetic as well a
 
 1. List of dense operations:
 
-    * ASUM --- Sum of absolute values (`mpasum`)
-    * DOT --- Dot product of two vectors (`mpdot`)
-    * SCAL --- Vector-scalar product (`mpscal`)
-    * AXPY --- Constant times a vector plus a vector (`mpaxpy`)
-    * AXPY_DOT --- Combined AXPY and DOT (`mpaxpydot`)
-    * WAXPBY --- Scaled vector addition (`mpwaxpby`)
-    * NORM --- Vector norms (`mpnorm`)
-    * ROT --- Apply a plane rotation to vectors (`mprot`)
-    * GEMV --- Matrix-vector multiplication (`mpgemv`)
-    * GEMM --- General matrix multiplication (`mpgemm`)
-    * GER --- Rank-1 update of a general matrix (`mpger`)
-    * GE_ADD --- Matrix add and scale (`mpgeadd`)
-    * GE_ACC --- Matrix accumulation and scale (`mpgeacc`)
-    * GE_DIAG_SCALE --- Diagonal scaling (`mpgediagscale`)
-    * GE_LRSCALE --- Two-sided diagonal scaling (`mpgelrscale`)
-    * GE_NORM --- Matrix norms (`mpgenorm`)
+    * ASUM --- Sum of absolute values (`mp_asum`)
+    * DOT --- Dot product of two vectors (`mp_dot`)
+    * SCAL --- Vector-scalar product (`mp_scal`)
+    * AXPY --- Constant times a vector plus a vector (`mp_axpy`)
+    * AXPY_DOT --- Combined AXPY and DOT (`mp_axpy_dot`)
+    * WAXPBY --- Scaled vector addition (`mp_waxpby`)
+    * NORM --- Vector norms (`mp_norm`)
+    * ROT --- Apply a plane rotation to vectors (`mp_rot`)
+    * GEMV --- Matrix-vector multiplication (`mp_gemv`)
+    * GEMM --- General matrix multiplication (`mp_gemm`)
+    * GER --- Rank-1 update of a general matrix (`mp_ger`)
+    * GE_ADD --- Matrix add and scale (`mp_ge_add`)
+    * GE_ACC --- Matrix accumulation and scale (`mp_ge_acc`)
+    * GE_DIAG_SCALE --- Diagonal scaling (`mp_ge_diag_scale`)
+    * GE_LRSCALE --- Two-sided diagonal scaling (`mp_ge_lr_scale`)
+    * GE_NORM --- Matrix norms (`mp_ge_norm`)
 
 2. List of sparse matrix-vector multiplication (SpMV) operations:
     
-    * Multiple-precision CSR kernel for double-precision matrix using one thread per matrix row (`mpspmv_csr`)
-    * Multiple-precision CSR kernel for double-precision matrix using a group (up to 32) of threads per matrix row (`mpspmv_csr_vector`)
-    * Multiple-precision JAD kernel for double-precision matrix using one thread per matrix row (`mpspmv_jad`)
-    * Multiple-precision JAD kernel for double-precision matrix using a group (up to 32) of threads per matrix row (`mpspmv_jad_vector`)
-    * Multiple-precision ELLPACK kernel for double-precision matrix using one thread per matrix row (`mpspmv_ell`)
-    * Multiple-precision DIA kernel for double-precision matrix using one thread per matrix row (`mpspmv_dia`)
+    * Multiple-precision CSR kernel for double-precision matrix using one thread per matrix row (`mp_spmv_csr`)
+    * Multiple-precision CSR kernel for double-precision matrix using a group (up to 32) of threads per matrix row (`mp_spmv_csrv`)
+    * Multiple-precision JAD kernel for double-precision matrix using one thread per matrix row (`mp_spmv_jad`)
+    * Multiple-precision JAD kernel for double-precision matrix using a group (up to 32) of threads per matrix row (`mp_spmv_jadv`)
+    * Multiple-precision ELLPACK kernel for double-precision matrix using one thread per matrix row (`mp_spmv_ell`)
+    * Multiple-precision DIA kernel for double-precision matrix using one thread per matrix row (`mp_spmv_dia`)
 
 The corresponding benchmarks are also provided.
 
 3. In addition, the following SpMV routines using a multiple-precision matrix are implemented (can consume a lot of memory, not for iterative solvers):
 
-   * Multiple-precision CSR kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_mpmtx_csr_scalar`)
-   * Multiple-precision CSR kernel for multiple-precision matrix using a group (up to 32) of threads per matrix row (`mpspmv_mpmtx_csr_vector`)
-   * Multiple-precision two-step CSR implementation (`mpspmv_mpmtx_csr_2stage`)
-   * Multiple-precision JAD kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_mpmtx_jad`)
-   * Multiple-precision ELLPACK kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_mpmtx_ell`)
-   * Multiple-precision two-step ELLPACK implementation (`mpspmv_mpmtx_ell_2stage`)
-   * Multiple-precision DIA kernel for multiple-precision matrix using one thread per matrix row (`mpspmv_mpmtx_dia`)
+   * Multiple-precision CSR kernel for multiple-precision matrix using one thread per matrix row (`mp_spmv_mpmtx_csr`)
+   * Multiple-precision CSR kernel for multiple-precision matrix using a group (up to 32) of threads per matrix row (`mp_spmv_mpmtx_csrv`)
+   * Multiple-precision two-step CSR implementation (`mp_spmv_mpmtx_csr2st`)
+   * Multiple-precision JAD kernel for multiple-precision matrix using one thread per matrix row (`mp_spmv_mpmtx_jad`)
+   * Multiple-precision ELLPACK kernel for multiple-precision matrix using one thread per matrix row (`mp_spmv_mpmtx_ell`)
+   * Multiple-precision two-step ELLPACK implementation (`mp_spmv_mpmtx_ell2st`)
+   * Multiple-precision DIA kernel for multiple-precision matrix using one thread per matrix row (`mp_spmv_mpmtx_dia`)
 
 4. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/arith/`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
 

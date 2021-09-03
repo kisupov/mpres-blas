@@ -53,7 +53,7 @@ namespace cuda
      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. The value of lda must be at least max(1, m).
      */
     template<int gridDim1, int blockDim1, int gridDim2>
-    void mpgelrscale(const int m, const int n, mp_array_t &DL, const int incdl,  mp_array_t &DR, const int incdr, mp_array_t &A, const int lda){
+    void mp_ge_lr_scale(const int m, const int n, mp_array_t &DL, const int incdl,  mp_array_t &DR, const int incdr, mp_array_t &A, const int lda){
 
         //Quick return if possible
         if( (m <= 0) || (n <= 0) ){

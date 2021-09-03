@@ -51,7 +51,7 @@ namespace cuda {
      * @param buffer - array of size n in the global GPU memory
      */
     template <int gridDim1, int blockDim1, int gridDim2, int gridDim3, int blockDim3>
-    void mpaxpydot(const int n, mp_array_t &alpha, mp_array_t &w, const int incw, mp_array_t &v, const int incv, mp_array_t &u, const int incu, mp_array_t &r, mp_array_t &buffer) {
+    void mp_axpy_dot(const int n, mp_array_t &alpha, mp_array_t &w, const int incw, mp_array_t &v, const int incv, mp_array_t &u, const int incu, mp_array_t &r, mp_array_t &buffer) {
 
         // Only positive operation size is permitted for AXPY_DOT
         if(n <= 0){
@@ -82,7 +82,7 @@ namespace cuda {
         mp_vector_round_kernel<<< gridDim1, blockDim1 >>> (w, incw, n);
 
         //Call dot to compute r
-        cuda::mpdot< gridDim1, blockDim1, gridDim2, gridDim3, blockDim3 >(n, u, incu, w, incw, r, buffer);
+        cuda::mp_dot< gridDim1, blockDim1, gridDim2, gridDim3, blockDim3 >(n, u, incu, w, incw, r, buffer);
     }
 
 } //end of namespace

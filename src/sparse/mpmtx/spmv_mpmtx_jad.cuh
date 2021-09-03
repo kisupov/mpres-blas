@@ -48,7 +48,7 @@ namespace cuda {
      * @param x - input vector, size at least max(ja) + 1, where max(ja) is the maximum element from the ja array
      * @param y - output vector, size at least m
      */
-    __global__ void mpspmv_mpmtx_jad(const int m, const int maxnzr, const mp_float_ptr as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
+    __global__ void mp_spmv_mpmtx_jad(const int m, const int maxnzr, const mp_float_ptr as, const int *ja, const int *jcp, const int *perm_rows, mp_float_ptr x, mp_float_ptr y) {
         auto row = threadIdx.x + blockIdx.x * blockDim.x;
         while (row < m) {
             auto j = 0;

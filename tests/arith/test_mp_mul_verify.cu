@@ -21,6 +21,7 @@
 
 
 #include "../../src/arith/mul.cuh"
+#include "../../src/arith/muld.cuh"
 #include "../../src/arith/assign.cuh"
 #include "../../src/mparray.cuh"
 

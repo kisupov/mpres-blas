@@ -1,5 +1,5 @@
 /*
- *  Accuracy test for the AXPY (mpaxpy) routine
+ *  Accuracy test for the AXPY (mp_axpy) routine
  *
  *  Copyright 2018, 2019 by Konstantin Isupov and Alexander Kuvaev.
  *
@@ -25,7 +25,7 @@
 #include "../../logger.cuh"
 
 #define SIZE 1000000 //Operation size
-//Execution configuration for mpaxpy
+//Execution configuration for mp_axpy
 #define MPRES_CUDA_BLOCKS_FIELDS_ROUND   512
 #define MPRES_CUDA_THREADS_FIELDS_ROUND  128
 #define MPRES_CUDA_BLOCKS_RESIDUES       8192
@@ -274,8 +274,8 @@ int main(){
     cuda::mp_array_host2device(mp_dev_y, mp_y, SIZE);
     cuda::mp_array_host2device(mp_dev_alpha, &mp_alpha, 1);
 
-    //Call to mpaxpy
-    cuda::mpaxpy<
+    //Call to mp_axpy
+    cuda::mp_axpy<
             MPRES_CUDA_BLOCKS_FIELDS_ROUND,
             MPRES_CUDA_THREADS_FIELDS_ROUND,
             MPRES_CUDA_BLOCKS_RESIDUES>
