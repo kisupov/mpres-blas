@@ -25,7 +25,6 @@
 #define EXCLUDE_MPACK
 #define EXCLUDE_XBLAS
 #define EXCLUDE_MPDECIMAL
-#define EXCLUDE_CUBLAS
 #define EXCLUDE_GARPREC
 #define EXCLUDE_CAMPARY
 #define EXCLUDE_CUMP
@@ -33,14 +32,11 @@
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
-#include "../../../src/mparray.cuh"
-#include "../../../src/arith/mul.cuh"
 #include "../../../src/blas/gemv.cuh"
 #include "3rdparty.cuh"
 
-
-#define N 1000  // Number of matrix rows / column and the vectors dimension
-#define LDA (N) // Specifies the leading dimension of A as declared in the calling (sub)program.
+#define N 5000  // Number of matrix rows / column and the vectors dimension
+#define LDA (N + 10) // Specifies the leading dimension of A as declared in the calling (sub)program.
 #define UPLO mblas_upper // Specifies whether the upper or lower triangular part of the array a is used.
 #define INCX 1 // Specifies the increment for the elements of x.
 #define INCY 1 // Specifies the increment for the elements of y.
@@ -80,10 +76,6 @@ void finalize() {
 
 /********************* GEMV implementations and benchmarks *********************/
 
-static int get_mtx_index_up(const int i, const int j, const int lda){
-    return (i <= j) ? i + j * lda : j + i * lda;
-}
-
 /////////
 // Reference implementations
 /////////
@@ -108,7 +100,7 @@ void double_symv_up_reference(int n, double alpha, const double *A, int lda, con
     }
 }
 
-void mpfr_symv_up(int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y) {
+void mpfr_symv_up_reference(int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y) {
     mpfr_t temp1;
     mpfr_t temp2;
     mpfr_t acc1;
@@ -149,8 +141,7 @@ void mpfr_symv_up(int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t bet
 /////////
 extern "C" void openblas_set_num_threads(int num_threads);
 
-void
-test_openblas(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x,
+void test_openblas(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x,
               int incx, mpfr_t beta, mpfr_t *y, int incy) {
     InitCpuTimer();
     Logger::printDash();
@@ -182,12 +173,14 @@ test_openblas(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t
     for (int i = 0; i < REPEAT_TEST; i++) {
         for (int j = 0; j < leny; j++) {
             dr[j] = dy[j];
-        }StartCpuTimer();
+        }
+        StartCpuTimer();
         if (uplo == mblas_upper) {
             cblas_dsymv(CblasColMajor, CblasUpper, n, dalpha, dA, lda, dx, incx, dbeta, dr, incy);
         } else {
             cblas_dsymv(CblasColMajor, CblasLower, n, dalpha, dA, lda, dx, incx, dbeta, dr, incy);
-        }EndCpuTimer();
+        }
+        EndCpuTimer();
     }
     PrintCpuTimer("took");
     print_double_sum(dr, leny);
@@ -198,31 +191,59 @@ test_openblas(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t
 }
 
 /////////
-// double
+// double upper
 /////////
-void double_symv_up(int n, double alpha, const double *A, int lda, const double *x, double beta, double *y) {
-    #pragma omp parallel shared(n, A, x, y)
-    {
-        double mul_acc;
-        double ax;
-        int i = 0;
-        int j = 0;
-        #pragma omp for
-        for (i = 0; i < n; i++) {
-            y[i] = beta * y[i];
-        }
-
-        for (j = 0; j < n; j++) {
-            ax = alpha * x[j];
+void double_symv(enum mblas_uplo_type uplo, int n, double alpha, const double *A, int lda, const double *x, double beta, double *y) {
+    if (uplo == mblas_upper) { //Use the upper part of the matrix
+        #pragma omp parallel shared(n, A, x, y)
+        {
+            double mul_acc;
+            double ax;
+            int i = 0;
+            int j = 0;
             #pragma omp for
-            for (i = 0; i <= j; i++) {
-                mul_acc = ax * A[i + j * lda];
-                y[i] = y[i] + mul_acc;
+            for (i = 0; i < n; i++) {
+                y[i] = beta * y[i];
             }
+
+            for (j = 0; j < n; j++) {
+                ax = alpha * x[j];
+                #pragma omp for
+                for (i = 0; i <= j; i++) {
+                    mul_acc = ax * A[i + j * lda];
+                    y[i] = y[i] + mul_acc;
+                }
+                #pragma omp for
+                for (i = j + 1; i < n; i++) {
+                    mul_acc = ax * A[j + i * lda];
+                    y[i] = y[i] + mul_acc;
+                }
+            }
+        }
+    } else{ //Use the lower part of the matrix
+        #pragma omp parallel shared(n, A, x, y)
+        {
+            double mul_acc;
+            double ax;
+            int i = 0;
+            int j = 0;
             #pragma omp for
-            for (i = j + 1; i < n; i++) {
-                mul_acc = ax * A[j + i * lda];
-                y[i] = y[i] + mul_acc;
+            for (i = 0; i < n; i++) {
+                y[i] = beta * y[i];
+            }
+
+            for (j = 0; j < n; j++) {
+                ax = alpha * x[j];
+                #pragma omp for
+                for (i = 0; i <= j; i++) {
+                    mul_acc = ax * A[j + i * lda];
+                    y[i] = y[i] + mul_acc;
+                }
+                #pragma omp for
+                for (i = j + 1; i < n; i++) {
+                    mul_acc = ax * A[i + j * lda];
+                    y[i] = y[i] + mul_acc;
+                }
             }
         }
     }
@@ -259,11 +280,7 @@ void test_double(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpf
             dr[j] = dy[j];
         }
         StartCpuTimer();
-        if (uplo == mblas_upper) {
-            double_symv_up(n, dalpha, dA, lda, dx, dbeta, dr);
-        } else {
-            //TODO:
-        }
+        double_symv(uplo, n, dalpha, dA, lda, dx, dbeta, dr);
         EndCpuTimer();
     }
     PrintCpuTimer("took");
@@ -276,110 +293,72 @@ void test_double(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpf
 
 
 /////////
-// double CUDA
+// MPFR upper
 /////////
-/*__global__ static void double_symv_up_cuda(int n, double alpha, const double *A, int lda, const double *x, double beta, double *y) {
-    unsigned int threadId = threadIdx.x + blockIdx.x * blockDim.x;
-    //Работаем по строкам, генерируя один элемент вектра y.
-    if (threadId < n) {
-        double dot = 0;
-        for (int colId = 0; colId < n; colId++) {
-            double da = alpha * x[colId];
-            if(threadId <= colId){
-                dot += da * A[threadId + colId * lda];
-            } else{
-                dot += da * A[colId + threadId * lda];
+void mpfr_symv(enum mblas_uplo_type uplo, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y) {
+    if (uplo == mblas_upper) { //Use the upper part of the matrix
+        #pragma omp parallel shared(n, A, x, y)
+        {
+            mpfr_t mul_acc;
+            mpfr_t ax;
+            mpfr_init2(ax, MP_PRECISION);
+            mpfr_init2(mul_acc, MP_PRECISION);
+            int i = 0;
+            int j = 0;
+            #pragma omp for
+            for (i = 0; i < n; i++) {
+                mpfr_mul(y[i], beta, y[i], MPFR_RNDN);
             }
+
+            for (j = 0; j < n; j++) {
+                mpfr_mul(ax, alpha, x[j], MPFR_RNDN);
+                #pragma omp for
+                for (i = 0; i <= j; i++) {
+                    mpfr_mul(mul_acc, ax, A[i + j * lda], MPFR_RNDN);
+                    mpfr_add(y[i], y[i], mul_acc, MPFR_RNDN);
+                }
+                #pragma omp for
+                for (i = j + 1; i < n; i++) {
+                    mpfr_mul(mul_acc, ax, A[j + i * lda], MPFR_RNDN);
+                    mpfr_add(y[i], y[i], mul_acc, MPFR_RNDN);
+                }
+            }
+            mpfr_clear(mul_acc);
+            mpfr_clear(ax);
         }
-        y[threadId] *= beta;
-        y[threadId] += dot;
+    } else{ //Use the lower part of the matrix
+        #pragma omp parallel shared(n, A, x, y)
+        {
+            mpfr_t mul_acc;
+            mpfr_t ax;
+            mpfr_init2(ax, MP_PRECISION);
+            mpfr_init2(mul_acc, MP_PRECISION);
+            int i = 0;
+            int j = 0;
+            #pragma omp for
+            for (i = 0; i < n; i++) {
+                mpfr_mul(y[i], beta, y[i], MPFR_RNDN);
+            }
+            for (j = 0; j < n; j++) {
+                mpfr_mul(ax, alpha, x[j], MPFR_RNDN);
+                #pragma omp for
+                for (i = 0; i <= j; i++) {
+                    mpfr_mul(mul_acc, ax, A[j + i * lda], MPFR_RNDN);
+                    mpfr_add(y[i], y[i], mul_acc, MPFR_RNDN);
+                }
+                #pragma omp for
+                for (i = j + 1; i < n; i++) {
+                    mpfr_mul(mul_acc, ax, A[i + j * lda], MPFR_RNDN);
+                    mpfr_add(y[i], y[i], mul_acc, MPFR_RNDN);
+                }
+            }
+            mpfr_clear(mul_acc);
+            mpfr_clear(ax);
+        }
     }
 }
 
-void test_double_symv_cuda(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy) {
-    InitCudaTimer();
-    Logger::printDash();
-    PrintTimerName("[GPU] double SYMV");
-
-    //Execution configuration
-    int threads = 32;
-    int blocks = n / threads + 1;
-    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-
-    //CPU data
-    double *dx = new double[lenx];
-    double *dy = new double[leny];
-    double *dr = new double[leny];
-    double *dA = new double[lda * n];
-    double dalpha = mpfr_get_d(alpha, MPFR_RNDN);
-    double dbeta = mpfr_get_d(beta, MPFR_RNDN);
-
-    for (int i = 0; i < lenx; ++i) {
-        dx[i] = mpfr_get_d(x[i], MPFR_RNDN);
-    }
-
-    for (int i = 0; i < leny; ++i) {
-        dy[i] = mpfr_get_d(y[i], MPFR_RNDN);
-    }
-
-    for (int i = 0; i < lda * n; ++i) {
-        dA[i] = mpfr_get_d(A[i], MPFR_RNDN);
-    }
-
-
-}*/
-
-
-/////////
-// cuBLAS
-/////////
-/*
-void cublas_test(double *x, double *y, int n){
-    InitCudaTimer();
-    Logger::printDash();
-    PrintTimerName("[GPU] cuBLAS dot");
-
-    cublasStatus_t stat;
-    cublasHandle_t handle;
-
-    stat = cublasCreate(&handle);
-    if (stat != CUBLAS_STATUS_SUCCESS) {
-        printf ("cuBLAS initialization failed\n");
-        return;
-    }
-
-    double *dev_x, *dev_y;
-    double *res = new double[n];
-    cudaMalloc(&dev_x, sizeof(double) * n);
-    cudaMalloc(&dev_y, sizeof(double) * n);
-    cublasSetVector(n, sizeof(double), x, 1, dev_x, 1);
-    cublasSetVector(n, sizeof(double), y, 1, dev_y, 1);
-
-    StartCudaTimer();
-    for(int i = 0; i < REPEAT_TEST; i ++) {
-        cublasDdot(handle, n, dev_x, 1, dev_y, 1, res);
-    }
-    EndCudaTimer();
-    PrintCudaTimer("took");
-    printf("result: %lf\n", *res);
-
-    cublasDestroy ( handle );
-    cudaFree(dev_x);
-    cudaFree(dev_y);
-    delete [] res;
-}
-*/
-
-
-
-
-
-/////////
-// MPFR upper serial
-/////////
-
-
-void mpfr_test(enum mblas_uplo_type uplo, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y) {
+void test_mpfr(enum mblas_uplo_type uplo, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y) {
     InitCpuTimer();
     Logger::printDash();
     PrintTimerName("[CPU] MPFR symv");
@@ -398,9 +377,7 @@ void mpfr_test(enum mblas_uplo_type uplo, int n, mpfr_t alpha, mpfr_t *A, int ld
             mpfr_set(result[j], y[j], MPFR_RNDN);
         }
         StartCpuTimer();
-        if (uplo == mblas_upper) {
-            mpfr_symv_up(n, alpha, A, lda, x, beta, result);
-        }
+        mpfr_symv(uplo, n, alpha, A, lda, x, beta, result);
         EndCpuTimer();
     }
     PrintCpuTimer("took");
@@ -414,73 +391,162 @@ void mpfr_test(enum mblas_uplo_type uplo, int n, mpfr_t alpha, mpfr_t *A, int ld
 }
 
 /////////
-// MPFR upper openmp
+// cuBLAS
 /////////
-void mpfr_symv_up_omp(int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y) {
-    #pragma omp parallel shared(n, A, x, y)
-    {
-        mpfr_t mul_acc;
-        mpfr_t ax;
-        mpfr_init2(ax, MP_PRECISION);
-        mpfr_init2(mul_acc, MP_PRECISION);
-        int i = 0;
-        int j = 0;
-        #pragma omp for
-        for (i = 0; i < n; i++) {
-            mpfr_mul(y[i], beta, y[i], MPFR_RNDN);
-        }
-
-        for (j = 0; j < n; j++) {
-            mpfr_mul(ax, alpha, x[j], MPFR_RNDN);
-            #pragma omp for
-            for (i = 0; i <= j; i++) {
-                mpfr_mul(mul_acc, ax, A[i + j * lda], MPFR_RNDN);
-                mpfr_add(y[i], y[i], mul_acc, MPFR_RNDN);
-            }
-            #pragma omp for
-            for (i = j + 1; i < n; i++) {
-                mpfr_mul(mul_acc, ax, A[j + i * lda], MPFR_RNDN);
-                mpfr_add(y[i], y[i], mul_acc, MPFR_RNDN);
-            }
-        }
-        mpfr_clear(mul_acc);
-        mpfr_clear(ax);
-    }
-}
-
-void mpfr_test_omp(enum mblas_uplo_type uplo, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y) {
-    InitCpuTimer();
+void test_cublas(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x,
+        int incx, mpfr_t beta, mpfr_t *y, int incy){
+    InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[CPU] MPFR symv omp");
+    PrintTimerName("[GPU] cuBLAS symv");
 
-    // Init
-    mpfr_t *result = new mpfr_t[n];
-    #pragma omp parallel for
-    for (int i = 0; i < n; i++) {
-        mpfr_init2(result[i], MP_PRECISION);
+    cublasStatus_t stat;
+    cublasHandle_t handle;
+    stat = cublasCreate(&handle);
+    if (stat != CUBLAS_STATUS_SUCCESS) {
+        printf ("cuBLAS initialization failed\n");
+        return;
     }
 
-    // Launch
-    for (int i = 0; i < REPEAT_TEST; i++) {
-        #pragma omp parallel for
-        for (int j = 0; j < n; j++) {
-            mpfr_set(result[j], y[j], MPFR_RNDN);
-        }StartCpuTimer();
+    //Host data
+    double *hx = new double[lenx];
+    double *hy = new double[leny];
+    double *hA = new double[lda * n];
+
+    for (int i = 0; i < lenx; i++) {
+        hx[i] = mpfr_get_d(x[i], MPFR_RNDN);
+    }
+
+    for (int i = 0; i < leny; i++) {
+        hy[i] = mpfr_get_d(y[i], MPFR_RNDN);
+    }
+
+    for (int i = 0; i < lda * n; i++) {
+        hA[i] = mpfr_get_d(A[i], MPFR_RNDN);
+    }
+
+    //GPU data
+    double *dx;
+    double *dy;
+    double *dA;
+    double dalpha = mpfr_get_d(alpha, MPFR_RNDN);
+    double dbeta = mpfr_get_d(beta, MPFR_RNDN);
+
+    cudaMalloc(&dx, sizeof(double) * lenx);
+    cudaMalloc(&dy, sizeof(double) * leny);
+    cudaMalloc(&dA, sizeof(double) * lda * n);
+    cublasSetVector(lenx, sizeof(double), hx, incx, dx, incx);
+    cublasSetVector(lda * n, sizeof(double), hA, 1, dA, 1);
+
+    for(int i = 0; i < REPEAT_TEST; i ++) {
+        cublasSetVector(leny, sizeof(double), hy, incy, dy, incy);
+        StartCudaTimer();
         if (uplo == mblas_upper) {
-            mpfr_symv_up_omp(n, alpha, A, lda, x, beta, result);
-        }EndCpuTimer();
-    }
-    PrintCpuTimer("took");
-    print_mpfr_sum(result, n);
+            cublasDsymv(handle, CUBLAS_FILL_MODE_UPPER, n, &dalpha, dA, lda, dx, incx, &dbeta, dy, incy);
+        } else{
+            cublasDsymv(handle, CUBLAS_FILL_MODE_LOWER, n, &dalpha, dA, lda, dx, incx, &dbeta, dy, incy);
+        }
+        EndCudaTimer();
 
-    //Cleanup
-    for (int i = 0; i < n; i++) {
-        mpfr_clear(result[i]);
     }
-    delete[] result;
+    PrintCudaTimer("took");
+    cublasGetVector(leny, sizeof(double), dy, incy, hy, incy);
+    print_double_sum(hy, leny);
+    cublasDestroy ( handle );
+    delete[] hx;
+    delete[] hy;
+    delete[] hA;
+    cudaFree(dx);
+    cudaFree(dy);
+    cudaFree(dA);
 }
 
 
+/////////
+// double CUDA
+/////////
+__global__ static void double_symv_cuda(enum mblas_uplo_type uplo, int n, double alpha, const double *A, int lda, const double *x, double beta, double *y) {
+    unsigned int threadId = threadIdx.x + blockIdx.x * blockDim.x;
+    //Each thread works with its own row, i.e. goes through the columns
+    if (threadId < n) {
+        double dot = 0;
+        if (uplo == mblas_upper) { //Use the upper part of the matrix
+            for (int colId = 0; colId < n; colId++) {
+                double dx = x[colId];
+                if(threadId <= colId){
+                    dot += dx * A[threadId + colId * lda];
+                } else{
+                    dot += dx * A[colId + threadId * lda];
+                }
+            }
+        } else{ //Use the lower part of the matrix
+            for (int colId = 0; colId < n; colId++) {
+                double dx = x[colId];
+                if(threadId <= colId){
+                    dot += dx * A[colId + threadId * lda];
+                } else{
+                    dot += dx * A[threadId + colId * lda];
+                }
+            }
+        }
+        y[threadId] = beta * y[threadId] + alpha * dot;
+    }
+}
+
+void test_double_symv_cuda(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy) {
+    InitCudaTimer();
+    Logger::printDash();
+    PrintTimerName("[GPU] double SYMV");
+
+    //Execution configuration
+    int threads = 32;
+    int blocks = n / threads + 1;
+    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
+
+    //Host data
+    double *hx = new double[lenx];
+    double *hy = new double[leny];
+    double *hA = new double[lda * n];
+
+    //GPU data
+    double *dx;
+    double *dy;
+    double *dA;
+
+    double dalpha = mpfr_get_d(alpha, MPFR_RNDN);
+    double dbeta = mpfr_get_d(beta, MPFR_RNDN);
+
+    cudaMalloc(&dx, sizeof(double) * lenx);
+    cudaMalloc(&dy, sizeof(double) * leny);
+    cudaMalloc(&dA, sizeof(double) * lda * n);
+
+    convert_vector(hx, x, lenx);
+    convert_vector(hy, y, leny);
+    convert_vector(hA, A, lda * n);
+
+    cudaMemcpy(dx, hx, sizeof(double) * lenx, cudaMemcpyHostToDevice);
+    cudaMemcpy(dA, hA, sizeof(double) * lda * n, cudaMemcpyHostToDevice);
+
+    for(int i = 0; i < REPEAT_TEST; i ++) {
+        cudaMemcpy(dy, hy, sizeof(double) * leny, cudaMemcpyHostToDevice);
+        StartCudaTimer();
+        double_symv_cuda<<<blocks, threads>>>(uplo, n, dalpha, dA, lda, dx, dbeta, dy);
+        EndCudaTimer();
+    }
+    PrintCudaTimer("took");
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
+
+    //Copying to the host
+    cudaMemcpy(hy, dy, sizeof(double) * leny , cudaMemcpyDeviceToHost);
+    print_double_sum(hy, leny);
+
+    delete[] hx;
+    delete[] hy;
+    delete[] hA;
+    cudaFree(dx);
+    cudaFree(dy);
+    cudaFree(dA);
+}
 
 /////////
 // MPRES-BLAS (structure of arrays)
@@ -686,23 +752,9 @@ void testNoTrans() {
     //Launch tests
     test_openblas(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
     test_double(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
-    mpfr_test(UPLO, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
-    mpfr_test_omp(UPLO, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
-    //arprec_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
-#ifndef EXCLUDE_MPACK
-    //mpack_gemv_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY, MP_PRECISION, REPEAT_TEST);
-#endif
-    //mpres_test(mblas_no_trans, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
-    //mpres_test_straightforward(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
-#ifndef EXCLUDE_GARPREC
-    //garprec_gemv_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, MP_PRECISION_DEC, INP_DIGITS, REPEAT_TEST);
-#endif
-#ifndef EXCLUDE_CAMPARY
-    //campary_gemv_test<CAMPARY_PRECISION>(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, INP_DIGITS, REPEAT_TEST);
-#endif
-#ifndef EXCLUDE_CUMP
-    //cump_gemv_test(M, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, MP_PRECISION, INP_DIGITS, REPEAT_TEST);
-#endif
+    test_mpfr(UPLO, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
+    test_cublas(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
+    test_double_symv_cuda(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
