@@ -32,21 +32,15 @@
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
-#include "../../../src/blas/gemv.cuh"
+#include "../../../src/blas/symv.cuh"
 #include "3rdparty.cuh"
 
 #define N 5000  // Number of matrix rows / column and the vectors dimension
-#define LDA (N + 10) // Specifies the leading dimension of A as declared in the calling (sub)program.
+#define LDA (N) // Specifies the leading dimension of A as declared in the calling (sub)program.
 #define UPLO mblas_upper // Specifies whether the upper or lower triangular part of the array a is used.
 #define INCX 1 // Specifies the increment for the elements of x.
 #define INCY 1 // Specifies the increment for the elements of y.
 #define REPEAT_TEST 1 //Number of repeats
-
-//Execution configuration for mp_gemv
-#define MPRES_CUDA_BLOCKS_FIELDS_ROUND 256
-#define MPRES_CUDA_THREADS_FIELDS_ROUND 128
-#define MPRES_CUDA_BLOCKS_RESIDUES 256
-#define MPRES_CUDA_THREADS_REDUCE 32
 
 #define OPENBLAS_THREADS 4
 
@@ -249,7 +243,7 @@ void double_symv(enum mblas_uplo_type uplo, int n, double alpha, const double *A
     }
 }
 
-void test_double(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy) {
+void test_double(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y) {
     InitCpuTimer();
     Logger::printDash();
     PrintTimerName("[CPU] double symv");
@@ -434,11 +428,11 @@ void test_cublas(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpf
     cudaMalloc(&dx, sizeof(double) * lenx);
     cudaMalloc(&dy, sizeof(double) * leny);
     cudaMalloc(&dA, sizeof(double) * lda * n);
-    cublasSetVector(lenx, sizeof(double), hx, incx, dx, incx);
+    cublasSetVector(n, sizeof(double), hx, incx, dx, incx);
     cublasSetVector(lda * n, sizeof(double), hA, 1, dA, 1);
 
     for(int i = 0; i < REPEAT_TEST; i ++) {
-        cublasSetVector(leny, sizeof(double), hy, incy, dy, incy);
+        cublasSetVector(n, sizeof(double), hy, incy, dy, incy);
         StartCudaTimer();
         if (uplo == mblas_upper) {
             cublasDsymv(handle, CUBLAS_FILL_MODE_UPPER, n, &dalpha, dA, lda, dx, incx, &dbeta, dy, incy);
@@ -449,7 +443,7 @@ void test_cublas(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpf
 
     }
     PrintCudaTimer("took");
-    cublasGetVector(leny, sizeof(double), dy, incy, hy, incy);
+    cublasGetVector(n, sizeof(double), dy, incy, hy, incy);
     print_double_sum(hy, leny);
     cublasDestroy ( handle );
     delete[] hx;
@@ -495,7 +489,7 @@ __global__ static void double_symv_cuda(enum mblas_uplo_type uplo, int n, double
 void test_double_symv_cuda(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] double SYMV");
+    PrintTimerName("[GPU] double symv");
 
     //Execution configuration
     int threads = 32;
@@ -549,37 +543,37 @@ void test_double_symv_cuda(enum mblas_uplo_type uplo, const int n, int lenx, int
 }
 
 /////////
-// MPRES-BLAS (structure of arrays)
+// MPRES-BLAS
 /////////
-/*void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy){
+void test_mpres_symv(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS gemv");
+    PrintTimerName("[GPU] MPRES-BLAS symv");
 
-    // Host data
+    //Execution configuration
+    int threads = 32;
+    int blocks = n / threads + 1;
+    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
+
+    //Host data
     mp_float_ptr hx = new mp_float_t[lenx];
     mp_float_ptr hy = new mp_float_t[leny];
     mp_float_ptr hA = new mp_float_t[lda * n];
     mp_float_t halpha;
     mp_float_t hbeta;
 
-    //GPU data
-    mp_array_t dx;
-    mp_array_t dy;
-    mp_array_t dA;
-    mp_array_t dalpha;
-    mp_array_t dbeta;
-    mp_array_t dbuf1;
-    mp_array_t dbuf2;
+    // GPU data
+    mp_float_ptr dA;
+    mp_float_ptr dx;
+    mp_float_ptr dy;
+    mp_float_ptr dalpha;
+    mp_float_ptr dbeta;
 
-    //Init data
-    cuda::mp_array_init(dx, lenx);
-    cuda::mp_array_init(dy, leny);
-    cuda::mp_array_init(dA, lda * n);
-    cuda::mp_array_init(dalpha, 1);
-    cuda::mp_array_init(dbeta, 1);
-    cuda::mp_array_init(dbuf1, (trans == mblas_no_trans) ? n : m);
-    cuda::mp_array_init(dbuf2, m * n);
+    cudaMalloc(&dx, sizeof(mp_float_t) * lenx);
+    cudaMalloc(&dy, sizeof(mp_float_t) * leny);
+    cudaMalloc(&dA, sizeof(mp_float_t) * lda * n);
+    cudaMalloc(&dalpha, sizeof(mp_float_t));
+    cudaMalloc(&dbeta, sizeof(mp_float_t));
 
     // Convert from MPFR
     convert_vector(hx, x, lenx);
@@ -589,111 +583,7 @@ void test_double_symv_cuda(enum mblas_uplo_type uplo, const int n, int lenx, int
     mp_set_mpfr(&hbeta, beta);
 
     //Copying to the GPU
-    cuda::mp_array_host2device(dx, hx, lenx);
-    cuda::mp_array_host2device(dA, hA, lda * n);
-    cuda::mp_array_host2device(dalpha, &halpha, 1);
-    cuda::mp_array_host2device(dbeta, &hbeta, 1);
-
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
-    //Launch
-    for (int i = 0; i < REPEAT_TEST; i++) {
-        cuda::mp_array_host2device(dy, hy, leny);
-        StartCudaTimer();
-
-        cuda::mp_gemv<
-                MPRES_CUDA_BLOCKS_FIELDS_ROUND,
-                MPRES_CUDA_THREADS_FIELDS_ROUND,
-                MPRES_CUDA_BLOCKS_RESIDUES,
-                MPRES_CUDA_THREADS_REDUCE>
-                (trans, m, n, dalpha, dA, lda, dx, incx, dbeta, dy, incy, dbuf1, dbuf2);
-        EndCudaTimer();
-    }
-    PrintCudaTimer("took");
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
-
-    //Copying to the host
-    cuda::mp_array_device2host(hy, dy, leny);
-    print_mp_sum(hy, leny);
-
-    //Cleanup
-    delete [] hx;
-    delete [] hy;
-    delete [] hA;
-    cuda::mp_array_clear(dx);
-    cuda::mp_array_clear(dy);
-    cuda::mp_array_clear(dA);
-    cuda::mp_array_clear(dalpha);
-    cuda::mp_array_clear(dbeta);
-    cuda::mp_array_clear(dbuf1);
-    cuda::mp_array_clear(dbuf2);
-}*/
-
-/////////
-// MPRES-BLAS straightforward (array of structures)
-// Each multiple-precision operation is performed by a single thread
-/////////
-/*
-__global__ static void mp_scal_straightforward(int n, mp_float_ptr alpha, mp_float_ptr x){
-    int i = threadIdx.x + blockIdx.x * blockDim.x;
-    if(i < n){
-        cuda::mp_mul(&x[i], &alpha[0], &x[i]);
-    }
-}
-
-__global__ static void mp_gemv_straightforward(int m, int n, mp_float_ptr A, int lda, mp_float_ptr x, mp_float_ptr beta, mp_float_ptr y) {
-    unsigned int threadId = threadIdx.x + blockIdx.x * blockDim.x;
-    if (threadId < m) {
-        mp_float_t prod;
-        mp_float_t dot = cuda::MP_ZERO;
-        for (int colId = 0; colId < n; colId++) {
-            cuda::mp_mul(&prod, &x[colId], &A[colId * lda + threadId]);
-            cuda::mp_add(&dot, &dot, &prod);
-        }
-        cuda::mp_mul(&y[threadId], &beta[0], &y[threadId]);
-        cuda::mp_add(&y[threadId], &y[threadId], &dot);
-    }
-}
-
-void mpres_test_straightforward(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t beta, mpfr_t *y){
-    InitCudaTimer();
-    Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS gemv (straightforward)");
-
-    //Execution configuration
-    int threads = 32;
-    int blocks_gemv = m / (threads) + (m % (threads) ? 1 : 0);
-    int blocks_scal = n / (threads) + (n % (threads) ? 1 : 0);
-
-    // Host data
-    mp_float_t halpha;
-    mp_float_t hbeta;
-    mp_float_ptr hx = new mp_float_t[n];
-    mp_float_ptr hy = new mp_float_t[m];
-    mp_float_ptr hA = new mp_float_t[lda * n];
-
-    // GPU data
-    mp_float_ptr dA;
-    mp_float_ptr dx;
-    mp_float_ptr dy;
-    mp_float_ptr dalpha;
-    mp_float_ptr dbeta;
-
-    cudaMalloc(&dA, sizeof(mp_float_t) * lda * n);
-    cudaMalloc(&dx, sizeof(mp_float_t) * n);
-    cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    cudaMalloc(&dalpha, sizeof(mp_float_t));
-    cudaMalloc(&dbeta, sizeof(mp_float_t));
-
-    // Convert from MPFR
-    mp_set_mpfr(&halpha, alpha);
-    mp_set_mpfr(&hbeta, beta);
-    convert_vector(hx, x, n);
-    convert_vector(hy, y, m);
-    convert_matrix(hA, A, lda, n);
-
-    //Copying to the GPU
+    cudaMemcpy(dx, hx, sizeof(mp_float_t) * lenx, cudaMemcpyHostToDevice);
     cudaMemcpy(dA, hA, lda * n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
     cudaMemcpy(dalpha, &halpha, sizeof(mp_float_t), cudaMemcpyHostToDevice);
     cudaMemcpy(dbeta, &hbeta, sizeof(mp_float_t), cudaMemcpyHostToDevice);
@@ -701,13 +591,10 @@ void mpres_test_straightforward(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
-    //Launch
-    for (int i = 0; i < REPEAT_TEST; i++) {
-        cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
-        cudaMemcpy(dy, hy, m * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    for(int i = 0; i < REPEAT_TEST; i ++) {
+        cudaMemcpy(dy, hy, sizeof(mp_float_t) * leny, cudaMemcpyHostToDevice);
         StartCudaTimer();
-        mp_scal_straightforward<<<blocks_scal, threads>>>(n, dalpha, dx);
-        mp_gemv_straightforward<<<blocks_gemv, threads>>>(m, n, dA, lda, dx, dbeta, dy);
+        cuda::mp_symv<32><<<blocks, threads>>>(uplo, n, dalpha, dA, lda, dx, incx, dbeta, dy, incy);
         EndCudaTimer();
     }
     PrintCudaTimer("took");
@@ -715,20 +602,19 @@ void mpres_test_straightforward(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, 
     cudaCheckErrors();
 
     //Copying to the host
-    cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
-    print_mp_sum(hy, m);
+    cudaMemcpy(hy, dy, leny * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    print_mp_sum(hy, leny);
 
     //Cleanup
-    delete [] hA;
     delete [] hx;
     delete [] hy;
-    cudaFree(dA);
+    delete [] hA;
     cudaFree(dx);
     cudaFree(dy);
+    cudaFree(dA);
     cudaFree(dalpha);
     cudaFree(dbeta);
 }
-*/
 
 /********************* Main test *********************/
 
@@ -738,7 +624,7 @@ void mpres_test_straightforward(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, 
  * y is of size m
  * a is of size lda * n, where the value of lda must be at least max(1, m).
  */
-void testNoTrans() {
+void test() {
     //Actual length of the vectors
     int lenx = (1 + (N - 1) * abs(INCX));
     int leny = (1 + (N - 1) * abs(INCY));
@@ -751,10 +637,11 @@ void testNoTrans() {
     mpfr_t *beta = create_random_array(1, INP_BITS);
     //Launch tests
     test_openblas(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
-    test_double(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
+    test_double(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
     test_mpfr(UPLO, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY);
     test_cublas(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
     test_double_symv_cuda(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
+    test_mpres_symv(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
@@ -778,58 +665,6 @@ void testNoTrans() {
     delete[] beta;
     cudaDeviceReset();
 }
-
-/*
- * Test for transposed matrix
- * x is of size m
- * y is of size n
- * a is of size lda * n, where the value of lda must be at least max(1, m).
- */
-/*void testTrans(){
-
-    //Actual length of the vectors
-    int lenx = (1 + (M - 1) * abs(INCX));
-    int leny = (1 + (N - 1) * abs(INCY));
-
-    //Inputs
-    mpfr_t *vectorX = create_random_array(lenx, INP_BITS);
-    mpfr_t *vectorY = create_random_array(leny, INP_BITS);
-    mpfr_t *matrixA = create_random_array(LDA * N, INP_BITS);
-    mpfr_t *alpha = create_random_array(1, INP_BITS);
-    mpfr_t *beta = create_random_array(1, INP_BITS);
-
-    //Launch tests
-    openblas_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
-    #ifndef EXCLUDE_MPACK
-        mpack_gemv_test(TRANS, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY, MP_PRECISION, REPEAT_TEST);
-    #endif
-    mpres_test(mblas_trans, M, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY);
-
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    // cudaCheckErrors(); //CUMP gives failure
-
-    //Cleanup
-    for(int i = 0; i < LDA * N; i++){
-        mpfr_clear(matrixA[i]);
-    }
-    for(int i = 0; i < lenx; i++){
-        mpfr_clear(vectorX[i]);
-    }
-    for(int i = 0; i < leny; i++){
-        mpfr_clear(vectorY[i]);
-    }
-
-    mpfr_clear(alpha[0]);
-    mpfr_clear(beta[0]);
-    delete [] matrixA;
-    delete [] vectorX;
-    delete [] vectorY;
-    delete [] alpha;
-    delete [] beta;
-    cudaDeviceReset();
-}*/
-
-
 int main() {
 
     initialize();
@@ -840,25 +675,20 @@ int main() {
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix rows and columns, N", N);
     Logger::printParam("LDA", LDA);
+    Logger::printParam("INCX", INCX);
+    Logger::printParam("INCY", INCY);
     Logger::printParam("UPLO", UPLO);
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-    Logger::printParam("MPRES_CUDA_BLOCKS_FIELDS_ROUND", MPRES_CUDA_BLOCKS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_THREADS_FIELDS_ROUND", MPRES_CUDA_THREADS_FIELDS_ROUND);
-    Logger::printParam("MPRES_CUDA_BLOCKS_RESIDUES", MPRES_CUDA_BLOCKS_RESIDUES);
-    Logger::printParam("MPRES_CUDA_THREADS_REDUCE", MPRES_CUDA_THREADS_REDUCE);
 #ifndef EXCLUDE_CAMPARY
     //Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
 #endif
     Logger::endSection(true);
-
     //Run the test
-    testNoTrans();
-
+    test();
     //Finalize
     finalize();
-
     //End logging
     Logger::endTestDescription();
 
