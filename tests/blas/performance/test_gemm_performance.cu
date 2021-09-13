@@ -36,7 +36,7 @@
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
 #include "../../../src/blas/gemm.cuh"
-#include "3rdparty.cuh"
+#include "blas/external/3rdparty.cuh"
 
 
 #define M 300  // Specifies the number of rows of the matrix op(A) and of the matrix C.

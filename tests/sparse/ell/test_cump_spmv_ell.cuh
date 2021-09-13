@@ -26,7 +26,7 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "../../3rdparty/cump_common.cuh"
+#include "../../lib/cump_common.cuh"
 
 /*
  * Performs the matrix-vector operation y = A * x

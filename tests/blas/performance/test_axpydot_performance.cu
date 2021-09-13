@@ -37,7 +37,7 @@
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
 #include "../../../src/blas/axpydot.cuh"
-#include "3rdparty.cuh"
+#include "blas/external/3rdparty.cuh"
 
 
 #define N 1000000 //Operation size

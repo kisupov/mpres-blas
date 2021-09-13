@@ -37,7 +37,7 @@
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
 #include "../../../src/blas/genorm.cuh"
-#include "3rdparty.cuh"
+#include "blas/external/3rdparty.cuh"
 
 #define M 500  // Number of matrix rows and the vector X dimension
 #define N 500  // Number of matrix columns and the vector Y dimension

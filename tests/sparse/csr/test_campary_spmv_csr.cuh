@@ -26,7 +26,7 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "../../3rdparty/campary_common.cuh"
+#include "../../lib/campary_common.cuh"
 
 /*
  * Performs the matrix-vector operation y = A * x where x and y are dense vectors and A is a sparse matrix.

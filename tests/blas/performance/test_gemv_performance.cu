@@ -36,7 +36,7 @@
 #include "../../../src/mparray.cuh"
 #include "../../../src/arith/mul.cuh"
 #include "../../../src/blas/gemv.cuh"
-#include "3rdparty.cuh"
+#include "blas/external/3rdparty.cuh"
 
 
 #define M 300  // Number of matrix rows and the vector Y dimension

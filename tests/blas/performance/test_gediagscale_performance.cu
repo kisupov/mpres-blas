@@ -35,7 +35,7 @@
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
 #include "../../../src/blas/gediagscale.cuh"
-#include "3rdparty.cuh"
+#include "blas/external/3rdparty.cuh"
 
 #define M 1000  // Number of matrix rows and the vector X dimension
 #define N 1000  // Number of matrix columns and the vector Y dimension

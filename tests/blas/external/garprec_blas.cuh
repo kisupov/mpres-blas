@@ -28,9 +28,9 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "../../3rdparty/garprec/inc/garprec.cu"
-#include "../../3rdparty/garprec/inc/gmp_array.h"
-#include "../../3rdparty/garprec/inc/gmp_array_func.h"
+#include "lib/garprec/inc/garprec.cu"
+#include "lib/garprec/inc/gmp_array.h"
+#include "lib/garprec/inc/gmp_array_func.h"
 
 
 int initializeGarprec(int prec){

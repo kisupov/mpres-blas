@@ -33,7 +33,7 @@
 #include "../../tsthelper.cuh"
 #include "../../../src/mparray.cuh"
 #include "../../../src/blas/axpy.cuh"
-#include "3rdparty.cuh"
+#include "blas/external/3rdparty.cuh"
 
 #define N 1000000 //Operation size
 #define REPEAT_TEST 10 //Number of repeats

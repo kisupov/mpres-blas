@@ -27,7 +27,7 @@
 #include "tsthelper.cuh"
 #include "logger.cuh"
 #include "timers.cuh"
-#include "3rdparty/campary_common.cuh"
+#include "lib/campary_common.cuh"
 
 /********************* Computational kernels *********************/
 

@@ -26,14 +26,12 @@
 #define EXCLUDE_XBLAS
 #define EXCLUDE_MPDECIMAL
 #define EXCLUDE_GARPREC
-#define EXCLUDE_CAMPARY
-#define EXCLUDE_CUMP
 
 #include "../../logger.cuh"
 #include "../../timers.cuh"
 #include "../../tsthelper.cuh"
 #include "../../../src/blas/symv.cuh"
-#include "3rdparty.cuh"
+#include "blas/external/3rdparty.cuh"
 
 #define N 5000  // Number of matrix rows / column and the vectors dimension
 #define LDA (N) // Specifies the leading dimension of A as declared in the calling (sub)program.
