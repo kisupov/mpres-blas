@@ -1,8 +1,7 @@
 /*
  *  Performance test for MPRES SYMV
- *  http://homepages.laas.fr/mmjoldes/campary/
  *
- *  Copyright 2020 by Konstantin Isupov.
+ *  Copyright 2021 by Konstantin Isupov.
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -25,7 +24,7 @@
 #include "logger.cuh"
 #include "timers.cuh"
 #include "tsthelper.cuh"
-#include "blas/symv.cuh"
+#include "blas/v2/symv_v2.cuh"
 
 void test_mpres_symv(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, int incx, mpfr_t beta, mpfr_t *y, int incy, const int repeats) {
     InitCudaTimer();

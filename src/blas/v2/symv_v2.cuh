@@ -20,12 +20,12 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPRES_SYMV_CUH
-#define MPRES_SYMV_CUH
+#ifndef MPRES_SYMV_V2_CUH
+#define MPRES_SYMV_V2_CUH
 
-#include "../arith/add.cuh"
-#include "../arith/mul.cuh"
-#include "mblas_enum.cuh"
+#include "arith/add.cuh"
+#include "arith/mul.cuh"
+#include "blas/mblas_enum.cuh"
 
 namespace cuda
 {
@@ -95,4 +95,4 @@ namespace cuda
     }
 } // namespace cuda
 
-#endif //MPRES_SYMV_CUH
+#endif //MPRES_SYMV_V2_CUH

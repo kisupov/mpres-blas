@@ -1,0 +1,2 @@
+Here are some "lightweight" dense linear algebra kernels that differ from "heavy" v1 routines in that they operate on arrays of
+mp_float_t numbers and usually do not require extra storage. Not all features of the BLAS interface are supported.

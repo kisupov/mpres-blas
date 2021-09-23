@@ -1,8 +1,7 @@
 /*
  *  Performance test for MPFR SYMV
- *  http://homepages.laas.fr/mmjoldes/campary/
  *
- *  Copyright 2020 by Konstantin Isupov.
+ *  Copyright 2021 by Konstantin Isupov.
  *
  *  This file is part of the MPRES-BLAS library.
  *
