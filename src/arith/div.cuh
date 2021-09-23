@@ -1,7 +1,7 @@
 /*
  *  Multiple-precision floating-point division.
  *  In the current version, we rely on MPFR to perform the division.
- *  In the future, we will try to implement internal division algorithms using Newton's iteration or Goldschmidt's division.
+ *  In the future, we will try to implement native division algorithms using Newton's iteration or Goldschmidt's division.
  *
  *  Copyright 2021 by Konstantin Isupov.
  *
@@ -51,7 +51,7 @@ namespace cuda {
     /*!
      * Division of two multiple-precision numbers
      * result = x / y
-     * Note that this is a HOST procedure
+     * Note that this is a HOST procedure. Loading data from the GPU to RAM, dividing on the CPU using MPFR, and loading the results back to the GPU is performed.
      */
     GCC_FORCEINLINE void mp_div(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y) {
         auto dividend = new mp_float_t[1];
