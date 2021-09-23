@@ -123,6 +123,28 @@ GCC_FORCEINLINE void mp_set_mpfr(mp_float_ptr result, mpfr_srcptr x) {
     mpfr_free_str(cstr);
 }
 
+/*GCC_FORCEINLINE void mp_set_mpfr2(mp_float_ptr result, mpfr_srcptr x) {
+    mpfr_t rounded;
+    mpz_t mantissa, remainder;
+    mpfr_init2(rounded, MP_PRECISION);
+    mpz_init(mantissa);
+    mpz_init(remainder);
+
+    mpfr_set(rounded, x, MPFR_RNDN);
+    result->exp = (int) mpfr_get_z_exp(mantissa, rounded);
+   // gmp_printf ("result: %.70Zd\n", mantissa);
+
+    result->sign = (mpz_cmp_ui(mantissa, 0) == -1);
+    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+        mpz_mod_ui(remainder, mantissa, RNS_MODULI[i]);
+        result->digits[i] = mpz_get_ui(remainder);
+    }
+    rns_eval_compute(&result->eval[0], &result->eval[1], result->digits);
+    mpfr_clear(rounded);
+    mpz_clear(mantissa);
+    mpz_clear(remainder);
+}*/
+
 /*!
  * Convert x to a double
  */
