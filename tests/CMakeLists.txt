@@ -47,6 +47,11 @@ add_executable(test_mp_add_verify arith/test_mp_add_verify.cu)
 target_compile_options(test_mp_add_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mp_add_verify gmp mpfr OpenMP::OpenMP_CXX)
 
+# Test for validating the mp_sub routines
+add_executable(test_mp_sub_verify arith/test_mp_sub_verify.cu)
+target_compile_options(test_mp_sub_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mp_sub_verify gmp mpfr OpenMP::OpenMP_CXX)
+
 # Test for validating the mp_mul routines
 add_executable(test_mp_mul_verify arith/test_mp_mul_verify.cu)
 target_compile_options(test_mp_mul_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
