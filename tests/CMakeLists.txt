@@ -67,6 +67,10 @@ add_executable(test_mp_sqrt_verify arith/test_mp_sqrt_verify.cu)
 target_compile_options(test_mp_sqrt_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mp_sqrt_verify gmp mpfr OpenMP::OpenMP_CXX)
 
+# Test for validating the mp_inv_sqrt routines
+add_executable(test_mp_inv_sqrt_verify arith/test_mp_inv_sqrt_verify.cu)
+target_compile_options(test_mp_inv_sqrt_verify PRIVATE $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mp_inv_sqrt_verify gmp mpfr OpenMP::OpenMP_CXX)
 
 # Test for checking the correctness of the extended-range floating-point routines
 add_executable(test_extrange_verify arith/test_extrange_verify.cu)

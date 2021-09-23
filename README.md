@@ -1,5 +1,5 @@
 # MPRES-BLAS: Multiple-Precision GPU Accelerated Linear Algebra Routines
-###### Version 1.4.7, released 2021-09-13
+###### Version 1.5.0, released 2021-09-23
 
 
 The MPRES-BLAS library implements a number of dense (BLAS-like) and sparse (SpMV) linear algebra operations with [multiple precision](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) on CUDA-enabled graphics processing units. The library uses a residue number system ([RNS](https://en.wikipedia.org/wiki/Residue_number_system)) to represent multiple-precision floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS a good tool for high-performance computing on many-core architectures such as GPUs.
@@ -47,7 +47,8 @@ The corresponding benchmarks are also provided.
    * Multiple-precision two-step ELLPACK implementation (`mp_spmv_mpmtx_ell2st`)
    * Multiple-precision DIA kernel for multiple-precision matrix using one thread per matrix row (`mp_spmv_mpmtx_dia`)
 
-4. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/arith/`), so it can also be considered as a general purpose multiple-precision arithmetic library. 
+4. Furthermore, MPRES-BLAS provides basic arithmetic operations with multiple precision for CPU and GPU through the `mp_float_t` data type (see `src/arith/`), so it can also be considered as a general purpose multiple-precision arithmetic library.
+   Currently, some arithmetic routines such as `mp_div`, `mp_sqrt` and `mp_inv_sqrt` rely on the MPFR library, and we will try to implement native algorithms in the future.
 
 5. The library also implements several optimized RNS algorithms, such as magnitude comparison and power-of-two scaling (see `src/rns.cuh`), and also supports extended-range floating-point arithmetic with working precision (see `src/extrange.cuh`), which prevents underflow and overflow in a computation involving extremely large or small quantities.
 
@@ -79,5 +80,3 @@ levels of precision. Using these moduli sets is preferred. Just replace the cont
 
 
 *Link: http://github.com/kisupov/mpres-blas*
-
-*Copyright 2018, 2019, 2020, 2021 by Konstantin Isupov and the MPRES-BLAS team*

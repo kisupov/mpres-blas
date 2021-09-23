@@ -1,5 +1,5 @@
 /*
- *  Test for validating the mp_sqrt routines
+ *  Test for validating the mp_inv_sqrt routines
  *
  *  Copyright 2021 by Konstantin Isupov.
  *
@@ -20,7 +20,7 @@
  */
 
 
-#include "arith/sqrt.cuh"
+#include "arith/invsqrt.cuh"
 #include <cmath>
 
 int main() {
@@ -30,11 +30,11 @@ int main() {
     rns_eval_const_print();
 
     mp_float_t x, y;
-    mp_set_d(&x, 0);
+    mp_set_d(&x, 1e15);
 
     printf("\nARG X       = %.160f", mp_get_d(&x));
-    printf("\nREFERENCE   = %.160f", sqrt(mp_get_d(&x)));
-    mp_sqrt(&y, &x);
+    printf("\nREFERENCE   = %.160f", 1.0 / sqrt(mp_get_d(&x)));
+    mp_inv_sqrt(&y, &x);
     printf("\nCPU RESULT  = %.160f", mp_get_d(&y));
 
     mp_float_ptr dx;
@@ -43,7 +43,7 @@ int main() {
     cudaMalloc(&dy, sizeof(mp_float_t));
     cudaMemcpy(dx, &x, sizeof(mp_float_t), cudaMemcpyHostToDevice);
     cudaMemcpy(dy, &y, sizeof(mp_float_t), cudaMemcpyHostToDevice);
-    cuda::mp_sqrt(dy, dx);
+    cuda::mp_inv_sqrt(dy, dx);
     mp_set_d(&y, 0.0);
     cudaMemcpy(&y, dy, sizeof(mp_float_t), cudaMemcpyDeviceToHost);
     printf("\nCUDA RESULT = %.160f", mp_get_d(&y));
