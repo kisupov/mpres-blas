@@ -172,13 +172,17 @@ target_link_libraries(test_genorm_performance gmp mpfr OpenMP::OpenMP_CXX)
 # Performance test for SYMV
 add_executable(test_symv_v2_performance blas/v2/symv/test_symv_v2_performance.cu)
 target_compile_options(test_symv_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_symv_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX cublas cump)
+target_link_libraries(test_symv_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX cublas)
 
 # Performance test for DOT
 add_executable(test_dot_v2_performance blas/v2/dot/test_dot_v2_performance.cu)
 target_compile_options(test_dot_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_dot_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX cublas cump)
+target_link_libraries(test_dot_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX)
 
+# Performance test for SCAL
+add_executable(test_scal_v2_performance blas/v2/scal/test_scal_v2_performance.cu)
+target_compile_options(test_scal_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_scal_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX)
 
 #########################
 ## Accuracy tests for BLAS routines

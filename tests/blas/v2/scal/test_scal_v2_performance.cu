@@ -1,5 +1,5 @@
 /*
- *  Performance test for BLAS DOT routines
+ *  Performance test for BLAS SCAL routines
  *
  *  Copyright 2021 by Konstantin Isupov.
  *
@@ -21,9 +21,9 @@
 
 #include "logger.cuh"
 #include "tsthelper.cuh"
-#include "test_mpres_dot.cuh"
-#include "test_mpfr_dot.cuh"
-#include "test_openblas_dot.cuh"
+#include "test_mpres_scal.cuh"
+#include "test_mpfr_scal.cuh"
+#include "test_openblas_scal.cuh"
 
 #define N 10000000  // Number of matrix rows / column and the vectors dimension
 #define REPEAT_TEST 1 //Number of repeats
@@ -54,30 +54,26 @@ void finalize() {
 void test() {
     //Inputs
     mpfr_t *vectorX = create_random_array(N, INP_BITS);
-    mpfr_t *vectorY = create_random_array(N, INP_BITS);
+    mpfr_t *alpha = create_random_array(1, INP_BITS);
     //Launch tests
-    test_openblas(N, vectorX, vectorY, REPEAT_TEST);
-    test_mpfr(N, vectorX, vectorY, REPEAT_TEST);
-    test_mpres(N, vectorX, vectorY, REPEAT_TEST);
+    test_openblas(N, alpha[0], vectorX, REPEAT_TEST);
+    test_mpfr(N, alpha[0], vectorX, REPEAT_TEST);
+    test_mpres(N, alpha[0], vectorX, REPEAT_TEST);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
     //Cleanup
     for (int i = 0; i < N; i++) {
         mpfr_clear(vectorX[i]);
-        mpfr_clear(vectorY[i]);
     }
+    mpfr_clear(alpha[0]);
     delete[] vectorX;
-    delete[] vectorY;
-    cudaDeviceReset();
+    delete[] alpha;
 }
+
 int main() {
     initialize();
-    Logger::beginTestDescription(Logger::BLAS_DOT_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::BLAS_SCAL_PERFORMANCE_TEST);
     Logger::printTestParameters(N, REPEAT_TEST, MP_PRECISION, MP_PRECISION_DEC);
-  //  Logger::beginSection("Operation info:");
-  //  Logger::printParam("Operation size, N", N);
-  //  Logger::printParam("Repeats", REPEAT_TEST);
-   // Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
 //    Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
