@@ -36,6 +36,7 @@ namespace cuda {
     template<int threads>
     __global__ void mp_dot_kernel1(const unsigned int n, const unsigned int nextPow2, mp_float_ptr x, mp_float_ptr y, mp_float_ptr r) {
         __shared__ mp_float_t sdata[threads];
+        __shared__ mp_float_t prods[threads];
 
         // parameters
         const unsigned int tid = threadIdx.x;
@@ -48,11 +49,10 @@ namespace cuda {
         // we reduce multiple elements per thread. The number is determined by the
         // number of active thread blocks (via gridDim).  More blocks will result
         // in a larger gridSize and therefore fewer elements per thread
-        mp_float_t prod;
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_mul(&prod,&x[i], &y[i]);
-            cuda::mp_add(&sdata[tid], &sdata[tid], &prod);
+            cuda::mp_mul(&prods[threadIdx.x],&x[i], &y[i]);
+            cuda::mp_add(&sdata[tid], &sdata[tid], &prods[threadIdx.x]);
             i += k;
         }
         __syncthreads();
