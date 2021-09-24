@@ -184,6 +184,11 @@ add_executable(test_scal_v2_performance blas/v2/scal/test_scal_v2_performance.cu
 target_compile_options(test_scal_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_scal_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX)
 
+# Performance test for AXPY
+add_executable(test_axpy_v2_performance blas/v2/axpy/test_axpy_v2_performance.cu)
+target_compile_options(test_axpy_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_axpy_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX)
+
 #########################
 ## Accuracy tests for BLAS routines
 #########################

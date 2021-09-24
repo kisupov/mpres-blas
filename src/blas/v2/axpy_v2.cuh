@@ -1,6 +1,6 @@
 /*
- *  Multiple-precision SCAL function for GPU (BLAS Level-2)
- *  Computes a vector-scalar product.
+ *  Multiple-precision AXPY function for GPU (BLAS Level-1)
+ *  Constant times a vector plus a vector
  *
  *  Copyright 2021 by Konstantin Isupov.
  *
@@ -20,33 +20,37 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef MPRES_SCAL_V2_CUH
-#define MPRES_SCAL_V2_CUH
+#ifndef MPRES_AXPY_V2_CUH
+#define MPRES_AXPY_V2_CUH
 
 #include "arith/mul.cuh"
+#include "arith/add.cuh"
 
 namespace cuda
 {
     /*!
-     * Computes the product of a vector by a scalar, x = alpha * x
+     * Computes a vector-scalar product and adds the result to a vector, r = alpha * x + y
      * @param n - operation size (must be positive)
      * @param alpha - specifies the scalar alpha
      * @param x - multiple-precision input vector in the GPU memory.
-     * @param r - multiple-precision result vector in the GPU memory (if x needs to be updated, just pass x instead of r)
+     * @param y - multiple-precision input vector in the GPU memory.
+     * @param r - multiple-precision result vector in the GPU memory (if y needs to be updated, just pass y instead of r)
      */
-    __global__ void mp_scal(const int n, mp_float_ptr alpha, mp_float_ptr x, mp_float_ptr r) {
+    __global__ void mp_axpy(const int n, mp_float_ptr alpha, mp_float_ptr x, mp_float_ptr y, mp_float_ptr r) {
         __shared__ mp_float_t a;
+        mp_float_t ax;
         auto i = threadIdx.x + blockIdx.x * blockDim.x;
         if(threadIdx.x == 0){
             a = alpha[0];
         }
         __syncthreads();
         while(i < n){
-            cuda::mp_mul(&r[i], &a, &x[i]);
+            cuda::mp_mul(&ax, &a, &x[i]);
+            cuda::mp_add(&r[i], &ax, &y[i]);
             i += gridDim.x * blockDim.x;
         }
     }
 
 } // namespace cuda
 
-#endif //MPRES_SYMV_V2_CUH
+#endif //MPRES_AXPY_V2_CUH
