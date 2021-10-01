@@ -265,3 +265,10 @@ target_link_libraries(test_spmv_mpmtx_dia_performance gmp mpfr OpenMP::OpenMP_CX
 add_executable(test_spmv_mpmtx_jad_performance sparse/mpmtx/test_spmv_mpmtx_jad_performance.cu)
 target_compile_options(test_spmv_mpmtx_jad_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_spmv_mpmtx_jad_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
+
+#########################
+## Benchmarks for iterative linear solvers
+#########################
+add_executable(test_cgcsrls sparse/test_cgcsrls.cu)
+target_compile_options(test_cgcsrls PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_cgcsrls gmp mpfr OpenMP::OpenMP_CXX cublas)

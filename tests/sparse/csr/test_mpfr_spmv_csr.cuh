@@ -47,8 +47,6 @@ void mpfr_mpspmv_csr(const int m, const int *irp, const int *ja, const double *a
         }
         mpfr_clear(prod);
     }
-
-
 }
 
 

@@ -265,4 +265,111 @@ double get_dbl_dia_memory_consumption(const int m, const int ndiag){
     return sizeOfDia;
 }
 
+/***************************************************/
+/* Helper methods for iterative methods            */
+/***************************************************/
+
+//Matrix-vector product
+void calc_spmv_csr(const int m, const int *irp, const int *ja, const double *as, const mpfr_t *x, mpfr_t *y, const int prec) {
+    #pragma omp parallel shared(m, irp, ja, as, x, y)
+    {
+        mpfr_t prod;
+        mpfr_init2(prod, prec);
+        #pragma omp for
+        for(int row = 0; row < m; row++){
+            mpfr_set_d(y[row], 0.0, MPFR_RNDN);
+            int row_start = irp[row];
+            int row_end = irp[row+1];
+            for (int i = row_start; i < row_end; i++) {
+                mpfr_mul_d(prod, x[ja[i]], as[i], MPFR_RNDN);
+                mpfr_add(y[row],y[row],prod, MPFR_RNDN);
+            }
+        }
+        mpfr_clear(prod);
+    }
+}
+
+//Euclidean norm
+void calc_norm2(const int n, const double *x, mpfr_t norm2, const int prec){
+    mpfr_t prod;
+    mpfr_init2(prod, prec);
+    mpfr_set_d(norm2, 0.0, MPFR_RNDN);
+    for (int i = 0; i < n; i++) {
+        mpfr_set_d(prod, x[i], MPFR_RNDN);
+        mpfr_mul(prod, prod, prod, MPFR_RNDN);
+        mpfr_add(norm2, norm2, prod, MPFR_RNDN);
+    }
+    mpfr_sqrt(norm2, norm2, MPFR_RNDN);
+    mpfr_clear(prod);
+}
+
+//Euclidean norm
+void calc_norm2(const int n, const mpfr_t *x, mpfr_t norm2, const int prec){
+    mpfr_t prod;
+    mpfr_init2(prod, prec);
+    mpfr_set_d(norm2, 0.0, MPFR_RNDN);
+    for (int i = 0; i < n; i++) {
+        mpfr_mul(prod, x[i], x[i], MPFR_RNDN);
+        mpfr_add(norm2, norm2, prod, MPFR_RNDN);
+    }
+    mpfr_sqrt(norm2, norm2, MPFR_RNDN);
+    mpfr_clear(prod);
+}
+
+/*
+ * Prints relative residual, ||Ax-b|| / ||b||, where b = rhs
+ */
+void print_residual(const int n, const csr_t &csr, const mpfr_t *x, const mpfr_t *rhs) {
+    int prec = 10 * MP_PRECISION;
+    mpfr_t * y = new mpfr_t[n];
+    #pragma omp parallel for
+    for(int i = 0; i < n; i++){
+        mpfr_init2(y[i], prec);
+    }
+    //1: y = Ax
+    calc_spmv_csr(n, csr.irp, csr.ja, csr.as, x, y, prec);
+    //2: y = y - rhs
+    for(int i = 0; i < n; i++) {
+        mpfr_sub(y[i], y[i], rhs[i], MPFR_RNDN);
+    }
+    //3:norms
+    mpfr_t norm2x, norm2b;
+    mpfr_init2(norm2x, prec);
+    mpfr_init2(norm2b, prec);
+    calc_norm2(n, y, norm2x, prec);
+    calc_norm2(n, rhs, norm2b, prec);
+    mpfr_div(norm2x, norm2x, norm2b, MPFR_RNDN);
+    std::cout << "relative residual: " << mpfr_get_d(norm2x, MPFR_RNDN) << std::endl;
+    mpfr_clear(norm2x);
+    mpfr_clear(norm2b);
+    for (int i = 0; i < n; i++) {
+        mpfr_clear(y[i]);
+    }
+    delete [] y;
+}
+
+/*
+ * Prints relative residual, ||Ax-b|| / ||b||, where b = rhs
+ */
+void print_residual(const int n, const csr_t &csr, const double *x, const double *rhs) {
+    int prec = 4096;
+    mpfr_t * mx = new mpfr_t[n];
+    mpfr_t * mrhs = new mpfr_t[n];
+    #pragma omp parallel for
+    for(int i = 0; i < n; i++){
+        mpfr_init2(mx[i], prec);
+        mpfr_init2(mrhs[i], prec);
+        mpfr_set_d(mx[i], x[i], MPFR_RNDN);
+        mpfr_set_d(mrhs[i], rhs[i], MPFR_RNDN);
+    }
+    print_residual(n, csr, mx, mrhs);
+    #pragma omp parallel for
+    for(int i = 0; i < n; i++){
+        mpfr_clear(mx[i]);
+        mpfr_clear(mrhs[i]);
+    }
+    delete [] mx;
+    delete [] mrhs;
+}
+
 #endif //MPRES_TEST_TSTHELPER_CUH

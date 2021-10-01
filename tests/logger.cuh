@@ -59,7 +59,8 @@ namespace Logger {
         SPMV_DIA_TEST,
         SPMV_MPMTX_JAD_TEST,
         SPMV_JAD_TEST,
-        SPMV_TEST
+        SPMV_TEST,
+        CGCSRLS_TEST
     };
 
     const char *testHeaderAsString(enum TestHeader header) {
@@ -128,6 +129,8 @@ namespace Logger {
                 return "Performance test for SpMV routines using the ELLPACK matrix storage format (multiple precision matrix)";
             case SPMV_MPMTX_DIA_TEST:
                 return "Performance test for SpMV routines using the DIA matrix storage format (multiple precision matrix)";
+            case CGCSRLS_TEST:
+                return "Test for CG iterative solver using the CSR matrix storage format";
         }
         return "";
     }
