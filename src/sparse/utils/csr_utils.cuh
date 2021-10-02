@@ -38,6 +38,21 @@ void csr_clear(csr_t &csr) {
     delete [] csr.irp;
 }
 
+//calculate the main diagonal of the matrix
+void mdiag(const csr_t &csr, const int m, double *md){
+    for(int row = 0; row < m; row++){
+        md[row] = 0;
+        int row_start = csr.irp[row];
+        int row_end = csr.irp[row+1];
+        for (int i = row_start; i < row_end; i++) {
+            if(csr.ja[i] == row){
+                md[row] = csr.as[i];
+                break;
+            }
+        }
+    }
+}
+
 namespace cuda {
 
     void csr_init(csr_t &csr, const int m, const int nnz) {

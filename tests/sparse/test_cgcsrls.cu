@@ -25,6 +25,7 @@
 #include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/csr_utils.cuh"
 #include "sparse/cgcsrls/test_double_cgcsrls.cuh"
+#include "sparse/cgcsrls/test_double_pcgcsrls_jacobi.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -58,6 +59,7 @@ void test(const char * MATRIX_PATH, const int N, const int LINES, const int NNZ,
     build_csr(MATRIX_PATH, N, NNZ, LINES, SYMM, CSR);
     //Launch tests
     test_double_cgcsrls(N, NNZ, CSR, rhs, TOL, MAXIT);
+    test_double_pcgcsrls_jacobi(N, NNZ, CSR, rhs, TOL, MAXIT);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors(); //CUMP gives failure
     //Cleanup
