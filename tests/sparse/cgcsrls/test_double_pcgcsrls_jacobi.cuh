@@ -75,7 +75,7 @@ int double_pcgcsrls_jacobi(const int n, const csr_t &matrix, const double *rhs, 
     normk = norm0; //to exit if r = 0
     //2: repeat until convergence (based on max. it. and relative residual)
     while(normk > epsilon && k < maxit){
-        //3: preconditioning, solve Mz = r -> z = M^{-1} r and this is simple componentwise vector product
+        //3: preconditioning, solve Mz = r -> z = M^{-1} r and this is simple component-wise vector product
         double_prod_kernel<<<blocks, threads>>>(n, precond, r, z);
         rhop = rho;
         cublasDdot(handle, n, r, 1, z, 1, &rho); //rho = r^{T} z

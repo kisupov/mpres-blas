@@ -25,7 +25,7 @@
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "sparse/spmv_jad.cuh"
+#include "sparse/spmv/spmv_jad.cuh"
 #include "sparse/utils/jad_utils.cuh"
 
 /////////

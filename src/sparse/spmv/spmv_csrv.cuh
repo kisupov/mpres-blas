@@ -23,9 +23,9 @@
 #ifndef MPRES_SPMV_CSRV_CUH
 #define MPRES_SPMV_CSRV_CUH
 
-#include "../arith/add.cuh"
-#include "../arith/muld.cuh"
-#include "../arith/assign.cuh"
+#include "../../arith/add.cuh"
+#include "../../arith/muld.cuh"
+#include "../../arith/assign.cuh"
 
 namespace cuda {
 

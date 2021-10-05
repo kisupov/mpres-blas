@@ -27,9 +27,6 @@
 #include "../../timers.cuh"
 #include "double_ls_kernels.cuh"
 
-/////////
-// Unpreconditioned double precision CG iterative method
-/////////
 /**
  * Unpreconditioned double precision conjugate gradient linear solver, Ax = b
  * ASSUMPTIONS: The appropriate memory has been allocated and set to zero.

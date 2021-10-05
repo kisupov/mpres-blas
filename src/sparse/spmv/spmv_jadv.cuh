@@ -24,10 +24,10 @@
 #ifndef MPRES_SPMV_JADV_CUH
 #define MPRES_SPMV_JADV_CUH
 
-#include "../arith/add.cuh"
-#include "../arith/muld.cuh"
-#include "../arith/assign.cuh"
-#include "utils/jad_utils.cuh"
+#include "../../arith/add.cuh"
+#include "../../arith/muld.cuh"
+#include "../../arith/assign.cuh"
+#include "../utils/jad_utils.cuh"
 
 namespace cuda {
 

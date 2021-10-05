@@ -372,4 +372,28 @@ void print_residual(const int n, const csr_t &csr, const double *x, const double
     delete [] mrhs;
 }
 
+/*
+ * Prints relative residual, ||Ax-b|| / ||b||, where b = rhs
+ */
+void print_residual(const int n, const csr_t &csr, mp_float_ptr x, const double *rhs) {
+    int prec = 4096;
+    mpfr_t * mx = new mpfr_t[n];
+    mpfr_t * mrhs = new mpfr_t[n];
+    #pragma omp parallel for
+    for(int i = 0; i < n; i++){
+        mpfr_init2(mx[i], prec);
+        mpfr_init2(mrhs[i], prec);
+        mp_get_mpfr(mx[i], &x[i]);
+        mpfr_set_d(mrhs[i], rhs[i], MPFR_RNDN);
+    }
+    print_residual(n, csr, mx, mrhs);
+    #pragma omp parallel for
+    for(int i = 0; i < n; i++){
+        mpfr_clear(mx[i]);
+        mpfr_clear(mrhs[i]);
+    }
+    delete [] mx;
+    delete [] mrhs;
+}
+
 #endif //MPRES_TEST_TSTHELPER_CUH

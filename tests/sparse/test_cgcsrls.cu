@@ -26,6 +26,8 @@
 #include "sparse/utils/csr_utils.cuh"
 #include "sparse/cgcsrls/test_double_cgcsrls.cuh"
 #include "sparse/cgcsrls/test_double_pcgcsrls_jacobi.cuh"
+#include "sparse/cgcsrls/test_mpres_cgcsrls.cuh"
+#include "sparse/cgcsrls/test_mpres_pcgcsrls_jacobi.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -60,6 +62,8 @@ void test(const char * MATRIX_PATH, const int N, const int LINES, const int NNZ,
     //Launch tests
     test_double_cgcsrls(N, NNZ, CSR, rhs, TOL, MAXIT);
     test_double_pcgcsrls_jacobi(N, NNZ, CSR, rhs, TOL, MAXIT);
+    //test_mpres_cgcsrls(N, NNZ, CSR, rhs, TOL, MAXIT);
+    test_mpres_pcgcsrls_jacobi(N, NNZ, CSR, rhs, TOL, MAXIT);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors(); //CUMP gives failure
     //Cleanup
@@ -79,7 +83,7 @@ int main(int argc, char *argv[]) {
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary
     const double TOL = 1e-12;
-    const int MAXIT = 40000;
+    const int MAXIT = 20000;
 
     initialize();
 
