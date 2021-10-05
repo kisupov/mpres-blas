@@ -42,7 +42,7 @@ GCC_FORCEINLINE void mp_mul_d(mp_float_ptr result, mp_float_ptr x, const double 
         result->digits[i] = mod_mul(x->digits[i], (significand % RNS_MODULI[i]), RNS_MODULI[i]);
     }
     if (result->eval[1].frac != 0 && result->eval[1].exp >= MP_H) {
-      //  mp_round(result, mp_get_rnd_bits(result));
+        mp_round(result, mp_get_rnd_bits(result));
     }
 }
 
