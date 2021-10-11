@@ -51,8 +51,8 @@ namespace cuda {
         // in a larger gridSize and therefore fewer elements per thread
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_mul(&prods[threadIdx.x],&x[i], &y[i]);
-            cuda::mp_add(&sdata[tid], &sdata[tid], &prods[threadIdx.x]);
+            cuda::mp_mul(&prods[threadIdx.x], x[i], y[i]);
+            cuda::mp_add(&sdata[tid], sdata[tid], prods[threadIdx.x]);
             i += k;
         }
         __syncthreads();
@@ -61,7 +61,7 @@ namespace cuda {
         i = nextPow2 >> 1; // half of nextPow2
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();
@@ -90,7 +90,7 @@ namespace cuda {
 
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add(&sdata[tid], &sdata[tid], &x[i]);
+            cuda::mp_add(&sdata[tid], sdata[tid], x[i]);
             i += k;
         }
         __syncthreads();
@@ -98,7 +98,7 @@ namespace cuda {
         i = nextPow2 >> 1;
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();

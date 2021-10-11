@@ -71,18 +71,17 @@ void finalize(){
 }
 
 static void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
-    mp_float_t print_result;
-    print_result = MP_ZERO;
+    mp_float_t print_result = MP_ZERO;
 
     mpfr_t mpfr_result;
     mpfr_init2(mpfr_result, 100000);
     mpfr_set_d(mpfr_result, 0, MPFR_RNDN);
 
     for (int i = 0; i < v_length; i++) {
-        mp_add(&print_result, &print_result, &result[i]);
+        mp_add(&print_result, print_result, result[i]);
     }
 
-    mp_get_mpfr(mpfr_result, &print_result);
+    mp_get_mpfr(mpfr_result, print_result);
     mpfr_printf("result %s: %.70Rf \n", name, mpfr_result);
     mpfr_clear(mpfr_result);
 }

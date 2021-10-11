@@ -162,7 +162,7 @@ static void mpres_test(int n, mpfr_t *x, int incx){
 
     //Host data
     mp_float_ptr hx = new mp_float_t[lenx];
-    mp_float_ptr hresult = new mp_float_t[1];
+    mp_float_t hresult  = MP_ZERO;
 
     //GPU data
     mp_array_t dx;
@@ -179,7 +179,6 @@ static void mpres_test(int n, mpfr_t *x, int incx){
     for(int i =0; i < lenx; i ++){
         mp_set_mpfr(&hx[i], x[i]);
     }
-    *hresult = MP_ZERO;
 
     //Copying to the GPU
     cuda::mp_array_host2device(dx, hx, lenx);
@@ -204,7 +203,7 @@ static void mpres_test(int n, mpfr_t *x, int incx){
     mpfr_set_d(mpfr_result, 0, MPFR_RNDN);
 
     //Copying to the host
-    cuda::mp_array_device2host(hresult, dresult, 1);
+    cuda::mp_array_device2host(&hresult, dresult, 1);
     mp_get_mpfr(mpfr_result, hresult);
     mpfr_printf("result: %.70Rf \n", mpfr_result);
 
@@ -213,7 +212,6 @@ static void mpres_test(int n, mpfr_t *x, int incx){
 
     //Cleanup
     delete [] hx;
-    delete [] hresult;
     mpfr_clear(mpfr_result);
     cuda::mp_array_clear(dx);
     cuda::mp_array_clear(dresult);

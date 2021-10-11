@@ -86,6 +86,11 @@ add_executable(test_mp_cmp_verify arith/test_mp_cmp_verify.cu)
 target_compile_options(test_mp_cmp_verify PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_mp_cmp_verify gmp mpfr)
 
+# Test for validating the mp_cmp routines
+add_executable(test_mp_arith_peak_performance arith/peak/test_mp_arith_peak_performance.cu)
+target_compile_options(test_mp_arith_peak_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_mp_arith_peak_performance gmp mpfr OpenMP::OpenMP_CXX)
+
 #########################
 ## Performance tests for BLAS routines
 #########################

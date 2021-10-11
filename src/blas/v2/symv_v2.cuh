@@ -65,11 +65,11 @@ namespace cuda
                 for (int colId = 0; colId < n; colId++) {
                     auto ix = incx > 0 ? colId * incx : (-n + colId + 1) * incx;
                     if(row <= colId){
-                        cuda::mp_mul(&prods[threadIdx.x], &x[ix], &A[row + colId * lda]);
-                        cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
+                        cuda::mp_mul(&prods[threadIdx.x], x[ix], A[row + colId * lda]);
+                        cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], prods[threadIdx.x]);
                     } else{
-                        cuda::mp_mul(&prods[threadIdx.x], &x[ix], &A[colId + row * lda]);
-                        cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
+                        cuda::mp_mul(&prods[threadIdx.x], x[ix], A[colId + row * lda]);
+                        cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], prods[threadIdx.x]);
                     }
                 }
             }
@@ -77,18 +77,18 @@ namespace cuda
                 for (int colId = 0; colId < n; colId++) {
                     auto ix = incx > 0 ? colId * incx : (-n + colId + 1) * incx;
                     if(row <= colId){
-                        cuda::mp_mul(&prods[threadIdx.x], &x[ix], &A[colId + row * lda]);
-                        cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
+                        cuda::mp_mul(&prods[threadIdx.x], x[ix], A[colId + row * lda]);
+                        cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], prods[threadIdx.x]);
                     } else{
-                        cuda::mp_mul(&prods[threadIdx.x], &x[ix], &A[row + colId * lda]);
-                        cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
+                        cuda::mp_mul(&prods[threadIdx.x], x[ix], A[row + colId * lda]);
+                        cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], prods[threadIdx.x]);
                     }
                 }
 
             }
-            cuda::mp_mul(&y[iy], &beta[0], &y[iy]);
-            cuda::mp_mul(&sums[threadIdx.x], &alpha[0], &sums[threadIdx.x]);
-            cuda::mp_add(&y[iy], &y[iy], &sums[threadIdx.x]);
+            cuda::mp_mul(&y[iy], beta[0], y[iy]);
+            cuda::mp_mul(&sums[threadIdx.x], alpha[0], sums[threadIdx.x]);
+            cuda::mp_add(&y[iy], y[iy], sums[threadIdx.x]);
             row +=  gridDim.x * blockDim.x;
             iy += gridDim.x * blockDim.x * incy;
         }

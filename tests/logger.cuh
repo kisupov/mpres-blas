@@ -51,6 +51,7 @@ namespace Logger {
         RNS_EVAL_ACCURACY_TEST,
         EXTRANGE_CORRECTNESS_TEST,
         RNS_CMP_PERFORMANCE_TEST,
+        ARITH_PEAK_PERFORMANCE_TEST,
         SPMV_MPMTX_CSR_TEST,
         SPMV_CSR_TEST,
         SPMV_MPMTX_ELL_TEST,
@@ -111,6 +112,8 @@ namespace Logger {
                 return "Test for checking the correctness of the extended-range floating-point routines";
             case RNS_CMP_PERFORMANCE_TEST:
                 return "Test for measure the performance of the RNS magnitude comparison algorithms";
+            case ARITH_PEAK_PERFORMANCE_TEST:
+                return " Microbenchmark for evaluating the peak performance of multiple-precision arithmetic (addition and multiplication)";
             case SPMV_TEST:
                 return "Performance and memory consumption test for SpMV routines using various matrix storage formats (double precision matrix)";
             case SPMV_CSR_TEST:

@@ -24,7 +24,7 @@
 #include "../../src/arith/assign.cuh"
 
 static __global__ void testCudaSub(mp_float_ptr dz, mp_float_ptr dx, mp_float_ptr dy){
-    cuda::mp_sub(dz, dx, dy);
+    cuda::mp_sub(dz, dx[0], dy[0]);
 }
 
 int main() {
@@ -37,17 +37,17 @@ int main() {
     mp_set_d(&x, 1.1e-10);
     mp_set_d(&y, 1.1e10);
 
-    printf("\nARG X = %.16f", mp_get_d(&x));
+    printf("\nARG X = %.16f", mp_get_d(x));
     //mp_print(&x);
     //printf("\n");
 
-    printf("\nARG Y = %.16f", mp_get_d(&y));
+    printf("\nARG Y = %.16f", mp_get_d(y));
     //mp_print(&y);
     //printf("\n");
 
     //CPU SUB
-    mp_sub(&z, &x, &y);
-    printf("\nCPU RESULT  = %.16f", mp_get_d(&z));
+    mp_sub(&z, x, y);
+
     //mp_print(&z);
     //printf("\n");
 
@@ -64,7 +64,7 @@ int main() {
     testCudaSub<<<1,1>>>(dz, dx, dy);
     mp_set_d(&z, 0.0);
     cudaMemcpy(&z, dz, sizeof(mp_float_t), cudaMemcpyDeviceToHost);
-    printf("\nCUDA RESULT = %.16f", mp_get_d(&z));
+    printf("\nCUDA RESULT = %.16f", mp_get_d(z));
     //mp_print(&z);
     //printf("\n");
 

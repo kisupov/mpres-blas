@@ -30,12 +30,12 @@ int main() {
     rns_eval_const_print();
 
     mp_float_t x, y;
-    mp_set_d(&x, 0);
+    mp_set_d(&x, 5);
 
-    printf("\nARG X       = %.160f", mp_get_d(&x));
-    printf("\nREFERENCE   = %.160f", sqrt(mp_get_d(&x)));
+    printf("\nARG X       = %.160f", mp_get_d(x));
+    printf("\nREFERENCE   = %.160f", sqrt(mp_get_d(x)));
     mp_sqrt(&y, &x);
-    printf("\nCPU RESULT  = %.160f", mp_get_d(&y));
+    printf("\nCPU RESULT  = %.160f", mp_get_d(y));
 
     mp_float_ptr dx;
     mp_float_ptr dy;
@@ -46,6 +46,6 @@ int main() {
     cuda::mp_sqrt(dy, dx);
     mp_set_d(&y, 0.0);
     cudaMemcpy(&y, dy, sizeof(mp_float_t), cudaMemcpyDeviceToHost);
-    printf("\nCUDA RESULT = %.160f", mp_get_d(&y));
+    printf("\nCUDA RESULT = %.160f", mp_get_d(y));
     return 0;
 }

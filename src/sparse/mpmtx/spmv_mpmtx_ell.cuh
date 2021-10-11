@@ -53,11 +53,11 @@ namespace cuda {
             for (int col = 0; col < maxnzr; col++) {
                 int index = ja[col * m + row];
                 if(index >= 0){
-                    cuda::mp_mul(&prod, &x[index], &as[col * m + row]);
-                    cuda::mp_add(&dot, &dot, &prod);
+                    cuda::mp_mul(&prod, x[index], as[col * m + row]);
+                    cuda::mp_add(&dot, dot, prod);
                 }
             }
-            cuda::mp_set(&y[row], &dot);
+            cuda::mp_set(&y[row], dot);
             row +=  gridDim.x * blockDim.x;
         }
     }

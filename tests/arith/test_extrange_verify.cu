@@ -32,18 +32,16 @@ enum er_test_type {
     mul_div_test
 };
 
-static void printResult(const  char * name, er_float_ptr result){
-    double d;
-    er_get_d(&d, result);
+static void printResult(const  char * name, er_float_t result){
+    double d = er_get_d(result);
     printf("%s = %.8f \t\t", name, d);
     er_print(result);
     printf("\n");
 }
 
 namespace cuda{
-    __device__ static void printResult(const  char * name, er_float_ptr result){
-        double d;
-        cuda::er_get_d(&d, result);
+    __device__ static void printResult(const  char * name, er_float_t result){
+        double d = cuda::er_get_d(result);
         printf("%s = %.8f \t\t", name, d);
         cuda::er_print(result);
         printf("\n");
@@ -56,46 +54,46 @@ namespace cuda{
  */
 
 static __global__ void testCudaAdd(er_float_ptr dr, er_float_ptr dx, er_float_ptr dy){
-    cuda::er_add_rd(dr, dx, dy);
-    cuda::printResult("[CUDA-rd] x + y", dr);
-    cuda::er_add(dr, dx, dy);
-    cuda::printResult("[CUDA]    x + y", dr);
-    cuda::er_add_ru(dr, dx, dy);
-    cuda::printResult("[CUDA-ru] x + y", dr);
+    *dr = cuda::er_add_rd(dx[0], dy[0]);
+    cuda::printResult("[CUDA-rd] x + y", dr[0]);
+    *dr = cuda::er_add(dx[0], dy[0]);
+    cuda::printResult("[CUDA]    x + y", dr[0]);
+    *dr = cuda::er_add_ru(dx[0], dy[0]);
+    cuda::printResult("[CUDA-ru] x + y", dr[0]);
 }
 
 static __global__ void testCudaSub(er_float_ptr dr, er_float_ptr dx, er_float_ptr dy){
-    cuda::er_sub_rd(dr, dx, dy);
-    cuda::printResult("[CUDA-rd] x - y", dr);
-    cuda::er_sub(dr, dx, dy);
-    cuda::printResult("[CUDA]    x - y", dr);
-    cuda::er_sub_ru(dr, dx, dy);
-    cuda::printResult("[CUDA-ru] x - y", dr);
+    *dr = cuda::er_sub_rd(dx[0], dy[0]);
+    cuda::printResult("[CUDA-rd] x - y", dr[0]);
+    *dr = cuda::er_sub(dx[0], dy[0]);
+    cuda::printResult("[CUDA]    x - y", dr[0]);
+    *dr = cuda::er_sub_ru(dx[0], dy[0]);
+    cuda::printResult("[CUDA-ru] x - y", dr[0]);
 }
 
 static __global__ void testCudaMul(er_float_ptr dr, er_float_ptr dx, er_float_ptr dy){
-    cuda::er_mul_rd(dr, dx, dy);
-    cuda::printResult("[CUDA-rd] x * y", dr);
-    cuda::er_mul(dr, dx, dy);
-    cuda::printResult("[CUDA]    x * y", dr);
-    cuda::er_mul_ru(dr, dx, dy);
-    cuda::printResult("[CUDA-ru] x * y", dr);
+    *dr = cuda::er_mul_rd(dx[0], dy[0]);
+    cuda::printResult("[CUDA-rd] x * y", dr[0]);
+    *dr = cuda::er_mul(dx[0], dy[0]);
+    cuda::printResult("[CUDA]    x * y", dr[0]);
+    *dr = cuda::er_mul_ru(dx[0], dy[0]);
+    cuda::printResult("[CUDA-ru] x * y", dr[0]);
 }
 
 static __global__ void testCudaDiv(er_float_ptr dr, er_float_ptr dx, er_float_ptr dy){
-    cuda::er_div_rd(dr, dx, dy);
-    cuda::printResult("[CUDA-rd] x / y", dr);
-    cuda::er_div(dr, dx, dy);
-    cuda::printResult("[CUDA]    x / y", dr);
-    cuda::er_div_ru(dr, dx, dy);
-    cuda::printResult("[CUDA-ru] x / y", dr);
+    *dr = cuda::er_div_rd(dx[0], dy[0]);
+    cuda::printResult("[CUDA-rd] x / y", dr[0]);
+    *dr = cuda::er_div(dx[0], dy[0]);
+    cuda::printResult("[CUDA]    x / y", dr[0]);
+    *dr = cuda::er_div_ru(dx[0], dy[0]);
+    cuda::printResult("[CUDA-ru] x / y", dr[0]);
 }
 
 static __global__ void testCudaMulDiv(er_float_ptr dr, er_float_ptr dx, er_float_ptr dy, er_float_ptr dz){
-    cuda::er_md_rd(dr, dx, dy, dz);
-    cuda::printResult("[CUDA-rd] x * y / z", dr);
-    cuda::er_md_ru(dr, dx, dy, dz);
-    cuda::printResult("[CUDA-ru] x * y / z", dr);
+    *dr = cuda::er_md_rd(dx[0], dy[0], dz[0]);
+    cuda::printResult("[CUDA-rd] x * y / z", dr[0]);
+    *dr = cuda::er_md_ru(dx[0], dy[0], dz[0]);
+    cuda::printResult("[CUDA-ru] x * y / z", dr[0]);
 }
 
 void testCuda(er_float_ptr x, er_float_ptr y, er_float_ptr z, er_test_type type){
@@ -142,14 +140,14 @@ void base_test() {
     double arg_y = 0.41352;
     double arg_z = 12345.1443575;
 
-    er_float_ptr x = new er_float_t;
-    er_float_ptr y = new er_float_t;
-    er_float_ptr z = new er_float_t;
-    er_float_ptr r = new er_float_t;
+    er_float_t x;
+    er_float_t y;
+    er_float_t z;
+    er_float_t r;
 
-    er_set_d(x, arg_x);
-    er_set_d(y, arg_y);
-    er_set_d(z, arg_z);
+    er_set_d(&x, arg_x);
+    er_set_d(&y, arg_y);
+    er_set_d(&z, arg_z);
 
     Logger::printDash();
     printf("x = %.8f\n", arg_x);
@@ -158,75 +156,75 @@ void base_test() {
 
     Logger::printDash();
     printf("\nEXACT           = %.8f \t\t", arg_x + arg_y);
-    er_set_d(r, arg_x + arg_y);
+    er_set_d(&r, arg_x + arg_y);
     er_print(r);
     printf("\n");
-    er_add_rd(r, x, y);
+    r = er_add_rd(x, y);
     printResult("[CPU-rd]  x + y", r);
-    er_add(r, x, y);
+    r = er_add(x, y);
     printResult("[CPU]     x + y", r);
-    er_add_ru(r, x, y);
+    r = er_add_ru(x, y);
     printResult("[CPU-ru]  x + y", r);
     Logger::printSpace();
-    testCuda(x, y, z, add_test);
+    testCuda(&x, &y, &z, add_test);
     //--------------------------------------------------------------
     Logger::printSpace();
     Logger::printDash();
     printf("\nEXACT           = %.8f \t\t", arg_x - arg_y);
-    er_set_d(r, arg_x - arg_y);
+    er_set_d(&r, arg_x - arg_y);
     er_print(r);
     printf("\n");
-    er_sub_rd(r, x, y);
+    r= er_sub_rd(x, y);
     printResult("[CPU-rd]  x - y", r);
-    er_sub(r, x, y);
+    r= er_sub(x, y);
     printResult("[CPU]     x - y", r);
-    er_sub_ru(r, x, y);
+    r= er_sub_ru(x, y);
     printResult("[CPU-ru]  x - y", r);
     Logger::printSpace();
-    testCuda(x, y,  z, sub_test);
+    testCuda(&x, &y,  &z, sub_test);
     //--------------------------------------------------------------
     Logger::printSpace();
     Logger::printDash();
     printf("\nEXACT           = %.8f \t\t", arg_x * arg_y);
-    er_set_d(r, arg_x * arg_y);
+    er_set_d(&r, arg_x * arg_y);
     er_print(r);
     printf("\n");
-    er_mul_rd(r, x, y);
+    r= er_mul_rd(x, y);
     printResult("[CPU-rd]  x * y", r);
-    er_mul(r, x, y);
+    r= er_mul(x, y);
     printResult("[CPU]     x * y", r);
-    er_mul_ru(r, x, y);
+    r= er_mul_ru(x, y);
     printResult("[CPU-ru]  x * y", r);
     Logger::printSpace();
-    testCuda(x, y, z, mul_test);
+    testCuda(&x, &y, &z, mul_test);
     //--------------------------------------------------------------
     Logger::printSpace();
     Logger::printDash();
     printf("\nEXACT           = %.8f \t\t", arg_x / arg_y);
-    er_set_d(r, arg_x / arg_y);
+    er_set_d(&r, arg_x / arg_y);
     er_print(r);
     printf("\n");
-    er_div_rd(r, x, y);
+    r= er_div_rd(x, y);
     printResult("[CPU-rd]  x / y", r);
-    er_div(r, x, y);
+    r= er_div(x, y);
     printResult("[CPU]     x / y", r);
-    er_div_ru(r, x, y);
+    r= er_div_ru(x, y);
     printResult("[CPU-ru]  x / y", r);
     Logger::printSpace();
-    testCuda(x, y,  z, div_test);
+    testCuda(&x, &y, &z, div_test);
     //--------------------------------------------------------------
     Logger::printSpace();
     Logger::printDash();
     printf("\nEXACT               = %.8f \t\t", arg_x * arg_y / arg_z);
-    er_set_d(r, arg_x * arg_y / arg_z);
+    er_set_d(&r, arg_x * arg_y / arg_z);
     er_print(r);
     printf("\n");
-    er_md_rd(r, x, y, z);
+    r= er_md_rd(x, y, z);
     printResult("[CPU-rd]  x * y / z", r);
-    er_md_ru(r, x, y, z);
+    r= er_md_ru(x, y, z);
     printResult("[CPU-ru]  x * y / z", r);
     Logger::printSpace();
-    testCuda(x, y,  z, mul_div_test);
+    testCuda(&x, &y,  &z, mul_div_test);
 }
 
 int main() {

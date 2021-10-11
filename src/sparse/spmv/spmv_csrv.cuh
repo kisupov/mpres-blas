@@ -59,28 +59,28 @@ namespace cuda {
             // compute running sum per thread
             sums[threadIdx.x] = cuda::MP_ZERO;
             for (auto i = row_start + lane; i < row_end; i += threadsPerRow) {
-                cuda::mp_mul_d(&prods[threadIdx.x], &x[csr.ja[i]], csr.as[i]);
-                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
+                cuda::mp_mul_d(&prods[threadIdx.x], x[csr.ja[i]], csr.as[i]);
+                cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], prods[threadIdx.x]);
             }
             // parallel reduction in shared memory
             if (threadsPerRow >= 32 && lane < 16) {
-                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 16]);
+                cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], sums[threadIdx.x + 16]);
             }
             if (threadsPerRow >= 16 && lane < 8) {
-                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 8]);
+                cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], sums[threadIdx.x + 8]);
             }
             if (threadsPerRow >= 8 && lane < 4) {
-                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 4]);
+                cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], sums[threadIdx.x + 4]);
             }
             if (threadsPerRow >= 4 && lane < 2) {
-                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 2]);
+                cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], sums[threadIdx.x + 2]);
             }
             if (threadsPerRow >= 2 && lane < 1) {
-                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &sums[threadIdx.x + 1]);
+                cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], sums[threadIdx.x + 1]);
             }
             // first thread writes the result
             if (lane == 0) {
-                cuda::mp_set(&y[row], &sums[threadIdx.x]);
+                cuda::mp_set(&y[row], sums[threadIdx.x]);
             }
             row +=  gridDim.x * blockDim.x / threadsPerRow;
         }

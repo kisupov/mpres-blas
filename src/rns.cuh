@@ -607,8 +607,8 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     int mr = -1;
     //Checking for zero
     if(rns_check_zero(x)){
-        er_set(low, &RNS_EVAL_ZERO_BOUND);
-        er_set(upp, &RNS_EVAL_ZERO_BOUND);
+        er_set(low, RNS_EVAL_ZERO_BOUND);
+        er_set(upp, RNS_EVAL_ZERO_BOUND);
         return;
     }
     //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
@@ -636,11 +636,11 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     }
     //Adjust if ambiguity was found
     if(mr > 0){
-        er_set(upp, &RNS_EVAL_INV_UNIT.upp);
+        er_set(upp, RNS_EVAL_INV_UNIT.upp);
         return;
     }
     if(mr == 0){
-        er_set(low, &RNS_EVAL_UNIT.low);
+        er_set(low, RNS_EVAL_UNIT.low);
     }
     // Refinement is not required
     if(sumu >= RNS_EVAL_ACCURACY){
@@ -688,8 +688,8 @@ GCC_FORCEINLINE void rns_eval_compute_fast(er_float_ptr low, er_float_ptr upp, i
     double sumu = 0.0;
     //Checking for zero
     if(rns_check_zero(x)){
-        er_set(low, &RNS_EVAL_ZERO_BOUND);
-        er_set(upp, &RNS_EVAL_ZERO_BOUND);
+        er_set(low, RNS_EVAL_ZERO_BOUND);
+        er_set(upp, RNS_EVAL_ZERO_BOUND);
         return;
     }
     //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
@@ -771,8 +771,8 @@ namespace cuda{
         sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
         //Checking for zero
         if (suml == 0 && sumu == 0) {
-            cuda::er_set(low, &cuda::RNS_EVAL_ZERO_BOUND);
-            cuda::er_set(upp, &cuda::RNS_EVAL_ZERO_BOUND);
+            cuda::er_set(low, cuda::RNS_EVAL_ZERO_BOUND);
+            cuda::er_set(upp, cuda::RNS_EVAL_ZERO_BOUND);
             return;
         }
         //Splitting into whole and fractional parts
@@ -790,11 +790,11 @@ namespace cuda{
         }
         //Adjust if ambiguity was found
         if(mr > 0){
-            cuda::er_set(upp, &cuda::RNS_EVAL_INV_UNIT.upp);
+            cuda::er_set(upp, cuda::RNS_EVAL_INV_UNIT.upp);
             return;
         }
         if(mr == 0){
-            cuda::er_set(low, &cuda::RNS_EVAL_UNIT.low);
+            cuda::er_set(low, cuda::RNS_EVAL_UNIT.low);
         }
         // Refinement is not required
         if(sumu >= accuracy_constant){
@@ -852,8 +852,8 @@ namespace cuda{
         sumu = cuda::psum_ru<RNS_MODULI_SIZE>(fracu);
         //Checking for zero
         if (suml == 0 && sumu == 0) {
-            cuda::er_set(low, &cuda::RNS_EVAL_ZERO_BOUND);
-            cuda::er_set(upp, &cuda::RNS_EVAL_ZERO_BOUND);
+            cuda::er_set(low, cuda::RNS_EVAL_ZERO_BOUND);
+            cuda::er_set(upp, cuda::RNS_EVAL_ZERO_BOUND);
             return;
         }
         //Dropping integer parts
@@ -1139,10 +1139,10 @@ GCC_FORCEINLINE int rns_cmp(int *x, int *y) {
     interval_t ey; //Interval evaluation of y
     rns_eval_compute(&ex.low, &ex.upp, x);
     rns_eval_compute(&ey.low, &ey.upp, y);
-    if(er_ucmp(&ex.low, &ey.upp) > 0){
+    if(er_ucmp(ex.low, ey.upp) > 0){
         return 1;
     }
-    if(er_ucmp(&ey.low, &ex.upp) > 0){
+    if(er_ucmp(ey.low, ex.upp) > 0){
         return -1;
     }
     bool equals = true;
@@ -1168,7 +1168,7 @@ GCC_FORCEINLINE int rns_cmp(int *x, int *y) {
  * @param eyl - pointer to the lower bound of the interval evaluation of y
  * @param eyu - pointer to the upper bound of the interval evaluation of y
  */
-GCC_FORCEINLINE int rns_cmp(int *x, er_float_ptr exl, er_float_ptr exu, int *y, er_float_ptr eyl, er_float_ptr eyu) {
+GCC_FORCEINLINE int rns_cmp(int *x, er_float_t exl, er_float_t exu, int *y, er_float_t eyl, er_float_t eyu) {
     if(er_ucmp(exl, eyu) > 0){
         return 1;
     }
@@ -1205,10 +1205,10 @@ namespace cuda {
         interval_t ey; //Interval evaluation of y
         cuda::rns_eval_compute(&ex.low, &ex.upp, x);
         cuda::rns_eval_compute(&ey.low, &ey.upp, y);
-        if(cuda::er_ucmp(&ex.low, &ey.upp) > 0){
+        if(cuda::er_ucmp(ex.low, ey.upp) > 0){
             return 1;
         }
-        if(cuda::er_ucmp(&ey.low, &ex.upp) > 0){
+        if(cuda::er_ucmp(ey.low, ex.upp) > 0){
             return -1;
         }
         bool equals = true;
@@ -1234,7 +1234,7 @@ namespace cuda {
      * @param eyl - pointer to the lower bound of the interval evaluation of y
      * @param eyu - pointer to the upper bound of the interval evaluation of y
      */
-    DEVICE_CUDA_FORCEINLINE int rns_cmp(int *x, er_float_ptr exl, er_float_ptr exu, int *y, er_float_ptr eyl, er_float_ptr eyu) {
+    DEVICE_CUDA_FORCEINLINE int rns_cmp(int *x, er_float_t exl, er_float_t exu, int *y, er_float_t eyl, er_float_t eyu) {
         if(cuda::er_ucmp(exl, eyu) > 0){
             return 1;
         }

@@ -30,11 +30,10 @@
 #include "../src/arith/assign.cuh"
 #include "../src/arith/add.cuh"
 
-
 /*
- * Creates an array of random multiple-precision floating-point numbers
+ * Creates an array of random multiple-precision floating-point numbers in the range min_val to max_val
  */
-mpfr_t * create_random_array(unsigned long size, int bits){
+mpfr_t * create_random_array(unsigned long size, int bits, int min_val, int max_val){
     waitFor(5);
     srand(time(NULL));
 
@@ -42,7 +41,7 @@ mpfr_t * create_random_array(unsigned long size, int bits){
     gmp_randinit_default(state);                     // Initialize state for a Mersenne Twister algorithm
     gmp_randseed_ui(state, (unsigned) time(NULL));   // Call gmp_randseed_ui to set initial seed value into state
 
-    std::uniform_real_distribution<double> unif(-1, 1);
+    std::uniform_real_distribution<double> unif(min_val, max_val);
     std::default_random_engine re;
     re.seed(std::chrono::system_clock::now().time_since_epoch().count());
 
@@ -69,6 +68,12 @@ mpfr_t * create_random_array(unsigned long size, int bits){
     return array;
 }
 
+/*
+ * Creates an array of random multiple-precision floating-point numbers in the range -1 to 1
+ */
+mpfr_t * create_random_array(unsigned long size, int bits){
+    return create_random_array(size, bits, -1, 1);
+}
 
 /*
  * Converts a mpfr_t number to a string of digits in scientific notation, e.g. -0.12345e13.
@@ -139,15 +144,14 @@ void print_double_sum(double *arr, int n) {
  * Prints the sum of array elements
  */
 void print_mp_sum(mp_float_ptr arr, int n) {
-    mp_float_t print_result;
-    print_result = MP_ZERO;
+    mp_float_t print_result = MP_ZERO;
     mpfr_t sum;
     mpfr_init2(sum, MP_PRECISION * 10);
     mpfr_set_d(sum, 0.0, MPFR_RNDN);
     for (int i = 0; i < n; i+= 1) {
-        mp_add(&print_result, &print_result, &arr[i]);
+        mp_add(&print_result, print_result, arr[i]);
     }
-    mp_get_mpfr(sum, &print_result);
+    mp_get_mpfr(sum, print_result);
     mpfr_printf("result: %.70Rf \n", sum);
     mpfr_clear(sum);
 }
@@ -383,7 +387,7 @@ void print_residual(const int n, const csr_t &csr, mp_float_ptr x, const double 
     for(int i = 0; i < n; i++){
         mpfr_init2(mx[i], prec);
         mpfr_init2(mrhs[i], prec);
-        mp_get_mpfr(mx[i], &x[i]);
+        mp_get_mpfr(mx[i], x[i]);
         mpfr_set_d(mrhs[i], rhs[i], MPFR_RNDN);
     }
     print_residual(n, csr, mx, mrhs);

@@ -221,10 +221,10 @@ __global__ void mpgemm_straightforward_kernel(const unsigned int m, const unsign
             // if(col == 0 && row == 0)
             // cuda::mp_mul(&mul, B, (col * ldb + i), B, (col * ldb + i));
             cuda::mp_mul(&mul, A, (lda * i + row), B, (col * ldb + i) );
-            cuda::mp_mul(&mul, &mul, alpha, 0);
-            cuda::mp_add(&sum, &sum, &mul);
+            cuda::mp_mul(&mul, mul, alpha, 0);
+            cuda::mp_add(&sum, sum, mul);
         }
-        cuda::mp_add(C, indexC, C, indexC, &sum);
+        cuda::mp_add(C, indexC, C, indexC, sum);
     }
 }
 

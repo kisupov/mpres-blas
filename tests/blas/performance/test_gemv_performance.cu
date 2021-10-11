@@ -350,7 +350,7 @@ void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, m
 __global__ static void mp_scal_straightforward(int n, mp_float_ptr alpha, mp_float_ptr x){
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     if(i < n){
-        cuda::mp_mul(&x[i], &alpha[0], &x[i]);
+        cuda::mp_mul(&x[i], alpha[0], x[i]);
     }
 }
 
@@ -360,11 +360,11 @@ __global__ static void mp_gemv_straightforward(int m, int n, mp_float_ptr A, int
         mp_float_t prod;
         mp_float_t dot = cuda::MP_ZERO;
         for (int colId = 0; colId < n; colId++) {
-            cuda::mp_mul(&prod, &x[colId], &A[colId * lda + threadId]);
-            cuda::mp_add(&dot, &dot, &prod);
+            cuda::mp_mul(&prod, x[colId], A[colId * lda + threadId]);
+            cuda::mp_add(&dot, dot, prod);
         }
-        cuda::mp_mul(&y[threadId], &beta[0], &y[threadId]);
-        cuda::mp_add(&y[threadId], &y[threadId], &dot);
+        cuda::mp_mul(&y[threadId], beta[0], y[threadId]);
+        cuda::mp_add(&y[threadId], y[threadId], dot);
     }
 }
 

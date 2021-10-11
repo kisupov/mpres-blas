@@ -57,11 +57,11 @@ namespace cuda {
             auto index = row;
             sums[threadIdx.x] = cuda::MP_ZERO;
             while (j < maxnzr && index < jad.jcp[j + 1]) {
-                cuda::mp_mul_d(&prods[threadIdx.x], &x[jad.ja[index]], jad.as[index]);
-                cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
+                cuda::mp_mul_d(&prods[threadIdx.x], x[jad.ja[index]], jad.as[index]);
+                cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], prods[threadIdx.x]);
                 index = row + jad.jcp[++j];
             }
-            cuda::mp_set(&y[jad.perm[row]], &sums[threadIdx.x]);
+            cuda::mp_set(&y[jad.perm[row]], sums[threadIdx.x]);
             row +=  gridDim.x * blockDim.x;
         }
     }

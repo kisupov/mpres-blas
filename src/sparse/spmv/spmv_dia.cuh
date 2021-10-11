@@ -58,11 +58,11 @@ namespace cuda {
                 int j = row + dia.offset[i];
                 double val = dia.as[m * i + row];
                 if(j >= 0 && j < n && val != 0) {
-                    cuda::mp_mul_d(&prods[threadIdx.x], &x[j], val);
-                    cuda::mp_add(&sums[threadIdx.x], &sums[threadIdx.x], &prods[threadIdx.x]);
+                    cuda::mp_mul_d(&prods[threadIdx.x], x[j], val);
+                    cuda::mp_add(&sums[threadIdx.x], sums[threadIdx.x], prods[threadIdx.x]);
                 }
             }
-            cuda::mp_set(&y[row], &sums[threadIdx.x]);
+            cuda::mp_set(&y[row], sums[threadIdx.x]);
             row +=  gridDim.x * blockDim.x;
         }
     }

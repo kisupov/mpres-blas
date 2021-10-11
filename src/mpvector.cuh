@@ -54,8 +54,8 @@ namespace cuda {
             while (numberIdx < n) {
                 result.sign[numberIdx] = x.sign[numberIdx] ^ y.sign[numberIdx];
                 result.exp[numberIdx] = x.exp[numberIdx] + y.exp[numberIdx];
-                cuda::er_md_rd(&result.eval[numberIdx], &x.eval[numberIdx], &y.eval[numberIdx], &cuda::RNS_EVAL_UNIT.upp);
-                cuda::er_md_ru(&result.eval[lenr + numberIdx], &x.eval[lenx + numberIdx], &y.eval[leny + numberIdx], &cuda::RNS_EVAL_UNIT.low);
+                result.eval[numberIdx] = cuda::er_md_rd(x.eval[numberIdx], y.eval[numberIdx], cuda::RNS_EVAL_UNIT.upp);
+                result.eval[lenr + numberIdx] = cuda::er_md_ru(x.eval[lenx + numberIdx], y.eval[leny + numberIdx], cuda::RNS_EVAL_UNIT.low);
                 //Go to the next iteration
                 numberIdx +=  gridDim.x * blockDim.x;
             }
@@ -68,8 +68,8 @@ namespace cuda {
             while (numberIdx < n) {
                 result.sign[ir] = x.sign[ix] ^ y.sign[iy];
                 result.exp[ir] = x.exp[ix] + y.exp[iy];
-                cuda::er_md_rd(&result.eval[ir], &x.eval[ix], &y.eval[iy], &cuda::RNS_EVAL_UNIT.upp);
-                cuda::er_md_ru(&result.eval[lenr + ir], &x.eval[lenx + ix], &y.eval[leny + iy], &cuda::RNS_EVAL_UNIT.low);
+                result.eval[ir] = cuda::er_md_rd(x.eval[ix], y.eval[iy], cuda::RNS_EVAL_UNIT.upp);
+                result.eval[lenr + ir] = cuda::er_md_ru(x.eval[lenx + ix], y.eval[leny + iy], cuda::RNS_EVAL_UNIT.low);
                 //Go to the next iteration
                 numberIdx +=  gridDim.x * blockDim.x;
                 ix += gridDim.x * blockDim.x * incx;
@@ -148,16 +148,13 @@ namespace cuda {
         er_float_t leval0 = alpha.eval[0];
         er_float_t leval1 = alpha.eval[1];
 
-        er_float_ptr  leval0ptr = &leval0;
-        er_float_ptr  leval1ptr = &leval1;
-
         // code for all increments equal to 1
         if(incr == 1 && incx == 1) {
             while (numberIdx < n) {
                 result.sign[numberIdx] = x.sign[numberIdx] ^ alpha_sign;
                 result.exp[numberIdx] = x.exp[numberIdx] + alpha_exp;
-                cuda::er_md_rd(&result.eval[numberIdx], &x.eval[numberIdx], leval0ptr, &cuda::RNS_EVAL_UNIT.upp);
-                cuda::er_md_ru(&result.eval[lenr + numberIdx], &x.eval[lenx + numberIdx], leval1ptr, &cuda::RNS_EVAL_UNIT.low);
+                result.eval[numberIdx] = cuda::er_md_rd(x.eval[numberIdx], leval0, cuda::RNS_EVAL_UNIT.upp);
+                result.eval[lenr + numberIdx] = cuda::er_md_ru(x.eval[lenx + numberIdx], leval1, cuda::RNS_EVAL_UNIT.low);
                 //Go to the next iteration
                 numberIdx += gridDim.x * blockDim.x;
             }
@@ -169,8 +166,8 @@ namespace cuda {
             while (numberIdx < n) {
                 result.sign[ir] = x.sign[ix] ^ alpha_sign;
                 result.exp[ir] = x.exp[ix] + alpha_exp;
-                cuda::er_md_rd(&result.eval[ir], &x.eval[ix], leval0ptr, &cuda::RNS_EVAL_UNIT.upp);
-                cuda::er_md_ru(&result.eval[lenr + ir], &x.eval[lenx + ix], leval1ptr, &cuda::RNS_EVAL_UNIT.low);
+                result.eval[ir] = cuda::er_md_rd(x.eval[ix], leval0, cuda::RNS_EVAL_UNIT.upp);
+                result.eval[lenr + ir] = cuda::er_md_ru(x.eval[lenx + ix], leval1, cuda::RNS_EVAL_UNIT.low);
                 //Go to the next iteration
                 numberIdx += gridDim.x * blockDim.x;
                 ix += gridDim.x * blockDim.x * incx;
@@ -298,8 +295,8 @@ namespace cuda {
                 eval_y[1].frac *=  factor_y;
 
                 //Interval addition
-                cuda::er_add_rd(&result.eval[numberIdx], &eval_x[sign_x], &eval_y[sign_y]);
-                cuda::er_add_ru(&result.eval[numberIdx + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
+                result.eval[numberIdx] = cuda::er_add_rd(eval_x[sign_x], eval_y[sign_y]);
+                result.eval[numberIdx + lenr] = cuda::er_add_ru(eval_x[1 - sign_x], eval_y[1 - sign_y]);
 
                 //Calculation of the exponent
                 result.exp[numberIdx] = (exp_x == 0) ? exp_y : exp_x;
@@ -373,9 +370,8 @@ namespace cuda {
                 eval_y[0].frac *=  factor_y;
                 eval_y[1].frac *=  factor_y;
 
-                cuda::er_add_rd(&result.eval[ir], &eval_x[sign_x], &eval_y[sign_y]);
-                cuda::er_add_ru(&result.eval[ir + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
-
+                result.eval[ir] = cuda::er_add_rd(eval_x[sign_x], eval_y[sign_y]);
+                result.eval[ir + lenr] = cuda::er_add_ru(eval_x[1 - sign_x], eval_y[1 - sign_y]);
                 result.exp[ir] = (exp_x == 0) ? exp_y : exp_x;
 
                 //int plus  = result.eval[ir].frac >= 0 && result.eval[ir + lenr].frac >= 0;
@@ -552,8 +548,8 @@ namespace cuda {
                 eval_y[1].frac *=  factor_y;
 
                 //Interval addition
-                cuda::er_add_rd(&result.eval[numberIdx], &eval_x[sign_x], &eval_y[sign_y]);
-                cuda::er_add_ru(&result.eval[numberIdx + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
+                result.eval[numberIdx] = cuda::er_add_rd(eval_x[sign_x], eval_y[sign_y]);
+                result.eval[numberIdx + lenr] = cuda::er_add_ru(eval_x[1 - sign_x], eval_y[1 - sign_y]);
 
                 //Calculation of the exponent
                 result.exp[numberIdx] = (exp_x == 0) ? exp_y : exp_x;
@@ -627,8 +623,8 @@ namespace cuda {
                 eval_y[0].frac *=  factor_y;
                 eval_y[1].frac *=  factor_y;
 
-                cuda::er_add_rd(&result.eval[ir], &eval_x[sign_x], &eval_y[sign_y]);
-                cuda::er_add_ru(&result.eval[ir + lenr], &eval_x[1 - sign_x], &eval_y[1 - sign_y]);
+                result.eval[ir] = cuda::er_add_rd(eval_x[sign_x], eval_y[sign_y]);
+                result.eval[ir + lenr] = cuda::er_add_ru(eval_x[1 - sign_x], eval_y[1 - sign_y]);
 
                 result.exp[ir] = (exp_x == 0) ? exp_y : exp_x;
 

@@ -36,8 +36,8 @@ GCC_FORCEINLINE void mp_div(mp_float_ptr result, mp_float_ptr x, mp_float_ptr y)
     mpfr_t dividend, divisor;
     mpfr_init2(dividend, MP_PRECISION);
     mpfr_init2(divisor, MP_PRECISION);
-    mp_get_mpfr(dividend, x);
-    mp_get_mpfr(divisor, y);
+    mp_get_mpfr(dividend, *x);
+    mp_get_mpfr(divisor, *y);
     mpfr_div(dividend, dividend, divisor, MPFR_RNDN);
     mp_set_mpfr(result, dividend);
     mpfr_clear(dividend);

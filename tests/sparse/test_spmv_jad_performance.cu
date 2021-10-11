@@ -63,11 +63,11 @@ __global__ void mp_spmv_jad_smem_free(const int m, const int maxnzr, const jad_t
         auto index = row;
         sum = cuda::MP_ZERO;
         while (j < maxnzr && index < jad.jcp[j + 1]) {
-            cuda::mp_mul_d(&prod, &x[jad.ja[index]], jad.as[index]);
-            cuda::mp_add(&sum, &sum, &prod);
+            cuda::mp_mul_d(&prod, x[jad.ja[index]], jad.as[index]);
+            cuda::mp_add(&sum, sum, prod);
             index = row + jad.jcp[++j];
         }
-        cuda::mp_set(&y[jad.perm[row]], &sum);
+        cuda::mp_set(&y[jad.perm[row]], sum);
         row +=  gridDim.x * blockDim.x;
     }
 }

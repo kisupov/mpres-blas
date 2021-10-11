@@ -56,11 +56,11 @@ namespace cuda {
             mp_float_t prod;
             mp_float_t dot = cuda::MP_ZERO;
             while (j < maxnzr && index < jcp[j + 1]) {
-                cuda::mp_mul(&prod, &x[ja[index]], &as[index]);
-                cuda::mp_add(&dot, &dot, &prod);
+                cuda::mp_mul(&prod, x[ja[index]], as[index]);
+                cuda::mp_add(&dot, dot, prod);
                 index = row + jcp[++j];
             }
-            cuda::mp_set(&y[perm_rows[row]], &dot);
+            cuda::mp_set(&y[perm_rows[row]], dot);
             row +=  gridDim.x * blockDim.x;
         }
     }

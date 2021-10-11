@@ -32,7 +32,7 @@ void test_mpres(const int n, mpfr_t alpha, mpfr_t *x, const int repeats) {
     PrintTimerName("[GPU] MPRES-BLAS scal");
     //Execution configuration
     int threads = 64;
-    int blocks = n / threads + 1;
+    int blocks = 128;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
     //Host data

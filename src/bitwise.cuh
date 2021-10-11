@@ -89,7 +89,7 @@ union RealIntUnion {
  * @param n - exponent of the integer power of two in the range (-1023, 1024)
  * @return - if no errors (overflow / underflow) occur, x multiplied by 2 to the power of n (x * 2^n) is returned.
  */
-GCC_FORCEINLINE double fast_scalbn(const double x, const int n) {
+GCC_FORCEINLINE double fast_scalbn(const double x, const long n) {
     RealIntUnion diu;
     diu.dvalue = x;
     diu.ivalue += (uint64_t) n << DBL_EXP_OFFSET; //Add pow to the exponent
@@ -164,7 +164,7 @@ namespace cuda {
      * @param n - exponent of the integer power of two in the range (-1023, 1024)
      * @return - if no errors (overflow / underflow) occur, x multiplied by 2 to the power of n (x * 2^n) is returned.
      */
-     DEVICE_CUDA_FORCEINLINE double fast_scalbn(const double x, const int n) {
+     DEVICE_CUDA_FORCEINLINE double fast_scalbn(const double x, const long n) {
         RealIntUnion diu;
         diu.dvalue = x;
         diu.ivalue += (uint64_t) n << DBL_EXP_OFFSET;        // Add pow to exponent

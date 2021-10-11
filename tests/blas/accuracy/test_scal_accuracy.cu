@@ -80,7 +80,7 @@ static void evaluate_accuracy(mpfr_t *reference, mpfr_t *result_mpfr, mp_float_p
     // Converting the MPRES-BLAS result to MPFR
     for (int i = 0; i < size; i++) {
         mpfr_init2(vector[i], REFERENCE_PRECISION);
-        mp_get_mpfr(vector[i], &result_mpres[i]);
+        mp_get_mpfr(vector[i], result_mpres[i]);
     }
 
     // Actual SCAL errors:

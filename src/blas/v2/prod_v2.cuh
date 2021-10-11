@@ -37,7 +37,7 @@ namespace cuda
     __global__ void mp_prod(const int n, mp_float_ptr x, mp_float_ptr y, mp_float_ptr r) {
         auto i = threadIdx.x + blockIdx.x * blockDim.x;
         while(i < n){
-            cuda::mp_mul(&r[i], &x[i], &y[i]);
+            cuda::mp_mul(&r[i], x[i], y[i]);
             i += gridDim.x * blockDim.x;
         }
     }

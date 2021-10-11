@@ -33,7 +33,7 @@
 GCC_FORCEINLINE void mp_sqrt(mp_float_ptr result, mp_float_ptr x) {
     mpfr_t op;
     mpfr_init2(op, MP_PRECISION);
-    mp_get_mpfr(op, x);
+    mp_get_mpfr(op, *x);
     mpfr_sqrt(op, op, MPFR_RNDN);
     mp_set_mpfr(result, op);
     mpfr_clear(op);
@@ -46,7 +46,7 @@ GCC_FORCEINLINE void mp_sqrt(mp_float_ptr result, mp_float_ptr x) {
 GCC_FORCEINLINE double mp_dsqrt(mp_float_ptr x) {
     mpfr_t op;
     mpfr_init2(op, MP_PRECISION);
-    mp_get_mpfr(op, x);
+    mp_get_mpfr(op, *x);
     mpfr_sqrt(op, op, MPFR_RNDN);
     double sqrt = mpfr_get_d(op, MPFR_RNDN);
     mpfr_clear(op);

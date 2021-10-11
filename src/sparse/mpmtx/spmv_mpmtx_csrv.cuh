@@ -63,28 +63,28 @@ namespace cuda {
             // compute running sum per thread
             vals[threadIdx.x] = cuda::MP_ZERO;
             for (auto i = row_start + lane; i < row_end; i += threadsPerRow) {
-                cuda::mp_mul(&prod, &as[i], &x[ja[i]]);
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &prod);
+                cuda::mp_mul(&prod, as[i], x[ja[i]]);
+                cuda::mp_add(&vals[threadIdx.x], vals[threadIdx.x], prod);
             }
             // parallel reduction in shared memory
             if (threadsPerRow >= 32 && lane < 16) {
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 16]);
+                cuda::mp_add(&vals[threadIdx.x], vals[threadIdx.x], vals[threadIdx.x + 16]);
             }
             if (threadsPerRow >= 16 && lane < 8) {
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 8]);
+                cuda::mp_add(&vals[threadIdx.x], vals[threadIdx.x], vals[threadIdx.x + 8]);
             }
             if (threadsPerRow >= 8 && lane < 4) {
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 4]);
+                cuda::mp_add(&vals[threadIdx.x], vals[threadIdx.x], vals[threadIdx.x + 4]);
             }
             if (threadsPerRow >= 4 && lane < 2) {
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 2]);
+                cuda::mp_add(&vals[threadIdx.x], vals[threadIdx.x], vals[threadIdx.x + 2]);
             }
             if (threadsPerRow >= 2 && lane < 1) {
-                cuda::mp_add(&vals[threadIdx.x], &vals[threadIdx.x], &vals[threadIdx.x + 1]);
+                cuda::mp_add(&vals[threadIdx.x], vals[threadIdx.x], vals[threadIdx.x + 1]);
             }
             // first thread writes the result
             if (lane == 0) {
-                cuda::mp_set(&y[row], &vals[threadIdx.x]);
+                cuda::mp_set(&y[row], vals[threadIdx.x]);
             }
             row +=  gridDim.x * blockDim.x / threadsPerRow;
         }

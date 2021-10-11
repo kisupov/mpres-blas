@@ -55,11 +55,11 @@ namespace cuda {
             for (int i = 0; i < ndiag; i++) {
                 int col = row + offset[i];
                 if(col  >= 0 && col < n) {
-                    cuda::mp_mul(&prod, &x[col], &as[m * i + row]);
-                    cuda::mp_add(&dot, &dot, &prod);
+                    cuda::mp_mul(&prod, x[col], as[m * i + row]);
+                    cuda::mp_add(&dot, dot, prod);
                 }
             }
-            cuda::mp_set(&y[row], &dot);
+            cuda::mp_set(&y[row], dot);
             row +=  gridDim.x * blockDim.x;
         }
     }

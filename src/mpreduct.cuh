@@ -51,7 +51,7 @@ namespace cuda {
         // in a larger gridSize and therefore fewer elements per thread
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add(&sdata[tid], &sdata[tid], input, i);
+            cuda::mp_add(&sdata[tid], sdata[tid], input, i);
             i += k;
         }
         __syncthreads();
@@ -60,7 +60,7 @@ namespace cuda {
         i = nextPow2 >> 1; // half of nextPow2
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();
@@ -87,14 +87,14 @@ namespace cuda {
         unsigned int i = bid * bsize + tid;
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add(&sdata[tid], &sdata[tid], &input[i]);
+            cuda::mp_add(&sdata[tid], sdata[tid], input[i]);
             i += k;
         }
         __syncthreads();
         i = nextPow2 >> 1;
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();
@@ -130,7 +130,7 @@ namespace cuda {
         // do reduction in global mem
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add_abs(&sdata[tid], &sdata[tid], input, i * incx);
+            cuda::mp_add_abs(&sdata[tid], sdata[tid], input, i * incx);
             i += k;
         }
         __syncthreads();
@@ -139,7 +139,7 @@ namespace cuda {
         i = nextPow2 >> 1; // half of nextPow2
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add_abs(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add_abs(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();
@@ -167,14 +167,14 @@ namespace cuda {
         unsigned int i = bid * bsize + tid;
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add_abs(&sdata[tid], &sdata[tid], &input[i*incx]);
+            cuda::mp_add_abs(&sdata[tid], sdata[tid], input[i*incx]);
             i += k;
         }
         __syncthreads();
         i = nextPow2 >> 1;
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add_abs(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add_abs(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();
@@ -209,7 +209,7 @@ namespace cuda {
 
         sdata[tid] = cuda::MP_ZERO; //since we attempt to find the maximum absolute value
         while (i < n) {
-            if(cuda::mp_cmp_abs(input, ix, &sdata[tid]) == 1){
+            if(cuda::mp_cmp_abs(input, ix, sdata[tid]) == 1){
                 //sdata[tid] = input[ix]
                 sdata[tid].exp = input.exp[ix];
                 sdata[tid].sign = input.sign[ix];
@@ -227,7 +227,7 @@ namespace cuda {
         // do reduction in shared mem
         i = nextPow2 >> 1; // half of nextPow2
         while(i >= 1){
-            if ( (tid < i) && (tid + i < bsize) && (cuda::mp_cmp_abs(&sdata[tid + i], &sdata[tid]) == 1) ) {
+            if ( (tid < i) && (tid + i < bsize) && (cuda::mp_cmp_abs(sdata[tid + i], sdata[tid]) == 1) ) {
                 sdata[tid] = sdata[tid + i];
             }
             i = i >> 1;
@@ -259,7 +259,7 @@ namespace cuda {
 
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            if(cuda::mp_cmp_abs(&input[ix], &sdata[tid]) == 1){
+            if(cuda::mp_cmp_abs(input[ix], sdata[tid]) == 1){
                 sdata[tid] = input[ix];
             }
             i += k;
@@ -268,7 +268,7 @@ namespace cuda {
         __syncthreads();
         i = nextPow2 >> 1;
         while(i >= 1){
-            if ((tid < i) && (tid + i < bsize) && (cuda::mp_cmp_abs(&sdata[tid + i], &sdata[tid]) == 1)) {
+            if ((tid < i) && (tid + i < bsize) && (cuda::mp_cmp_abs(sdata[tid + i], sdata[tid]) == 1)) {
                 sdata[tid] = sdata[tid + i];
             }
             i = i >> 1;

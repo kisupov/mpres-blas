@@ -33,7 +33,7 @@ extern "C" void openblas_set_num_threads(int num_threads);
 void test_openblas(const int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, const int repeats){
     InitCpuTimer();
     Logger::printDash();
-    PrintTimerName("[CPU] OpenBLAS scal");
+    PrintTimerName("[CPU] OpenBLAS axpy");
 
     openblas_set_num_threads(OPENBLAS_THREADS);
 

@@ -45,8 +45,8 @@ namespace cuda
         }
         __syncthreads();
         while(i < n){
-            cuda::mp_mul(&ax, &a, &x[i]);
-            cuda::mp_add(&r[i], &ax, &y[i]);
+            cuda::mp_mul(&ax, a, x[i]);
+            cuda::mp_add(&r[i], ax, y[i]);
             i += gridDim.x * blockDim.x;
         }
     }

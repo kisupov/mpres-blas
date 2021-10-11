@@ -64,7 +64,7 @@ int mp_cgcsrls(const int n, const csr_t &matrix, mp_float_ptr rhs, mp_float_ptr 
     mp_float_ptr beta;
     mp_float_ptr pqDot;
     int k = 0;
-    //Init host memory
+    //Init device memory
     cudaMalloc(&rho, sizeof(mp_float_t));
     cudaMalloc(&rhop, sizeof(mp_float_t));
     cudaMalloc(&alpha, sizeof(mp_float_t));

@@ -129,7 +129,7 @@ static void evaluate_accuracy(mpfr_t *x, mpfr_t *y, mpfr_t alpha, mpfr_t *result
     // Converting the MPRES-BLAS result to MPFR
     for (int i = 0; i < size; i++) {
         mpfr_init2(vector[i], REFERENCE_PRECISION);
-        mp_get_mpfr(vector[i], &result_mpres[i]);
+        mp_get_mpfr(vector[i], result_mpres[i]);
     }
 
     // Actual AXPY errors:

@@ -42,7 +42,7 @@ namespace cuda
         }
         __syncthreads();
         while(i < n){
-            cuda::mp_mul(&r[i], &a, &x[i]);
+            cuda::mp_mul(&r[i], a, x[i]);
             i += gridDim.x * blockDim.x;
         }
     }

@@ -45,7 +45,7 @@ namespace cuda
             mp_float_t sum = cuda::MP_ZERO;
             for(int i = 0; i < k; i++){
                 cuda::mp_mul(&mul, A, (lda * i + row), B, (col * ldb + i) );
-                cuda::mp_add(&sum, &sum, &mul);
+                cuda::mp_add(&sum, sum, mul);
             }
             C.exp[indexC] = sum.exp;
             C.sign[indexC] = sum.sign;

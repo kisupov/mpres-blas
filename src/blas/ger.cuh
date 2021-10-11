@@ -49,15 +49,13 @@ namespace cuda
                  int y_exp = y.exp[colId];
                  er_float_t y_eval0 = y.eval[colId];
                  er_float_t y_eval1 = y.eval[colId + leny];
-                 er_float_ptr y_eval0ptr = &y_eval0;
-                 er_float_ptr y_eval1ptr = &y_eval1;
                  int numberIdx = blockDim.x * blockIdx.x + threadIdx.x; //Index of the element of x. Must be less than m
                  //We process in the stride loop all the elements of x
                  while (numberIdx < m) {
                      result.sign[colId * m + numberIdx] = x.sign[numberIdx] ^ y_sign;
                      result.exp[colId * m + numberIdx] = x.exp[numberIdx] + y_exp;
-                     cuda::er_md_rd(&result.eval[colId * m + numberIdx], &x.eval[numberIdx], y_eval0ptr, &cuda::RNS_EVAL_UNIT.upp);
-                     cuda::er_md_ru(&result.eval[m * n + colId * m + numberIdx], &x.eval[lenx + numberIdx], y_eval1ptr, &cuda::RNS_EVAL_UNIT.low);
+                     result.eval[colId * m + numberIdx] = cuda::er_md_rd(x.eval[numberIdx], y_eval0, cuda::RNS_EVAL_UNIT.upp);
+                     result.eval[m * n + colId * m + numberIdx] = cuda::er_md_ru(x.eval[lenx + numberIdx], y_eval1, cuda::RNS_EVAL_UNIT.low);
                      numberIdx += gridDim.x * blockDim.x;
                  }
                  //Go to the next column
@@ -71,15 +69,13 @@ namespace cuda
                  int y_exp = y.exp[colId];
                  er_float_t y_eval0 = y.eval[colId];
                  er_float_t y_eval1 = y.eval[colId + leny];
-                 er_float_ptr y_eval0ptr = &y_eval0;
-                 er_float_ptr y_eval1ptr = &y_eval1;
                  int numberIdx = blockDim.x * blockIdx.x + threadIdx.x;
                  int ix = incx > 0 ? numberIdx * incx : (-m + numberIdx + 1)*incx;
                  while (numberIdx < m) {
                      result.sign[colId * m + numberIdx] = x.sign[ix] ^ y_sign;
                      result.exp[colId * m + numberIdx] = x.exp[ix] + y_exp;
-                     cuda::er_md_rd(&result.eval[colId * m + numberIdx], &x.eval[ix], y_eval0ptr, &cuda::RNS_EVAL_UNIT.upp);
-                     cuda::er_md_ru(&result.eval[m * n + colId * m + numberIdx], &x.eval[lenx + ix], y_eval1ptr, &cuda::RNS_EVAL_UNIT.low);
+                     result.eval[colId * m + numberIdx] = cuda::er_md_rd(x.eval[ix], y_eval0, cuda::RNS_EVAL_UNIT.upp);
+                     result.eval[m * n + colId * m + numberIdx] = cuda::er_md_ru(x.eval[lenx + ix], y_eval1, cuda::RNS_EVAL_UNIT.low);
                      numberIdx += gridDim.x * blockDim.x;
                      ix += gridDim.x * blockDim.x * incx;
                  }

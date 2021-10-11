@@ -53,10 +53,10 @@ namespace cuda {
             int row_start = irp[row];
             int row_end = irp[row+1];
             for (int i = row_start; i < row_end; i++) {
-                cuda::mp_mul(&prod, &x[ja[i]], &as[i]);
-                cuda::mp_add(&dot, &dot, &prod);
+                cuda::mp_mul(&prod, x[ja[i]], as[i]);
+                cuda::mp_add(&dot, dot, prod);
             }
-            cuda::mp_set(&y[row], &dot);
+            cuda::mp_set(&y[row], dot);
             row +=  gridDim.x * blockDim.x;
         }
     }

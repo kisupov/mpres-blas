@@ -101,7 +101,7 @@ static void evaluate_accuracy(mpfr_t reference, mp_float_t mp_result, mpfr_t mpf
     mpfr_set_d(abs_error, 0, MPFR_RNDN);
     mpfr_set_d(rel_error, 0, MPFR_RNDN);
 
-    mp_get_mpfr(converted, &mp_result);
+    mp_get_mpfr(converted, mp_result);
     mpfr_sub(abs_error, reference, converted, MPFR_RNDN);
     mpfr_abs(abs_error, abs_error, MPFR_RNDN);
     mpfr_div(rel_error, abs_error, reference, MPFR_RNDN);

@@ -24,7 +24,7 @@
 #include "../../src/arith/assign.cuh"
 
 static __global__ void performCudaCmp(mp_float_ptr dx, mp_float_ptr dy){
-    printf("\n[CUDA] Result = %i", cuda::mp_cmp(dx, dy));
+    printf("\n[CUDA] Result = %i", cuda::mp_cmp(dx[0], dy[0]));
 }
 
 static void testCuda(mp_float_ptr x, mp_float_ptr y){
@@ -46,9 +46,9 @@ int main() {
     mp_float_t x, y;
     mp_set_d(&x, 0.550000001);
     mp_set_d(&y, 0.550000000);
-    printf("\n x = %.16f", mp_get_d(&x));
-    printf("\n y = %.16f", mp_get_d(&y));
-    printf("\n[CPU ] Result = %i", mp_cmp(&x, &y));
+    printf("\n x = %.16f", mp_get_d(x));
+    printf("\n y = %.16f", mp_get_d(y));
+    printf("\n[CPU ] Result = %i", mp_cmp(x, y));
     testCuda(&x, &y);
     return 0;
 }

@@ -21,6 +21,8 @@ project(MPRES_BLAS)
 
 set(CMAKE_VERBOSE_MAKEFILE on)
 
+cmake_policy(SET CMP0104 OLD) # Suppress warning: CMAKE_CUDA_ARCHITECTURES now detected for NVCC, empty CUDA_ARCHITECTURES not allowed.
+
 #####################################
 # Paths section
 #####################################

@@ -27,12 +27,12 @@
 /*!
  * Assign the value of x to result
  */
-GCC_FORCEINLINE void mp_set(mp_float_ptr result, mp_float_ptr x) {
-    rns_set(result->digits, x->digits);
-    result->sign = x->sign;
-    result->exp = x->exp;
-    result->eval[0] = x->eval[0];
-    result->eval[1] = x->eval[1];
+GCC_FORCEINLINE void mp_set(mp_float_ptr result, mp_float_t x) {
+    rns_set(result->digits, x.digits);
+    result->sign = x.sign;
+    result->exp = x.exp;
+    result->eval[0] = x.eval[0];
+    result->eval[1] = x.eval[1];
 }
 
 /*!
@@ -148,7 +148,7 @@ GCC_FORCEINLINE void mp_set_mpfr(mp_float_ptr result, mpfr_srcptr x) {
 /*!
  * Convert x to a double
  */
-GCC_FORCEINLINE double mp_get_d(mp_float_ptr x) {
+GCC_FORCEINLINE double mp_get_d(mp_float_t x) {
     mpfr_t disp_mpfr;
     mpfr_init(disp_mpfr);
     mpz_t temp_mpz, full_mpz;
@@ -156,18 +156,18 @@ GCC_FORCEINLINE double mp_get_d(mp_float_ptr x) {
     mpz_init(full_mpz);
     mpz_set_si(full_mpz, 0);
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        mpz_mul_si(temp_mpz, RNS_ORTHOGONAL_BASE[i], x->digits[i]);
+        mpz_mul_si(temp_mpz, RNS_ORTHOGONAL_BASE[i], x.digits[i]);
         mpz_add(full_mpz, full_mpz, temp_mpz);
     }
     mpz_mod(full_mpz, full_mpz, RNS_MODULI_PRODUCT);
     char *str = mpz_get_str(NULL, 2, full_mpz);
     std::string mystring = "";
-    if (x->sign == 1) {
+    if (x.sign == 1) {
         mystring += "-";
     }
     mystring += str;
     mystring += "e";
-    mystring += toString(x->exp);
+    mystring += toString(x.exp);
     mpfr_set_str(disp_mpfr, mystring.c_str(), 2, MPFR_RNDN);
     double a = mpfr_get_d(disp_mpfr, MPFR_RNDN);
     mpz_clear(full_mpz);
@@ -179,23 +179,23 @@ GCC_FORCEINLINE double mp_get_d(mp_float_ptr x) {
 /*!
  * Convert x to the mpfr_t number result
  */
-GCC_FORCEINLINE void mp_get_mpfr(mpfr_t result, mp_float_ptr x) {
+GCC_FORCEINLINE void mp_get_mpfr(mpfr_t result, mp_float_t x) {
     mpz_t temp_mpz, full_mpz;
     mpz_init(temp_mpz);
     mpz_init(full_mpz);
     mpz_set_si(full_mpz, 0);
     for (int i = 0; i < RNS_MODULI_SIZE; i++) {
-        mpz_mul_si(temp_mpz, RNS_ORTHOGONAL_BASE[i], x->digits[i]);
+        mpz_mul_si(temp_mpz, RNS_ORTHOGONAL_BASE[i], x.digits[i]);
         mpz_add(full_mpz, full_mpz, temp_mpz);
     }
     mpz_mod(full_mpz, full_mpz, RNS_MODULI_PRODUCT);
     char *str = mpz_get_str(NULL, 2, full_mpz);
     std::string mystring = "";
-    if (x->sign == 1)
+    if (x.sign == 1)
         mystring += "-";
     mystring += str;
     mystring += "e";
-    mystring += toString(x->exp);
+    mystring += toString(x.exp);
     mpfr_set_str(result, mystring.c_str(), 2, MPFR_RNDN);
     mpz_clear(full_mpz);
     mpz_clear(temp_mpz);
@@ -215,14 +215,14 @@ namespace cuda {
     /*!
      * Assign the value of x to result
      */
-    DEVICE_CUDA_FORCEINLINE void mp_set(mp_float_ptr result, mp_float_ptr x) {
+    DEVICE_CUDA_FORCEINLINE void mp_set(mp_float_ptr result, mp_float_t x) {
         for(int i = 0; i < RNS_MODULI_SIZE; i++){
-            result->digits[i] = x->digits[i];
+            result->digits[i] = x.digits[i];
         }
-        result->sign = x->sign;
-        result->exp = x->exp;
-        result->eval[0] = x->eval[0];
-        result->eval[1] = x->eval[1];
+        result->sign = x.sign;
+        result->exp = x.exp;
+        result->eval[0] = x.eval[0];
+        result->eval[1] = x.eval[1];
     }
 
     /*!
@@ -230,14 +230,14 @@ namespace cuda {
      * @param idr - index in the result vector to write the value of x
      * @param result - pointer to the mp_array_t vector with result[idr] = x
      */
-    DEVICE_CUDA_FORCEINLINE void mp_set(mp_array_t result, int idr, mp_float_ptr x) {
+    DEVICE_CUDA_FORCEINLINE void mp_set(mp_array_t result, int idr, mp_float_t x) {
         for(int i = 0; i < RNS_MODULI_SIZE; i++){
-            result.digits[RNS_MODULI_SIZE * idr + i] = x->digits[i];
+            result.digits[RNS_MODULI_SIZE * idr + i] = x.digits[i];
         }
-        result.sign[idr] = x->sign;
-        result.exp[idr] = x->exp;
-        result.eval[idr] = x->eval[0];
-        result.eval[idr + result.len[0]] = x->eval[1];
+        result.sign[idr] = x.sign;
+        result.exp[idr] = x.exp;
+        result.eval[idr] = x.eval[0];
+        result.eval[idr + result.len[0]] = x.eval[1];
     }
 
 } //namespace cuda

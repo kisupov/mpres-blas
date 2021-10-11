@@ -54,7 +54,7 @@ void test_mpres_pcgcsrls_jacobi(const int n, const int nnz, const csr_t &matrix,
     //Initial guess
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
-        mp_set(&hx[i], &MP_ZERO);
+        mp_set(&hx[i], MP_ZERO);
     }
     cudaMemcpy(dx, hx, sizeof(mp_float_t) * n, cudaMemcpyHostToDevice);
     //Right-hand-side vector

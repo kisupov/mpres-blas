@@ -53,7 +53,7 @@ namespace cuda
         // do reduction in global mem
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add(&sdata[tid], &sdata[tid], A, i * m + bid);
+            cuda::mp_add(&sdata[tid], sdata[tid], A, i * m + bid);
             i += bsize;
         }
         __syncthreads();
@@ -62,7 +62,7 @@ namespace cuda
         i = nextPow2 >> 1; // half of nextPow2
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();
@@ -71,7 +71,7 @@ namespace cuda
         // write result for this block to global mem
         if (tid == 0) {
             int iy = incy > 0 ? bid * incy : (-m + bid + 1)*incy;
-            cuda::mp_add(y, iy, y, iy, &sdata[tid]);
+            cuda::mp_add(y, iy, y, iy, sdata[tid]);
         }
     }
 
@@ -97,7 +97,7 @@ namespace cuda
         // do reduction in global mem
         sdata[tid] = cuda::MP_ZERO;
         while (i < m) {
-            cuda::mp_add(&sdata[tid], &sdata[tid], A, bid * m + i);
+            cuda::mp_add(&sdata[tid], sdata[tid], A, bid * m + i);
             i += bsize;
         }
         __syncthreads();
@@ -106,7 +106,7 @@ namespace cuda
         i = nextPow2 >> 1; // half of nextPow2
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();
@@ -115,7 +115,7 @@ namespace cuda
         // write result for this block to global mem
         if (tid == 0) {
             int iy = incy > 0 ? bid * incy : (-n + bid + 1)*incy;
-            cuda::mp_add(y, iy, y, iy, &sdata[tid]);
+            cuda::mp_add(y, iy, y, iy, sdata[tid]);
         }
     }
 

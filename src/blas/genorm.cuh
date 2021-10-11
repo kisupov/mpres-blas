@@ -48,7 +48,7 @@ namespace cuda {
         // do reduction in global mem
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add_abs(&sdata[tid], &sdata[tid], A, i * lda + bid);
+            cuda::mp_add_abs(&sdata[tid], sdata[tid], A, i * lda + bid);
             i += bsize;
         }
         __syncthreads();
@@ -57,7 +57,7 @@ namespace cuda {
         i = nextPow2 >> 1; // half of nextPow2
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add_abs(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add_abs(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();
@@ -94,7 +94,7 @@ namespace cuda {
         // do reduction in global mem
         sdata[tid] = cuda::MP_ZERO;
         while (i < m) {
-            cuda::mp_add_abs(&sdata[tid], &sdata[tid], A, bid * lda + i);
+            cuda::mp_add_abs(&sdata[tid], sdata[tid], A, bid * lda + i);
             i += bsize;
         }
         __syncthreads();
@@ -103,7 +103,7 @@ namespace cuda {
         i = nextPow2 >> 1; // half of nextPow2
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add_abs(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add_abs(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();

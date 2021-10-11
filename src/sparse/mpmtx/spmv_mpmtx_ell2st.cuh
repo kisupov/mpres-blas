@@ -44,8 +44,8 @@ namespace cuda {
             if(index >= 0) {
                 result.sign[numberIdx] = as.sign[numberIdx] ^ x.sign[index];
                 result.exp[numberIdx] = as.exp[numberIdx] + x.exp[index];
-                cuda::er_md_rd(&result.eval[numberIdx], &as.eval[numberIdx], &x.eval[index], &cuda::RNS_EVAL_UNIT.upp);
-                cuda::er_md_ru(&result.eval[len + numberIdx], &as.eval[len + numberIdx], &x.eval[n + index], &cuda::RNS_EVAL_UNIT.low);
+                result.eval[numberIdx] = cuda::er_md_rd(as.eval[numberIdx], x.eval[index], cuda::RNS_EVAL_UNIT.upp);
+                result.eval[len + numberIdx] = cuda::er_md_ru(as.eval[len + numberIdx], x.eval[n + index], cuda::RNS_EVAL_UNIT.low);
             }
             numberIdx +=  gridDim.x * blockDim.x;
         }
@@ -86,10 +86,10 @@ namespace cuda {
             for (auto col = 0; col < maxnzr; col++) {
                 auto index = ja[col * m + row];
                 if(index >= 0){
-                    cuda::mp_add(&sum[threadIdx.x], &sum[threadIdx.x], as, col * m + row, m * maxnzr);
+                    cuda::mp_add(&sum[threadIdx.x], sum[threadIdx.x], as, col * m + row, m * maxnzr);
                 }
             }
-            cuda::mp_set(y, row, &sum[threadIdx.x]);
+            cuda::mp_set(y, row, sum[threadIdx.x]);
         }
     }
 

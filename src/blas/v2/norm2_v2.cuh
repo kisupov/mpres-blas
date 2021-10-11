@@ -45,15 +45,15 @@ namespace cuda {
         unsigned int i = bid * bsize + tid;
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_mul(&prods[threadIdx.x],&x[i], &x[i]);
-            cuda::mp_add_abs(&sdata[tid], &sdata[tid], &prods[threadIdx.x]);
+            cuda::mp_mul(&prods[threadIdx.x], x[i], x[i]);
+            cuda::mp_add_abs(&sdata[tid], sdata[tid], prods[threadIdx.x]);
             i += k;
         }
         __syncthreads();
         i = nextPow2 >> 1;
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add_abs(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add_abs(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();
@@ -79,14 +79,14 @@ namespace cuda {
         unsigned int i = bid * bsize + tid;
         sdata[tid] = cuda::MP_ZERO;
         while (i < n) {
-            cuda::mp_add_abs(&sdata[tid], &sdata[tid], &x[i]);
+            cuda::mp_add_abs(&sdata[tid], sdata[tid], x[i]);
             i += k;
         }
         __syncthreads();
         i = nextPow2 >> 1;
         while(i >= 1){
             if ((tid < i) && (tid + i < bsize)) {
-                cuda::mp_add_abs(&sdata[tid], &sdata[tid], &sdata[tid + i]);
+                cuda::mp_add_abs(&sdata[tid], sdata[tid], sdata[tid + i]);
             }
             i = i >> 1;
             __syncthreads();

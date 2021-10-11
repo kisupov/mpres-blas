@@ -107,13 +107,13 @@ void mp_print(mp_float_ptr x) {
     printf("\b>\n");
     printf("- Exp: %i\n", x->exp);
     printf("- Eval.low: ");
-    er_print(&x->eval[0]);
+    er_print(x->eval[0]);
     printf("\n- Eval.exact: ");
     er_float_t er_temp;
     rns_fractional(&er_temp, x->digits);
-    er_print(&er_temp);
+    er_print(er_temp);
     printf("\n- Eval.upp: ");
-    er_print(&x->eval[1]);
+    er_print(x->eval[1]);
     printf("\n\n");
 }
 

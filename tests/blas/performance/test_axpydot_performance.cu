@@ -74,18 +74,17 @@ void finalize(){
 }
 
 static void print_mp_sum(mp_float_ptr result, int v_length, const char *name) {
-    mp_float_t print_result;
-    print_result = MP_ZERO;
+    mp_float_t print_result = MP_ZERO;
 
     mpfr_t mpfr_result;
     mpfr_init2(mpfr_result, 100000);
     mpfr_set_d(mpfr_result, 0, MPFR_RNDN);
 
     for (int i = 0; i < v_length; i++) {
-        mp_add(&print_result, &print_result, &result[i]);
+        mp_add(&print_result, print_result, result[i]);
     }
 
-    mp_get_mpfr(mpfr_result, &print_result);
+    mp_get_mpfr(mpfr_result, print_result);
     mpfr_printf("result %s: %.70Rf \n", name, mpfr_result);
     mpfr_clear(mpfr_result);
 }
@@ -107,7 +106,7 @@ void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     mp_float_ptr hv = new mp_float_t[n];
     mp_float_ptr hu = new mp_float_t[n];
     mp_float_ptr halpha = new mp_float_t[1];
-    mp_float_ptr hr = new mp_float_t[1];
+    mp_float_t hr;
 
     //GPU data
     mp_array_t dw;
@@ -167,7 +166,7 @@ void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     mpfr_set_d(mpfr_result, 0, MPFR_RNDN);
 
     //Copying to the host
-    cuda::mp_array_device2host(hr, dr, 1);
+    cuda::mp_array_device2host(&hr, dr, 1);
     cuda::mp_array_device2host(hw, dw, n);
 
     print_mp_sum(hw, n, "w");
@@ -178,7 +177,6 @@ void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
     delete [] hv;
     delete [] hu;
     delete [] hw;
-    delete [] hr;
     delete [] halpha;
     cuda::mp_array_clear(dv);
     cuda::mp_array_clear(du);

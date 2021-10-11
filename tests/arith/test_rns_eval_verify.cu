@@ -2,7 +2,7 @@
  *  Test for checking the algorithms that calculate the interval evaluation of an RNS number
  */
 
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include "../../src/rns.cuh"
 #include "../logger.cuh"
@@ -11,24 +11,19 @@
  *  Printing the error of the computed interval evaluation with respect
  *  to the exact relative value of an RNS number
  */
-void printError(interval_ptr eval, er_float_ptr exact) {
+void printError(interval_ptr eval, er_float_t exact) {
     std::cout << "\neval_low  = ";
-    er_print(&eval->low);
+    er_print(eval->low);
     std::cout << "\neval_upp  = ";
-    er_print(&eval->upp);
-
-    er_adjust(exact);
-    if((er_cmp(&eval->low, exact) == 1) || (er_cmp(exact, &eval->upp) == 1)){
+    er_print(eval->upp);
+    er_adjust(&exact);
+    if((er_cmp(eval->low, exact) == 1) || (er_cmp(exact, eval->upp) == 1)){
         std::cout << "\nerror = 100%. The RNS Interval Evaluation is wrong!\n";
     }
     else{
-        er_float_ptr error = new er_float_t[1];
-        er_sub(error, &eval->upp, &eval->low);
-        er_div(error, error, exact);
-        double derror;
-        er_get_d(&derror, error);
-        std::cout << "\nrel.error = " << (derror) << std::endl;
-        delete error;
+        er_float_t error = er_sub(eval->upp, eval->low);
+        error = er_div(error, exact);
+        std::cout << "\nrel.error = " << er_get_d(error) << std::endl;
     }
 }
 
@@ -62,14 +57,14 @@ int main() {
     Logger::endSection(true);
     Logger::printSpace();
 
-    bool asc = true; //start with x = 0
+    bool asc = false; //start with x = 0
     char c;
 
     int * number = new int[RNS_MODULI_SIZE];;
     int * d_number;
     interval_ptr eval = new interval_t; // host result
     interval_ptr d_eval; // device result
-    er_float_ptr exact = new er_float_t[1];
+    er_float_t exact;
     mpz_t binary;
 
     cudaMalloc(&d_number, RNS_MODULI_SIZE * sizeof(int));
@@ -94,7 +89,7 @@ int main() {
 
                 rns_to_binary(binary, number);
                 printf("\nnumber = %s", mpz_get_str(NULL, 10, binary));
-                rns_fractional(exact, number);
+                rns_fractional(&exact, number);
                 std::cout << "\nrelative = ";
                 er_print(exact);
                 Logger::printSpace();
@@ -145,7 +140,6 @@ int main() {
     delete eval;
     cudaFree(d_number);
     cudaFree(d_eval);
-    delete [] exact;
     mpz_clear(binary);
 
     //End logging

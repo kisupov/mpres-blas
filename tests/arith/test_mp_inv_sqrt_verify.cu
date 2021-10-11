@@ -32,10 +32,10 @@ int main() {
     mp_float_t x, y;
     mp_set_d(&x, 1e15);
 
-    printf("\nARG X       = %.160f", mp_get_d(&x));
-    printf("\nREFERENCE   = %.160f", 1.0 / sqrt(mp_get_d(&x)));
+    printf("\nARG X       = %.160f", mp_get_d(x));
+    printf("\nREFERENCE   = %.160f", 1.0 / sqrt(mp_get_d(x)));
     mp_inv_sqrt(&y, &x);
-    printf("\nCPU RESULT  = %.160f", mp_get_d(&y));
+    printf("\nCPU RESULT  = %.160f", mp_get_d(y));
 
     mp_float_ptr dx;
     mp_float_ptr dy;
@@ -46,6 +46,6 @@ int main() {
     cuda::mp_inv_sqrt(dy, dx);
     mp_set_d(&y, 0.0);
     cudaMemcpy(&y, dy, sizeof(mp_float_t), cudaMemcpyDeviceToHost);
-    printf("\nCUDA RESULT = %.160f", mp_get_d(&y));
+    printf("\nCUDA RESULT = %.160f", mp_get_d(y));
     return 0;
 }
