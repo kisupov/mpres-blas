@@ -40,12 +40,13 @@ void initialize() {
 
 void finalize() {
     cudaDeviceReset();
+    cudaDeviceSynchronize();
 }
 
 int main() {
     initialize();
     Logger::beginTestDescription(Logger::ARITH_PEAK_PERFORMANCE_TEST);
-    Logger::printTestParameters(N, 1, MP_PRECISION, 0);
+    Logger::printTestParameters(N, REPEAT, MP_PRECISION, 0);
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
     Logger::endSection(true);

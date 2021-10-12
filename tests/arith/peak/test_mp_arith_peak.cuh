@@ -27,16 +27,16 @@
 #include "arith/muld.cuh"
 
 #define N 20000000
-#define REPEAT 60
+#define REPEAT 20
 
 static __global__ void arith_kernel(mp_float_ptr x, mp_float_ptr y, mp_float_ptr z, mp_float_ptr w) {
     __shared__ mp_float_t operand;
-    auto k = threadIdx.x + blockIdx.x * blockDim.x;
     if(threadIdx.x == 0){
         operand = x[0];
     }
+    __syncthreads();
     for(int j = 0; j < REPEAT; j++){
-        auto i = k;
+        auto i = threadIdx.x + blockIdx.x * blockDim.x;
         while (i < N) {
             cuda::mp_mul_d(&z[i], x[i], 3.14159268); //1 global memory read + 1 global memory write
             cuda::mp_add(&w[i], y[i], operand); //1 global memory read + 1 global memory write
@@ -46,9 +46,8 @@ static __global__ void arith_kernel(mp_float_ptr x, mp_float_ptr y, mp_float_ptr
 }
 
 static __global__ void copy_kernel(mp_float_ptr x, mp_float_ptr y, mp_float_ptr z, mp_float_ptr w) {
-    auto k = threadIdx.x + blockIdx.x * blockDim.x;
     for(int j = 0; j < REPEAT; j++) {
-        auto i = k;
+        auto i = threadIdx.x + blockIdx.x * blockDim.x;
         while (i < N) {
             cuda::mp_set(&z[i], x[i]); //1 global memory read + 1 global memory write
             cuda::mp_set(&w[i], y[i]); //1 global memory read + 1 global memory write
@@ -102,7 +101,7 @@ void test_mp_peak_performance(const int prec) {
     Logger::printDash();
 
     //Inputs
-    mpfr_t *vectorX = create_random_array(N, prec, -10000, 10000);
+    mpfr_t *vectorX = create_random_array(N, prec, 0, 1);
     //Host data
     auto hx = new mp_float_t[N];
     // GPU data
