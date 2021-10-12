@@ -23,8 +23,6 @@
 #include "tsthelper.cuh"
 #include "test_mp_arith_peak.cuh"
 
-#define N 20000000
-
 int INP_BITS;
 
 void setPrecisions() {
@@ -51,7 +49,7 @@ int main() {
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
     Logger::endSection(true);
-    test_mp_peak_performance(N, INP_BITS);
+    test_mp_peak_performance(INP_BITS);
     finalize();
     Logger::endTestDescription();
     return 0;

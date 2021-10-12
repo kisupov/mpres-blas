@@ -26,28 +26,41 @@
 #include "tsthelper.cuh"
 #include "arith/muld.cuh"
 
-static __global__ void arith_kernel(const int n, mp_float_ptr x, mp_float_ptr y, mp_float_ptr z, mp_float_ptr w) {
-    auto i = threadIdx.x + blockIdx.x * blockDim.x;
-    while (i < n) {
-        cuda::mp_add(&z[i], x[i], x[i]);
-        cuda::mp_mul_d(&w[i], y[i], 3.14159268);
-        i += gridDim.x * blockDim.x;
+#define N 20000000
+#define REPEAT 60
+
+static __global__ void arith_kernel(mp_float_ptr x, mp_float_ptr y, mp_float_ptr z, mp_float_ptr w) {
+    __shared__ mp_float_t operand;
+    auto k = threadIdx.x + blockIdx.x * blockDim.x;
+    if(threadIdx.x == 0){
+        operand = x[0];
+    }
+    for(int j = 0; j < REPEAT; j++){
+        auto i = k;
+        while (i < N) {
+            cuda::mp_mul_d(&z[i], x[i], 3.14159268); //1 global memory read + 1 global memory write
+            cuda::mp_add(&w[i], y[i], operand); //1 global memory read + 1 global memory write
+            i += gridDim.x * blockDim.x;
+        }
     }
 }
 
-static __global__ void copy_kernel(const int n, mp_float_ptr x, mp_float_ptr y, mp_float_ptr z, mp_float_ptr w) {
-    auto i = threadIdx.x + blockIdx.x * blockDim.x;
-    while (i < n) {
-        cuda::mp_set(&z[i], x[i]);
-        cuda::mp_set(&w[i], y[i]);
-        i += gridDim.x * blockDim.x;
+static __global__ void copy_kernel(mp_float_ptr x, mp_float_ptr y, mp_float_ptr z, mp_float_ptr w) {
+    auto k = threadIdx.x + blockIdx.x * blockDim.x;
+    for(int j = 0; j < REPEAT; j++) {
+        auto i = k;
+        while (i < N) {
+            cuda::mp_set(&z[i], x[i]); //1 global memory read + 1 global memory write
+            cuda::mp_set(&w[i], y[i]); //1 global memory read + 1 global memory write
+            i += gridDim.x * blockDim.x;
+        }
     }
 }
 
-static double launchArithKernel(const int blocks, const int threads, const int n, mp_float_ptr dx, mp_float_ptr dy, mp_float_ptr dz, mp_float_ptr dw){
+static double launchArithKernel(const int blocks, const int threads, mp_float_ptr dx, mp_float_ptr dy, mp_float_ptr dz, mp_float_ptr dw){
     InitCudaTimer();
     StartCudaTimer();
-    arith_kernel<<<blocks, threads>>>(n, dx, dy, dz, dw);
+    arith_kernel<<<blocks, threads>>>(dx, dy, dz, dw);
     EndCudaTimer();
     double milliseconds = _cuda_time;
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -55,10 +68,10 @@ static double launchArithKernel(const int blocks, const int threads, const int n
     return milliseconds;
 }
 
-static double launchCopyKernel(const int blocks, const int threads, const int n, mp_float_ptr dx, mp_float_ptr dy, mp_float_ptr dz, mp_float_ptr dw){
+static double launchCopyKernel(const int blocks, const int threads, mp_float_ptr dx, mp_float_ptr dy, mp_float_ptr dz, mp_float_ptr dw){
     InitCudaTimer();
     StartCudaTimer();
-    copy_kernel<<<blocks, threads>>>(n, dx, dy, dz, dw);
+    copy_kernel<<<blocks, threads>>>(dx, dy, dz, dw);
     EndCudaTimer();
     double milliseconds = _cuda_time;
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -66,42 +79,46 @@ static double launchCopyKernel(const int blocks, const int threads, const int n,
     return milliseconds;
 }
 
-static void runKernels(const int blocks, const int threads, const int n, mp_float_ptr dx, mp_float_ptr dy, mp_float_ptr dz, mp_float_ptr dw){
-    printf("\nExec. config: blocks = %i, threads = %i\n", blocks, threads);
-    double copyTime = launchCopyKernel(blocks, threads, n, dx, dy, dz, dw);
-    double arithTime = launchArithKernel(blocks, threads, n, dx, dy, dz, dw);
-    std::cout << "- took copy: " << copyTime << std::endl;
-    std::cout << "- took arith: " << arithTime << std::endl;
-    std::cout << "- bandwidth copy (GB/s): " << sizeof(mp_float_t) * n * 4 / copyTime / 1e6 << std::endl;
-    double performance = (double)n * 2 / (arithTime - copyTime) / 1e6;
+static void runKernels(const int blocks, const int threads, mp_float_ptr dx, mp_float_ptr dy, mp_float_ptr dz, mp_float_ptr dw){
+    double copyTime = launchCopyKernel(blocks, threads, dx, dy, dz, dw);
+    double arithTime = launchArithKernel(blocks, threads, dx, dy, dz, dw);
+    double avgCopyTime = copyTime / (double) REPEAT;
+    double avgArithTime = arithTime / (double) REPEAT;
+    double bandwidth = sizeof(mp_float_t) * N * 4 / avgCopyTime / 1e6;
+    double performance = N * 2 / (avgArithTime - avgCopyTime) / 1e6;
     if(performance > 0){
-        std::cout<< "- peak perf. (mp-flop/s x 10^9): " << performance << std::endl;
+        std::cout << std::endl;
+        std::cout << "Exec. config: blocks = " << blocks << " threads = " << threads << std::endl;
+        std::cout << "- took copy: " << copyTime << std::endl;
+        std::cout << "- took arith: " << arithTime << std::endl;
+        std::cout << "- bandwidth copy (GB/s): " << bandwidth << std::endl;
+        std::cout << "- peak perf. (mp-flop/s x 10^9): " << performance << std::endl;
     }
 }
 
-void test_mp_peak_performance(const int n, const int prec) {
+void test_mp_peak_performance(const int prec) {
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS addition and by-double-multiplication peak performance");
     Logger::printDash();
 
     //Inputs
-    mpfr_t *vectorX = create_random_array(n, prec, -10000, 10000);
+    mpfr_t *vectorX = create_random_array(N, prec, -10000, 10000);
     //Host data
-    auto hx = new mp_float_t[n];
+    auto hx = new mp_float_t[N];
     // GPU data
     mp_float_ptr dx;
     mp_float_ptr dy;
     mp_float_ptr dz;
     mp_float_ptr dw;
-    cudaMalloc(&dx, sizeof(mp_float_t) * n);
-    cudaMalloc(&dy, sizeof(mp_float_t) * n);
-    cudaMalloc(&dz, sizeof(mp_float_t) * n);
-    cudaMalloc(&dw, sizeof(mp_float_t) * n);
+    cudaMalloc(&dx, sizeof(mp_float_t) * N);
+    cudaMalloc(&dy, sizeof(mp_float_t) * N);
+    cudaMalloc(&dz, sizeof(mp_float_t) * N);
+    cudaMalloc(&dw, sizeof(mp_float_t) * N);
     // Convert from MPFR
-    convert_vector(hx, vectorX, n);
+    convert_vector(hx, vectorX, N);
     //Copying to the GPU
-    cudaMemcpy(dx, hx, sizeof(mp_float_t) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(dy, hx, sizeof(mp_float_t) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(dx, hx, sizeof(mp_float_t) * N, cudaMemcpyHostToDevice);
+    cudaMemcpy(dy, hx, sizeof(mp_float_t) * N, cudaMemcpyHostToDevice);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
     //Launch
@@ -109,30 +126,30 @@ void test_mp_peak_performance(const int n, const int prec) {
     for(int k = 0; k < 5; k++){
         int threads = 32;
         for(int j = 0; j < 4; j++){
-            runKernels(blocks, threads, n, dx, dy, dz, dw);
+            runKernels(blocks, threads, dx, dy, dz, dw);
             threads *= 2;
         }
         blocks *= 2;
     }
 
     int threads = 32;
-    blocks = n / threads;
-    runKernels(blocks, threads, n, dx, dy, dz, dw);
+    blocks = N / threads;
+    runKernels(blocks, threads, dx, dy, dz, dw);
 
     threads = 64;
-    blocks = n / threads;
-    runKernels(blocks, threads, n, dx, dy, dz, dw);
+    blocks = N / threads;
+    runKernels(blocks, threads, dx, dy, dz, dw);
 
     threads = 128;
-    blocks = n / threads;
-    runKernels(blocks, threads, n, dx, dy, dz, dw);
+    blocks = N / threads;
+    runKernels(blocks, threads, dx, dy, dz, dw);
 
     threads = 256;
-    blocks = n / threads;
-    runKernels(blocks, threads, n, dx, dy, dz, dw);
+    blocks = N / threads;
+    runKernels(blocks, threads, dx, dy, dz, dw);
 
     //Cleanup
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < N; i++) {
         mpfr_clear(vectorX[i]);
     }
     delete[] vectorX;
