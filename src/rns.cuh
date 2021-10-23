@@ -507,6 +507,29 @@ GCC_FORCEINLINE void mrc(int * mr, int * x) {
     }
 }
 
+/*!
+  * Returns the most significand mixed-radix digit for a given RNS number
+  * @param x - pointer to the input RNS number
+  */
+GCC_FORCEINLINE int mrd(int * x) {
+    int * mixed = new int [RNS_MODULI_SIZE];
+    for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+        mixed[i] = x[i];
+        for (int j = 0; j < i; j++) {
+            if (mixed[i] < mixed[j]) {
+                long tmp = (long)RNS_MODULI[i] - (long)mixed[j] + (long)mixed[i];
+                mixed[i] = (int)tmp;
+            } else {
+                mixed[i] = mixed[i] - mixed[j];
+            }
+            mixed[i] = mod_mul(mixed[i], MRC_MULT_INV[j][i], RNS_MODULI[i]);
+        }
+    }
+    int mrd = mixed[RNS_MODULI_SIZE - 1];
+    delete [] mixed;
+    return mrd;
+}
+
 /*
  * Pairwise comparison of the mixed-radix digits
  */
@@ -558,6 +581,28 @@ namespace cuda{
         }
     }
 
+    /*!
+     * Returns the most significand mixed-radix digit for a given RNS number
+     * @param x - pointer to the input RNS number
+     */
+    DEVICE_CUDA_FORCEINLINE int mrd(int * x) {
+        int * mixed = new int [RNS_MODULI_SIZE];
+        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            mixed[i] = x[i];
+            for (int j = 0; j < i; j++) {
+                if (mixed[i] < mixed[j]) {
+                    mixed[i] = cuda::mod_psub(mixed[i], mixed[j], cuda::RNS_MODULI[i]);
+                } else {
+                    mixed[i] = mixed[i] - mixed[j];
+                }
+                mixed[i] = cuda::mod_mul(mixed[i], cuda::MRC_MULT_INV[j][i], cuda::RNS_MODULI[i]);
+            }
+        }
+        int mrd = mixed[RNS_MODULI_SIZE - 1];
+        delete [] mixed;
+        return mrd;
+    }
+
     /*
      * Pairwise comparison of the mixed-radix digits
      */
@@ -603,8 +648,6 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     double fracu[RNS_MODULI_SIZE];   //Array of x_i * w_i (mod m_i) / m_i, rounding up
     double suml = 0.0; //Rounded downward sum
     double sumu = 0.0; //Rounded upward sum
-    int mrd[RNS_MODULI_SIZE];
-    int mr = -1;
     //Checking for zero
     if(rns_check_zero(x)){
         er_set(low, RNS_EVAL_ZERO_BOUND);
@@ -630,9 +673,9 @@ GCC_FORCEINLINE void rns_eval_compute(er_float_ptr low, er_float_ptr upp, int * 
     er_set_d(low, suml);
     er_set_d(upp, sumu);
     //Check for ambiguity
+    int mr = -1;
     if(whl != whu) {
-        mrc(mrd, x); //Computing the mixed-radix representation of x
-        mr = mrd[RNS_MODULI_SIZE - 1];
+        mr = mrd(x); //Computing the mixed-radix representation of x
     }
     //Adjust if ambiguity was found
     if(mr > 0){
@@ -758,8 +801,6 @@ namespace cuda{
         double fracu[RNS_MODULI_SIZE];
         double suml = 0.0;
         double sumu = 0.0;
-        int mrd[RNS_MODULI_SIZE];
-        int mr = -1;
         //Computing the products x_i * w_i (mod m_i) and the corresponding fractions (lower and upper)
         cuda::rns_mul(s, x, cuda::RNS_PART_MODULI_PRODUCT_INVERSE);
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
@@ -784,9 +825,9 @@ namespace cuda{
         cuda::er_set_d(low, suml);
         cuda::er_set_d(upp, sumu);
         //Check for ambiguity
+        int mr = -1;
         if(whl != whu) {
-            cuda::mrc(mrd, x); //Computing the mixed-radix representation of x
-            mr = mrd[RNS_MODULI_SIZE - 1];
+            mr = cuda::mrd(x); //Computing the mixed-radix representation of x
         }
         //Adjust if ambiguity was found
         if(mr > 0){
@@ -1022,8 +1063,6 @@ namespace cuda{
         double fracu[RNS_MODULI_SIZE];
         double suml = 0.0;
         double sumu = 0.0;
-        int mrd[RNS_MODULI_SIZE];
-        int mr = -1;
         //Computing ( (x_i * w_i) mod m_i ) / mi
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             fracl[i] = __dmul_rd(s[i], cuda::RNS_MODULI_RECIP_RD[i]);
@@ -1039,9 +1078,7 @@ namespace cuda{
         if(whl == whu) {
             return whl;
         } else {
-            cuda::mrc(mrd, x);
-            mr = mrd[RNS_MODULI_SIZE - 1];
-            return mr == 0 ? whu : whl;
+            return (cuda::mrd(x) == 0) ? whu : whl; //mixed-radix conversion
         }
     }
 
@@ -1066,7 +1103,6 @@ namespace cuda{
      */
     DEVICE_CUDA_FORCEINLINE static void make_scaling_step(int * y, int k, unsigned int j, int pow2j, int * x, int * c) {
         long residue = 0; // X mod 2^j
-        int multiple[RNS_MODULI_SIZE]; // X - (X mod pow2j)
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             //RNS_PART_MODULI_PRODUCT_POW2_RESIDUES[j-1][i] ->  M_i mod 2^j
             residue += (long)cuda::mod_mul(cuda::RNS_PART_MODULI_PRODUCT_POW2_RESIDUES[j - 1][i], c[i], pow2j);
@@ -1076,12 +1112,15 @@ namespace cuda{
         residue = (residue - temp) % pow2j;
         if(residue < 0)
             residue += pow2j;
-        for (int i = 0; i < RNS_MODULI_SIZE; i++) { // multiple[i] <- (remainder when X is divided by pow2j) mod m_i
-            multiple[i] = residue % cuda::RNS_MODULI[i];
+        for (int i = 0; i < RNS_MODULI_SIZE; i++) {
+            //multiple <- (remainder when X is divided by pow2j) mod m_i
+            //RNS_POW2_INVERSE[j-1][i] -> (2^j )^{-1} mod m_i
+            int multiple = residue % cuda::RNS_MODULI[i];
+            multiple = cuda::mod_psub(x[i], multiple, cuda::RNS_MODULI[i]); // X - (X mod pow2j)
+            y[i] = cuda::mod_mul(multiple, cuda::RNS_POW2_INVERSE[j - 1][i], cuda::RNS_MODULI[i]);
         }
-        cuda::rns_sub(multiple, x, multiple); //multiple <- X - remainder
-        //RNS_POW2_INVERSE[j-1][i] -> (2^j )^{-1} mod m_i
-        cuda::rns_mul(y, multiple, cuda::RNS_POW2_INVERSE[j - 1]);
+       // cuda::rns_sub(multiple, x, multiple); //multiple <- X - remainder
+       // cuda::rns_mul(y, multiple, cuda::RNS_POW2_INVERSE[j - 1]);
     }
 
     /*!
