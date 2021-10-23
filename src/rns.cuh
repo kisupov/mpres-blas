@@ -567,7 +567,7 @@ namespace cuda{
      * @param mr - pointer to the result mixed-radix representation
      * @param x - pointer to the input RNS number
      */
-    DEVICE_CUDA_FORCEINLINE void mrc(int * mr, int * x) {
+    DEVICE_CUDA_FORCEINLINE void mrc(volatile int * mr, int * x) {
         for (int i = 0; i < RNS_MODULI_SIZE; i++) {
             mr[i] = x[i];
             for (int j = 0; j < i; j++) {
