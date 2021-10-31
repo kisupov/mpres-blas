@@ -1,5 +1,5 @@
 /*
- *  Common routines for double precision iterative methods
+ *  Common routines for double precision iterative methods on GPU
  *
  *  Copyright 2021 by Konstantin Isupov.
  *
@@ -19,11 +19,11 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DOUBLE_LS_KERNELS_CUH
-#define DOUBLE_LS_KERNELS_CUH
+#ifndef DOUBLE_LS_KERNELS_GPU_CUH
+#define DOUBLE_LS_KERNELS_GPU_CUH
 
 #include "cublas_v2.h"
-#include <cassert>
+#include "cassert"
 
 //Sparse matrix-vector product, y = Ax
 __global__ static void double_spmv_csr_kernel(const int m, const csr_t csr, const double *x, double *y) {
@@ -85,5 +85,4 @@ __global__ void double_invert_kernel(const int n, const double *x, double *y){
     }
 }
 
-
-#endif //DOUBLE_LS_KERNELS_CUH
+#endif //DOUBLE_LS_KERNELS_GPU_CUH

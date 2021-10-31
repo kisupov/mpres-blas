@@ -1,5 +1,5 @@
 # MPRES-BLAS: Multiple-Precision GPU Accelerated Linear Algebra Routines
-###### Version 1.6.0, released 2021-10-12
+###### Version 1.7.0, released 2021-10-31
 
 
 The MPRES-BLAS library implements a number of dense (BLAS-like) and sparse (SpMV) linear algebra operations with [multiple precision](https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic) on CUDA-enabled graphics processing units. The library uses a residue number system ([RNS](https://en.wikipedia.org/wiki/Residue_number_system)) to represent multiple-precision floating-point numbers. Non-positional nature and parallel arithmetic properties make RNS a good tool for high-performance computing on many-core architectures such as GPUs.

@@ -321,9 +321,9 @@ void calc_norm2(const int n, const mpfr_t *x, mpfr_t norm2, const int prec){
 }
 
 /*
- * Prints relative residual, ||Ax-b|| / ||b||, where b = rhs
+ * Prints relative residual, ||Ax-b|| / ||b||
  */
-void print_residual(const int n, const csr_t &csr, const mpfr_t *x, const mpfr_t *rhs) {
+void print_residual(const int n, const csr_t &A, const mpfr_t *x, const mpfr_t *b) {
     int prec = 10 * MP_PRECISION;
     mpfr_t * y = new mpfr_t[n];
     #pragma omp parallel for
@@ -331,17 +331,17 @@ void print_residual(const int n, const csr_t &csr, const mpfr_t *x, const mpfr_t
         mpfr_init2(y[i], prec);
     }
     //1: y = Ax
-    calc_spmv_csr(n, csr.irp, csr.ja, csr.as, x, y, prec);
+    calc_spmv_csr(n, A.irp, A.ja, A.as, x, y, prec);
     //2: y = y - rhs
     for(int i = 0; i < n; i++) {
-        mpfr_sub(y[i], y[i], rhs[i], MPFR_RNDN);
+        mpfr_sub(y[i], y[i], b[i], MPFR_RNDN);
     }
     //3:norms
     mpfr_t norm2x, norm2b;
     mpfr_init2(norm2x, prec);
     mpfr_init2(norm2b, prec);
     calc_norm2(n, y, norm2x, prec);
-    calc_norm2(n, rhs, norm2b, prec);
+    calc_norm2(n, b, norm2b, prec);
     mpfr_div(norm2x, norm2x, norm2b, MPFR_RNDN);
     std::cout << "relative residual: " << mpfr_get_d(norm2x, MPFR_RNDN) << std::endl;
     mpfr_clear(norm2x);
@@ -353,9 +353,9 @@ void print_residual(const int n, const csr_t &csr, const mpfr_t *x, const mpfr_t
 }
 
 /*
- * Prints relative residual, ||Ax-b|| / ||b||, where b = rhs
+ * Prints relative residual, ||Ax-b|| / ||b||
  */
-void print_residual(const int n, const csr_t &csr, const double *x, const double *rhs) {
+void print_residual(const int n, const csr_t &A, const double *x, const double *b) {
     int prec = 4096;
     mpfr_t * mx = new mpfr_t[n];
     mpfr_t * mrhs = new mpfr_t[n];
@@ -364,9 +364,9 @@ void print_residual(const int n, const csr_t &csr, const double *x, const double
         mpfr_init2(mx[i], prec);
         mpfr_init2(mrhs[i], prec);
         mpfr_set_d(mx[i], x[i], MPFR_RNDN);
-        mpfr_set_d(mrhs[i], rhs[i], MPFR_RNDN);
+        mpfr_set_d(mrhs[i], b[i], MPFR_RNDN);
     }
-    print_residual(n, csr, mx, mrhs);
+    print_residual(n, A, mx, mrhs);
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
         mpfr_clear(mx[i]);
@@ -377,27 +377,27 @@ void print_residual(const int n, const csr_t &csr, const double *x, const double
 }
 
 /*
- * Prints relative residual, ||Ax-b|| / ||b||, where b = rhs
+ * Prints relative residual, ||Ax-b|| / ||b||
  */
-void print_residual(const int n, const csr_t &csr, mp_float_ptr x, const double *rhs) {
+void print_residual(const int n, const csr_t &A, mp_float_ptr x, mp_float_ptr b) {
     int prec = 4096;
     mpfr_t * mx = new mpfr_t[n];
-    mpfr_t * mrhs = new mpfr_t[n];
+    mpfr_t * mb = new mpfr_t[n];
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
         mpfr_init2(mx[i], prec);
-        mpfr_init2(mrhs[i], prec);
+        mpfr_init2(mb[i], prec);
         mp_get_mpfr(mx[i], x[i]);
-        mpfr_set_d(mrhs[i], rhs[i], MPFR_RNDN);
+        mp_get_mpfr(mb[i], b[i]);
     }
-    print_residual(n, csr, mx, mrhs);
+    print_residual(n, A, mx, mb);
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
         mpfr_clear(mx[i]);
-        mpfr_clear(mrhs[i]);
+        mpfr_clear(mb[i]);
     }
     delete [] mx;
-    delete [] mrhs;
+    delete [] mb;
 }
 
 #endif //MPRES_TEST_TSTHELPER_CUH

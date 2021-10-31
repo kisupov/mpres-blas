@@ -19,53 +19,43 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_CGCSRLS_CUH
-#define TEST_MPRES_CGCSRLS_CUH
+#ifndef TEST_MPRES_CG_CSR_CUH
+#define TEST_MPRES_CG_CSR_CUH
 
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
 #include "../../timers.cuh"
-#include "sparse/cgcsrls/cgcsrls.cuh"
+#include "sparse/solver/cg_csr.cuh"
 
 
-void test_mpres_cgcsrls(const int n, const int nnz, const csr_t &matrix, const double * rhs, const double tol, const double maxit) {
+void test_mpres_cg_csr(const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS CG solver (mp_cgcsrls)");
-    //Execution configuration
-    printf("\tExec. config: blocks = %i, threads = %i, blocks for dot product and norm2 = %i\n", (n / THREADS + 1), THREADS, BLOCKS_SCALAR);
+    PrintTimerName("[GPU] MPRES-BLAS CG CSR solver (mp_cg_csr)");
     //Host data
     auto hx = new mp_float_t[n];
-    // GPU vectors
-    mp_float_ptr drhs;
-    mp_float_ptr dx;
-    mp_float_ptr dr;
-    mp_float_ptr dp;
-    mp_float_ptr dq;
-    cudaMalloc(&drhs, sizeof(mp_float_t) * n);
-    cudaMalloc(&dx, sizeof(mp_float_t) * n);
-    cudaMalloc(&dr, sizeof(mp_float_t) * n);
-    cudaMalloc(&dp, sizeof(mp_float_t) * n);
-    cudaMalloc(&dq, sizeof(mp_float_t) * n);
-    //Initial guess
+    auto hb = new mp_float_t[n];
+    std::vector<double> resvec;
+    //Set solution to zero and right-hand-side vector to 1
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
         mp_set(&hx[i], MP_ZERO);
+        mp_set(&hb[i], 1, 0, 0);
     }
+    // GPU vectors
+    mp_float_ptr dx;
+    mp_float_ptr db;
+    cudaMalloc(&dx, sizeof(mp_float_t) * n);
+    cudaMalloc(&db, sizeof(mp_float_t) * n);
     cudaMemcpy(dx, hx, sizeof(mp_float_t) * n, cudaMemcpyHostToDevice);
-    //Right-hand-side vector
-    #pragma omp parallel for
-    for(int i = 0; i < n; i++){
-        mp_set_d(&hx[i], rhs[i]);
-    }
-    cudaMemcpy(drhs, hx, sizeof(mp_float_t) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(db, hb, sizeof(mp_float_t) * n, cudaMemcpyHostToDevice);
     //GPU matrix
-    csr_t dmatrix;
-    cuda::csr_init(dmatrix, n, nnz);
-    cuda::csr_host2device(dmatrix, matrix, n, nnz);
+    csr_t dA;
+    cuda::csr_init(dA, n, nnz);
+    cuda::csr_host2device(dA, A, n, nnz);
     //Launch
     StartCudaTimer();
-    int iters = mp_cgcsrls(n, dmatrix, drhs, dx, dr, dp, dq, tol, maxit)
+    int iters = mp_cg_csr(n, dA, db, tol, maxit, dx, resvec);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -73,15 +63,15 @@ void test_mpres_cgcsrls(const int n, const int nnz, const csr_t &matrix, const d
     //Copying to the host
     cudaMemcpy(hx, dx, sizeof(mp_float_t) * n, cudaMemcpyDeviceToHost);
     std::cout << "iterations: " << iters << std::endl;
-    print_residual(n, matrix, hx, rhs);
+    print_residual(n, A, hx, hb);
     //Cleanup
     delete [] hx;
-    cudaFree(drhs);
+    delete [] hb;
     cudaFree(dx);
-    cudaFree(dr);
-    cudaFree(dp);
-    cudaFree(dq);
-    cuda::csr_clear(dmatrix);
+    cudaFree(db);
+    cuda::csr_clear(dA);
+    resvec.clear();
+    resvec.shrink_to_fit();
 }
 
-#endif //TEST_MPRES_CGCSRLS_CUH
+#endif //TEST_MPRES_CG_CSR_CUH

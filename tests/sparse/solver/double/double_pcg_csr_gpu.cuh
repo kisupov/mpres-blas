@@ -1,7 +1,7 @@
 /*
- *  Test for double precision unpreconditioned CG linear solver using CSR
+ *  Preconditioned double precision CG iterative method for solving linear systems using the CSR matrix storage format
  *
- *  Copyright 2021 by Konstantin Isupov.
+ *  Copyright 2021 by Konstantin Isupov
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -19,19 +19,20 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_DOUBLE_CGCSRLS_CUH
-#define TEST_DOUBLE_CGCSRLS_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "double_ls_kernels.cuh"
+#ifndef DOUBLE_PCG_CSR_GPU_CUH
+#define DOUBLE_PCG_CSR_GPU_CUH
 
+#include "double_ls_kernels_gpu.cuh"
+#include "sparse/msparse_enum.cuh"
+
+/////////
+// Preconditioned double precision CG iterative method using diagonal (Jacobi) preconditioner
+/////////
 /**
- * Unpreconditioned double precision conjugate gradient linear solver, Ax = b
+ * Preconditioned double precision conjugate gradient linear solver, Ax = b
  * ASSUMPTIONS: The appropriate memory has been allocated and set to zero.
  * The relative residual or maximum number of iterations are used as a stopping criteria: ||r_k|| <= ||r_0|| * tol or k > maxiter
- *
  * @param n - operation size
  * @param matrix - matrix A in gpu memory
  * @param rhs - right-hand side vector b in gpu memory
@@ -39,11 +40,17 @@
  * @param r - residual vector in gpu memory
  * @param p - search direction vector
  * @param q - matrix-vector product in gpu memory
+ * @param z - preconditioning vector
+ * @param precond - inverted main diagonal of A (Jacobi preconditioner M = diag(A) and precond = M^{-1} to eliminate division)
  * @param tol - tolerance
  * @param maxit - maximum number of iterations
  */
-int double_cgcsrls(const int n, const csr_t &matrix, const double *rhs, double *x, double *r, double *p, double *q, const double tol, const double maxit, int blocks, int threads){
+int double_pcg_csr(const int n, const csr_t &A, double * b, const double tol, const int maxit, enum preconditioner_type ptype, double *M, double * x, std::vector<double> resvec, int blocks, int threads){
     //variables
+    double *r;
+    double *p;
+    double *q;
+    double *z;
     double epsilon = 0;     //stopping critera
     double norm0 = 0;       //norm 2 of the initial residual, r0
     double normk = 0;       //norm 2 of the kth residual, rk
@@ -61,91 +68,55 @@ int double_cgcsrls(const int n, const csr_t &matrix, const double *rhs, double *
         printf ("cuBLAS initialization failed\n");
         return 0;
     }
+    //Allocate memory
+    cudaMalloc(&r, sizeof(double) * n);
+    cudaMalloc(&p, sizeof(double) * n);
+    cudaMalloc(&q, sizeof(double) * n);
+    cudaMalloc(&z, sizeof(double) * n);
+
     //1: compute initial residual r = b − Ax (using initial guess in x)
-    double_spmv_csr_kernel<<<blocks, threads>>>(n, matrix, x, r);
-    double_diff_kernel<<<blocks, threads>>>(n, rhs, r, r);
+    /*double_spmv_csr_kernel<<<blocks, threads>>>(n, A, x, r);
+    double_diff_kernel<<<blocks, threads>>>(n, b, r, r);*/
+
+    //Initial residual r = b
+    double_copy_kernel<<<blocks, threads>>>(n, b, r); //r = b
     //compute  and update epsilon
     cublasDnrm2(handle, n, r, 1, &norm0); // initial residual norm, norm0 = ||r||
     epsilon = norm0 * tol; //stopping criteria (based on relative residual)
     normk = norm0; //to exit if r = 0
+    resvec.push_back(normk/norm0);
     //2: repeat until convergence (based on max. it. and relative residual)
     while(normk > epsilon && k < maxit){
+        //3: preconditioning
+        if(ptype == diag){
+            //Solve Mz = r -> z = M^{-1} r and this is simple component-wise vector product.
+            //In this case, it is assumed that M already contains the reciprocals of the main diagonal of A.
+            double_prod_kernel<<<blocks, threads>>>(n, r, M, z);
+        }
         rhop = rho;
-        cublasDdot(handle, n, r, 1, r, 1, &rho); //rho = r^{T} r
+        cublasDdot(handle, n, r, 1, z, 1, &rho); //rho = r^{T} z
         if(k == 0){
-            double_copy_kernel<<<blocks, threads>>>(n, r, p); //p = r
+            double_copy_kernel<<<blocks, threads>>>(n, z, p); //p = z
         } else{
             beta = rho / rhop; //beta = rho_{k-1} / rho_{k-2}
-            double_axpy_kernel<<<blocks, threads>>>(n, beta, p, r, p); // pk = r_{k−1} + β_{k−1} * p_{k−1}
+            double_axpy_kernel<<<blocks, threads>>>(n, beta, p, z, p); // pk = z_{k−1} + β_{k−1} * p_{k−1}
         }
-        double_spmv_csr_kernel<<<blocks, threads>>>(n, matrix, p, q);
+        double_spmv_csr_kernel<<<blocks, threads>>>(n, A, p, q);
         cublasDdot(handle, n, p, 1, q, 1, &pqDot); //pqDot = p^{T} q
         alpha = rho / pqDot;
         double_axpy_kernel<<<blocks, threads>>>(n, alpha, p, x, x); // xk = x_{k−1} + α_k * p_k
         double_axpy_kernel<<<blocks, threads>>>(n, -alpha, q, r, r); // rk = r_{k−1} − α_k * q_k
-        cublasDnrm2(handle, n, r, 1, &normk); // current residual norm,
+        cublasDnrm2(handle, n, r, 1, &normk); // current residual norm
+        resvec.push_back(normk/norm0);
         k++;
     }
     //3: cleanup
     cublasDestroy (handle);
+    cudaFree(r);
+    cudaFree(p);
+    cudaFree(q);
+    cudaFree(z);
     return k;
 }
 
-void test_double_cgcsrls(const int n, const int nnz, const csr_t &matrix, const double * rhs, const double tol, const double maxit) {
-    InitCudaTimer();
-    Logger::printDash();
-    PrintTimerName("[GPU] double CG solver (CSR)");
-
-    //Execution configuration
-    int threads = 32;
-    int blocks = n / threads + 1;
-    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
-
-    //Host data
-    auto *hx = new double[n]; //Initial guess
-    for(int i = 0; i < n; i++){
-        hx[i] = 0;
-    }
-
-    // GPU vectors
-    double *drhs;
-    double *dx;
-    double *dr;
-    double *dp;
-    double *dq;
-    cudaMalloc(&drhs, sizeof(double) * n);
-    cudaMalloc(&dx, sizeof(double) * n);
-    cudaMalloc(&dr, sizeof(double) * n);
-    cudaMalloc(&dp, sizeof(double) * n);
-    cudaMalloc(&dq, sizeof(double) * n);
-    cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(drhs, rhs, sizeof(double) * n, cudaMemcpyHostToDevice);
-
-    //GPU matrix
-    csr_t dmatrix;
-    cuda::csr_init(dmatrix, n, nnz);
-    cuda::csr_host2device(dmatrix, matrix, n, nnz);
-
-    //Launch
-    StartCudaTimer();
-    int iters = double_cgcsrls(n, dmatrix, drhs, dx, dr, dp, dq, tol, maxit, blocks, threads)
-    EndCudaTimer();
-    PrintCudaTimer("took");
-    checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors();
-
-    //Copying to the host
-    cudaMemcpy(hx, dx, sizeof(double) * n, cudaMemcpyDeviceToHost);
-    std::cout << "iterations: " << iters << std::endl;
-    print_residual(n, matrix, hx, rhs);
-
-    delete [] hx;
-    cudaFree(drhs);
-    cudaFree(dx);
-    cudaFree(dr);
-    cudaFree(dp);
-    cudaFree(dq);
-    cuda::csr_clear(dmatrix);
-}
-
-#endif //TEST_DOUBLE_CGCSRLS_CUH
+#endif //DOUBLE_PCG_CSR_GPU_CUH

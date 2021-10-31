@@ -42,6 +42,21 @@ namespace cuda
         }
     }
 
+    /*!
+ * Computes a component-wise vector multiplication, r = x * y
+ * @param n - operation size (must be positive)
+ * @param x - multiple-precision input vector in the GPU memory.
+ * @param y - multiple-precision input vector in the GPU memory.
+ * @param r - multiple-precision result vector in the GPU memory (if y needs to be updated, just pass y instead of r)
+ */
+    __global__ void mp_prod_d(const int n, mp_float_ptr x, double * y, mp_float_ptr r) {
+        auto i = threadIdx.x + blockIdx.x * blockDim.x;
+        while(i < n){
+            cuda::mp_mul_d(&r[i], x[i], y[i]);
+            i += gridDim.x * blockDim.x;
+        }
+    }
+
 } // namespace cuda
 
 #endif //MPRES_PROD_V2_CUH

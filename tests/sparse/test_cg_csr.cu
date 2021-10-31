@@ -24,50 +24,31 @@
 #include "logger.cuh"
 #include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/csr_utils.cuh"
-#include "sparse/cgcsrls/test_double_cgcsrls.cuh"
-#include "sparse/cgcsrls/test_double_pcgcsrls_jacobi.cuh"
-#include "sparse/cgcsrls/test_mpres_cgcsrls.cuh"
-#include "sparse/cgcsrls/test_mpres_pcgcsrls_jacobi.cuh"
-
-int INP_BITS; //in bits
-int INP_DIGITS; //in decimal digits
-
-void setPrecisions() {
-    INP_BITS = (int) (MP_PRECISION / 4);
-    INP_DIGITS = (int) (INP_BITS / 3.32 + 1);
-}
+#include "sparse/solver/test_double_cg_csr.cuh"
+#include "sparse/solver/test_double_pcg_diag_csr.cuh"
+#include "sparse/solver//test_mpres_cg_csr.cuh"
+#include "sparse/solver//test_mpres_pcg_diag_csr.cuh"
 
 void initialize() {
     cudaDeviceReset();
     rns_const_init();
     mp_const_init();
-    setPrecisions();
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 }
 
-void finalize() {
-}
-
 void test(const char * MATRIX_PATH, const int N, const int LINES, const int NNZ, const bool SYMM, const string DATATYPE, const double TOL, const int MAXIT) {
-    //Inputs
-    auto *rhs = new double[N]; //right-hand-side vector
-    for(int i = 0; i < N; i++){
-        rhs[i] = 1;
-    }
     csr_t CSR;
     csr_init(CSR, N, NNZ);
     //Convert a sparse matrix to the double-precision CSR format
     build_csr(MATRIX_PATH, N, NNZ, LINES, SYMM, CSR);
     //Launch tests
-    test_double_cgcsrls(N, NNZ, CSR, rhs, TOL, MAXIT);
-    test_double_pcgcsrls_jacobi(N, NNZ, CSR, rhs, TOL, MAXIT);
-    //test_mpres_cgcsrls(N, NNZ, CSR, rhs, TOL, MAXIT);
-    test_mpres_pcgcsrls_jacobi(N, NNZ, CSR, rhs, TOL, MAXIT);
+    test_double_cg_csr(N, NNZ, CSR, TOL, MAXIT);
+    test_double_pcg_diag_csr(N, NNZ, CSR, TOL, MAXIT);
+    test_mpres_cg_csr(N, NNZ, CSR, TOL, MAXIT);
+    test_mpres_pcg_diag_csr(N, NNZ, CSR, TOL, MAXIT);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors(); //CUMP gives failure
-    //Cleanup
-    delete[] rhs;
     csr_clear(CSR);
     cudaDeviceReset();
 }
@@ -84,11 +65,8 @@ int main(int argc, char *argv[]) {
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary
     const double TOL = 1e-12;
     const int MAXIT = 20000;
-
     initialize();
-
-    //Start logging
-    Logger::beginTestDescription(Logger::CGCSRLS_TEST);
+    Logger::beginTestDescription(Logger::CG_CSR_TEST);
     if(argc<=1) {
         printf("Matrix is not specified in command line arguments.");
         Logger::printSpace();
@@ -96,7 +74,6 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     const char * MATRIX_PATH = argv[1];
-
     Logger::beginSection("Matrix properties:");
     Logger::printParam("Path", MATRIX_PATH);
     collect_mtx_stats(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);
@@ -111,19 +88,10 @@ int main(int argc, char *argv[]) {
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
     Logger::printParam("MP_PRECISION", MP_PRECISION);
-    //Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::printParam("TOLERANCE", TOL);
     Logger::printParam("MAXIT", MAXIT);
     Logger::endSection(true);
-
-    //Run the test
     test(MATRIX_PATH, N, LINES, NNZ, SYMM, DATATYPE, TOL, MAXIT);
-
-    //Finalize
-    finalize();
-
-    //End logging
     Logger::endTestDescription();
-
     return 0;
 }

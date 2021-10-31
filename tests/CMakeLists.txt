@@ -247,6 +247,12 @@ add_executable(test_spmv_dia_performance sparse/test_spmv_dia_performance.cu)
 target_compile_options(test_spmv_dia_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_spmv_dia_performance gmp mpfr OpenMP::OpenMP_CXX cump taco)
 
+# Accuracy test for SpMV in CSR format
+add_executable(test_spmv_csr_accuracy sparse/test_spmv_csr_accuracy.cu)
+target_compile_options(test_spmv_csr_accuracy PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv_csr_accuracy gmp mpfr OpenMP::OpenMP_CXX)
+
+
 #########################
 ## Benchmarks for SpMV routines with multiple-precision matrix
 #########################
@@ -274,6 +280,6 @@ target_link_libraries(test_spmv_mpmtx_jad_performance gmp mpfr OpenMP::OpenMP_CX
 #########################
 ## Benchmarks for iterative linear solvers
 #########################
-add_executable(test_cgcsrls sparse/test_cgcsrls.cu)
-target_compile_options(test_cgcsrls PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_cgcsrls gmp mpfr OpenMP::OpenMP_CXX cublas)
+add_executable(test_cg_csr sparse/test_cg_csr.cu)
+target_compile_options(test_cg_csr PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_cg_csr gmp mpfr OpenMP::OpenMP_CXX cublas)

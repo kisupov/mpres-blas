@@ -405,4 +405,19 @@ void build_ell(const char filename[], const int m, const int maxnzr, const int l
     file.close();
 }
 
+/*!
+ * Reads double-precision vector from file
+ * @param filename - path to the file with the array
+ * @param n - size of vector
+ * @param vector - reference to the memory to be written
+ */
+void read_vector(const char filename[], const int n, double * vector) {
+    std::ifstream file(filename);
+    for (int l = 0; l < n; l++) {
+        file >> vector[l];
+    }
+    file.close();
+}
+
+
 #endif //MPRES_MTX_READER_CUH
