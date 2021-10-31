@@ -34,7 +34,7 @@
  * @param b - right-hand side vector in gpu memory
  * @param tol - tolerance
  * @param maxit - maximum number of iterations
- * @param x - linear system solution
+ * @param x - initial residual and linear system solution
  * @param resvec - residual error returned as vector (residual history)
  * @return number of iterations
  */
@@ -65,11 +65,8 @@ int double_cg_csr(const int n, const csr_t &A, const double *b, const double tol
     cudaMalloc(&p, sizeof(double) * n);
     cudaMalloc(&q, sizeof(double) * n);
     //1: compute initial residual r = b − Ax (using initial guess in x)
-    /* double_spmv_csr_kernel<<<blocks, threads>>>(n, A, x, r);
-    double_diff_kernel<<<blocks, threads>>>(n, b, r, r);*/
-
-    //Initial residual r = b
-    double_copy_kernel<<<blocks, threads>>>(n, b, r); //r = b
+    double_spmv_csr_kernel<<<blocks, threads>>>(n, A, x, r);
+    double_diff_kernel<<<blocks, threads>>>(n, b, r, r);
     //compute  and update epsilon
     cublasDnrm2(handle, n, r, 1, &norm0); // initial residual norm, norm0 = ||r||
     epsilon = norm0 * tol; //stopping criteria (based on relative residual)

@@ -37,7 +37,6 @@
  * TODO: Current timings is suboptimal, for convergence and numerical robustness studies only
  * ASSUMPTIONS:
  * - The appropriate GPU memory for x has been allocated and set to zero.
- * - The initial guess is assumed to be zero
  * - The relative residual or maximum number of iterations are used as a stopping criteria: ||r_k|| <= ||r_0|| * tol or k > maxiter
  * @tparam threads - number of threads fo cuda kernels
  * @tparam blocks_reduce - number of blocks for norm2 and dot product (reduction operations)
@@ -46,11 +45,11 @@
  * @param b - right-hand side vector in gpu memory
  * @param tol - tolerance
  * @param maxit - maximum number of iterations
- * @param x - linear system solution
+ * @param x - initial residual and linear system solution
  * @param resvec - residual error returned as vector (residual history)
  * @return number of iterations
  */
-template <int threads = 32, int blocks_reduce = 256>
+template <int threads = 64, int blocks_reduce = 256>
 int mp_cg_csr(const int n, const csr_t &A, mp_float_ptr b, const double tol, const int maxit, mp_float_ptr x, std::vector<double> resvec){
     const int blocks = n / threads + 1;
     //Variables
@@ -75,13 +74,9 @@ int mp_cg_csr(const int n, const csr_t &A, mp_float_ptr b, const double tol, con
     cudaMalloc(&alpha, sizeof(mp_float_t));
     cudaMalloc(&beta, sizeof(mp_float_t));
     cudaMalloc(&pqDot, sizeof(mp_float_t));
-    /*
-     Compute initial residual r = b − Ax (using initial guess in x):
-     cuda::mp_spmv_csr<THREADS><<<BLOCKS, THREADS>>>(n, A, x, r);
-     cuda::mp_diff<<<BLOCKS, THREADS>>>(n, b, r, r);
-    */
-    //Initial residual r = b
-    checkDeviceHasErrors(cudaMemcpy(r, b, sizeof(mp_float_t) * n, cudaMemcpyDeviceToDevice));
+    //Initial residual r = b − Ax (using initial guess in x):
+    cuda::mp_spmv_csr<threads><<<blocks, threads>>>(n, A, x, r);
+    cuda::mp_diff<<<blocks, threads>>>(n, b, r, r);
     //Initial residual norm ||r||
     norm0 = cuda::mp_norm2<blocks_reduce, threads>(n, r);
     //Calc stopping criteria

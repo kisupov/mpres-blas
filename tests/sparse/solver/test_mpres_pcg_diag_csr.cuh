@@ -42,7 +42,7 @@ void test_mpres_pcg_diag_csr(const int n, const int nnz, const csr_t &A, const d
     mdiag(A, n, hM); //hM = main diagonal of A
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
-        mp_set(&hx[i], MP_ZERO);
+        mp_set(&hx[i], MP_ZERO); //initial residual
         mp_set(&hb[i], 1, 0, 0);
         assert(hM[i] != 0.0);
         hM[i] = 1.0 / hM[i]; //reciprocals

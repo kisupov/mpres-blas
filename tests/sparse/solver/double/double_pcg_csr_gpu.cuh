@@ -30,20 +30,23 @@
 // Preconditioned double precision CG iterative method using diagonal (Jacobi) preconditioner
 /////////
 /**
- * Preconditioned double precision conjugate gradient linear solver, Ax = b
- * ASSUMPTIONS: The appropriate memory has been allocated and set to zero.
- * The relative residual or maximum number of iterations are used as a stopping criteria: ||r_k|| <= ||r_0|| * tol or k > maxiter
+ * Preconditioned double precision conjugate gradient linear solver (Ax = b) using CSR for storing the matrix
+ * ASSUMPTIONS:
+ * - The appropriate GPU memory for x has been allocated and set to zero.
+ * - The relative residual or maximum number of iterations are used as a stopping criteria: ||r_k|| <= ||r_0|| * tol or k > maxiter
+ * - When the diagonal (Jacobi) preconditioner is used (ptype = diag), M should contain the INVERTED main diagonal of A
+ * @tparam threads - number of threads fo cuda kernels
+ * @tparam blocks_reduce - number of blocks for norm2 and dot product (reduction operations)
  * @param n - operation size
- * @param matrix - matrix A in gpu memory
- * @param rhs - right-hand side vector b in gpu memory
- * @param x - initial guess, overwritten by the solution; before entry, x should be set to some value, typical x = 0; in gpu memory
- * @param r - residual vector in gpu memory
- * @param p - search direction vector
- * @param q - matrix-vector product in gpu memory
- * @param z - preconditioning vector
- * @param precond - inverted main diagonal of A (Jacobi preconditioner M = diag(A) and precond = M^{-1} to eliminate division)
+ * @param A - sparse double-precision matrix in the CSR storage format
+ * @param b - right-hand side vector in gpu memory
  * @param tol - tolerance
  * @param maxit - maximum number of iterations
+ * @param ptype - type of preconditioner
+ * @param M - preconditioner matrix
+ * @param x - initial residual and linear system solution
+ * @param resvec - residual error returned as vector (residual history)
+ * @return number of iterations
  */
 int double_pcg_csr(const int n, const csr_t &A, double * b, const double tol, const int maxit, enum preconditioner_type ptype, double *M, double * x, std::vector<double> resvec, int blocks, int threads){
     //variables
@@ -75,11 +78,8 @@ int double_pcg_csr(const int n, const csr_t &A, double * b, const double tol, co
     cudaMalloc(&z, sizeof(double) * n);
 
     //1: compute initial residual r = b − Ax (using initial guess in x)
-    /*double_spmv_csr_kernel<<<blocks, threads>>>(n, A, x, r);
-    double_diff_kernel<<<blocks, threads>>>(n, b, r, r);*/
-
-    //Initial residual r = b
-    double_copy_kernel<<<blocks, threads>>>(n, b, r); //r = b
+    double_spmv_csr_kernel<<<blocks, threads>>>(n, A, x, r);
+    double_diff_kernel<<<blocks, threads>>>(n, b, r, r);
     //compute  and update epsilon
     cublasDnrm2(handle, n, r, 1, &norm0); // initial residual norm, norm0 = ||r||
     epsilon = norm0 * tol; //stopping criteria (based on relative residual)

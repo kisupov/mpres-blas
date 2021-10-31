@@ -39,7 +39,7 @@ void test_mpres_cg_csr(const int n, const int nnz, const csr_t &A, const double 
     //Set solution to zero and right-hand-side vector to 1
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
-        mp_set(&hx[i], MP_ZERO);
+        mp_set(&hx[i], MP_ZERO); //initial residual
         mp_set(&hb[i], 1, 0, 0);
     }
     // GPU vectors
