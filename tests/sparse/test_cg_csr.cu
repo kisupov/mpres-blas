@@ -63,8 +63,7 @@ int main(int argc, char *argv[]) {
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary
-    const double TOL = 1e-12;
-    const int MAXIT = 20000;
+    const double TOL = 1e-6;
     initialize();
     Logger::beginTestDescription(Logger::CG_CSR_TEST);
     if(argc<=1) {
@@ -74,6 +73,8 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     const char * MATRIX_PATH = argv[1];
+    const int MAXIT = atoi(argv[2]);
+
     Logger::beginSection("Matrix properties:");
     Logger::printParam("Path", MATRIX_PATH);
     collect_mtx_stats(MATRIX_PATH, M, N, LINES, MAXNZR, NZMD, SYMM, DATATYPE);

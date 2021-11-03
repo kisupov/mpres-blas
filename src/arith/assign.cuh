@@ -75,6 +75,9 @@ GCC_FORCEINLINE void mp_set_d(mp_float_ptr result, const double x) {
         exp = 0;
     }
     mp_set(result, significand, exp, sign);
+    if (result->eval[1].frac != 0 && result->eval[1].exp >= MP_H) {
+        mp_round(result, mp_get_rnd_bits(result));
+    }
 }
 
 /*!

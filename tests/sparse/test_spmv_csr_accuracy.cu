@@ -65,36 +65,14 @@ void test(const char * MATRIX_PATH, const char * VECTOR_PATH, const int M, const
     norm2(exact_norm, exact, M);
     //Compute condition number of the SpMV
     spmv_condition_number(cond, M, CSR.irp, CSR.ja, CSR.as, vectorX, exact_norm);
-    mpfr_printf("SpMV condition number: %.25Re\n", cond);
-
-    /**
-     * Test MPRES-BLAS
-     */
-
-    Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS CSR (mp_spmv_csr)");
-
-    test_mpres_spmv_csr_accuracy(M, N, NNZ, MAXNZR, CSR, vectorX, vectorY);
-    //print_mpfr_sum(vectorY, M);
-
-    //Compute unit roundoff
-    unit_roundoff_mpres(u);
-    mpfr_printf("- Unit roundoff:\t\t\t %.25Re\n", u);
-
-    //Compute error bound = gamma * cond
-    gamma(g, u, MAXNZR);
-    mpfr_mul(g, g, cond, MPFR_RNDN);
-    mpfr_printf("- Relative error bound:\t\t %.25Re\n", g);
-
-    //Compute actual relative error
-    spmv_relative_residual(residual, M, vectorY, exact, exact_norm);
-    mpfr_printf("- Actual relative residual:\t %.25Re\n", residual);
+    mpfr_printf("SpMV condition number: %.2Re\n", cond);
 
     /**
      * Test double
      */
     Logger::printDash();
     PrintTimerName("[GPU] double CSR");
+    #pragma omp parallel for
     for(int i = 0; i < M; i++){
         mpfr_set_d(vectorY[i], 0, MPFR_RNDN);
     }
@@ -103,16 +81,42 @@ void test(const char * MATRIX_PATH, const char * VECTOR_PATH, const int M, const
 
     //Compute unit roundoff
     unit_roundoff_double(u);
-    mpfr_printf("- Unit roundoff:\t\t\t %.25Re\n", u);
+    mpfr_printf("- Unit roundoff:           %.2Re\n", u);
 
     //Compute error bound = gamma * cond
     gamma(g, u, MAXNZR);
     mpfr_mul(g, g, cond, MPFR_RNDN);
-    mpfr_printf("- Relative error bound:\t\t %.25Re\n", g);
+    mpfr_printf("- Relative error bound:    %.2Re\n", g);
 
     //Compute actual relative error
     spmv_relative_residual(residual, M, vectorY, exact, exact_norm);
-    mpfr_printf("- Actual relative residual:\t %.25Re\n", residual);
+    mpfr_printf("- Actual relative error:   %.2Re\n", residual);
+
+    /**
+     * Test MPRES-BLAS
+     */
+
+    Logger::printDash();
+    PrintTimerName("[GPU] MPRES-BLAS CSR (mp_spmv_csr)");
+    #pragma omp parallel for
+    for(int i = 0; i < M; i++){
+        mpfr_set_d(vectorY[i], 0, MPFR_RNDN);
+    }
+    test_mpres_spmv_csr_accuracy(M, N, NNZ, MAXNZR, CSR, vectorX, vectorY);
+    //print_mpfr_sum(vectorY, M);
+
+    //Compute unit roundoff
+    unit_roundoff_mpres(u);
+    mpfr_printf("- Unit roundoff:           %.2Re\n", u);
+
+    //Compute error bound = gamma * cond
+    gamma(g, u, MAXNZR);
+    mpfr_mul(g, g, cond, MPFR_RNDN);
+    mpfr_printf("- Relative error bound:    %.2Re\n", g);
+
+    //Compute actual relative error
+    spmv_relative_residual(residual, M, vectorY, exact, exact_norm);
+    mpfr_printf("- Actual relative error:   %.2Re\n", residual);
 
     //Cleanup
     mpfr_clear(exact_norm);

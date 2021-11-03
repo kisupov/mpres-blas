@@ -49,7 +49,7 @@
  * @param resvec - residual error returned as vector (residual history)
  * @return number of iterations
  */
-template <int threads = 64, int blocks_reduce = 256>
+template <int threads = 32, int blocks_reduce = 256>
 int mp_cg_csr(const int n, const csr_t &A, mp_float_ptr b, const double tol, const int maxit, mp_float_ptr x, std::vector<double> resvec){
     const int blocks = n / threads + 1;
     //Variables

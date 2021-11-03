@@ -25,13 +25,8 @@
 #include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/csr_utils.cuh"
 #include "sparse/csr/test_mpfr_spmv_csr.cuh"
-#include "sparse/csr/test_mpres_spmv_csr.cuh"
-#include "sparse/csr/test_mpres_spmv_csrv.cuh"
-#include "sparse/csr/test_campary_spmv_csr.cuh"
-#include "sparse/csr/test_campary_spmv_csrv.cuh"
-#include "sparse/csr/test_cump_spmv_csr.cuh"
 #include "sparse/csr/test_double_spmv_csr.cuh"
-#include "sparse/csr/test_taco_spmv_csr.cuh"
+#include "sparse/csr/test_mpres_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits
@@ -63,21 +58,8 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     //Launch tests
     test_mpfr_spmv_csr(M, N, NNZ, CSR, vectorX, MP_PRECISION);
     test_double_spmv_csr(M, N, NNZ, CSR, vectorX);
-    test_taco_spmv_csr(MATRIX_PATH, vectorX, DATATYPE);
     Logger::printStars();
     test_mpres_spmv_csr(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_csrv<2>(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_csrv<4>(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_csrv<8>(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_csrv<16>(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_csrv<32>(M, N, NNZ, CSR, vectorX);
-    Logger::printStars();
-    test_campary_spmv_csr<CAMPARY_PRECISION>(M, N, NNZ, CSR, vectorX, INP_DIGITS);
-    test_campary_spmv_csrv<CAMPARY_PRECISION, 4>(M, N, NNZ, CSR, vectorX, INP_DIGITS);
-    test_campary_spmv_csrv<CAMPARY_PRECISION, 16>(M, N, NNZ, CSR, vectorX, INP_DIGITS);
-    test_campary_spmv_csrv<CAMPARY_PRECISION, 32>(M, N, NNZ, CSR, vectorX, INP_DIGITS);
-    Logger::printStars();
-    test_cump_spmv_csr(M, N, NNZ, CSR, vectorX, MP_PRECISION, INP_DIGITS);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     // cudaCheckErrors(); //CUMP gives failure
 
@@ -129,7 +111,6 @@ int main(int argc, char *argv[]) {
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
     Logger::printParam("MP_PRECISION", MP_PRECISION);
-    Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
 
     //Run the test
