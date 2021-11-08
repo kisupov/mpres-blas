@@ -114,10 +114,10 @@ void evaluateMemoryConsumption(const char * MATRIX_PATH, const int M, const int 
     printMemoryConsumption("CAMPARY JAD", get_dbl_jad_memory_consumption(M, N, NNZ, MAXNZR), get_campary_array_size_in_mb<CAMPARY_PRECISION>(M+N));
     Logger::printDash();
     printMemoryConsumption("CAMPARY ELLPACK", get_dbl_ell_memory_consumption(M, MAXNZR), get_campary_array_size_in_mb<CAMPARY_PRECISION>(M+N));
-    if(TEST_DIA) {
+    /*if(TEST_DIA) {
         Logger::printDash();
         printMemoryConsumption("CAMPARY DIA", get_dbl_dia_memory_consumption(M, ndiag),get_campary_array_size_in_mb<CAMPARY_PRECISION>(M + N));
-    }
+    }*/
     //CUMP
     Logger::printDDash();
     printMemoryConsumption("CUMP CSR", get_cump_csr_memory_consumption(M, NNZ, MP_PRECISION), get_cump_array_size_in_mb(M+N+M, MP_PRECISION));
@@ -125,10 +125,10 @@ void evaluateMemoryConsumption(const char * MATRIX_PATH, const int M, const int 
     printMemoryConsumption("CUMP JAD", get_cump_jad_memory_consumption(M, N, NNZ, MAXNZR, MP_PRECISION), get_cump_array_size_in_mb(M+N+M, MP_PRECISION));
     Logger::printDash();
     printMemoryConsumption("CUMP ELLPACK", get_cump_ell_memory_consumption(M, MAXNZR, MP_PRECISION), get_cump_array_size_in_mb(M+N+M, MP_PRECISION));
-    if(TEST_DIA) {
+    /*if(TEST_DIA) {
         Logger::printDash();
         printMemoryConsumption("CUMP DIA", get_cump_dia_memory_consumption(M, ndiag, MP_PRECISION), get_cump_array_size_in_mb(M+N+M, MP_PRECISION));
-    }
+    }*/
     Logger::printDDash();
     Logger::printSpace();
 }
@@ -176,8 +176,8 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
 
     //CSR
     test_mpres_spmv_csr(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_csrv<2>(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_csrv<8>(M, N, NNZ, CSR, vectorX);
+    test_mpres_spmv_csrv<4>(M, N, NNZ, CSR, vectorX);
+    test_mpres_spmv_csrv<16>(M, N, NNZ, CSR, vectorX);
     test_mpres_spmv_csrv<32>(M, N, NNZ, CSR, vectorX);
     csr_clear(CSR);
 
@@ -185,9 +185,9 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     jad_init(JAD, M, MAXNZR, NNZ);
     build_jad(MATRIX_PATH, M, MAXNZR, NNZ, LINES, SYMM, JAD);
     test_mpres_spmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
-    test_mpres_spmv_jadv<2>(M, N, MAXNZR, NNZ, JAD, vectorX);
+/*  test_mpres_spmv_jadv<2>(M, N, MAXNZR, NNZ, JAD, vectorX);
     test_mpres_spmv_jadv<8>(M, N, MAXNZR, NNZ, JAD, vectorX);
-    test_mpres_spmv_jadv<32>(M, N, MAXNZR, NNZ, JAD, vectorX);
+    test_mpres_spmv_jadv<32>(M, N, MAXNZR, NNZ, JAD, vectorX);  */
     jad_clear(JAD);
 
     //ELLPACK
@@ -234,12 +234,12 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     ell_clear(ELL);
 
     //DIA
-    if(TEST_DIA) {
+    /*if(TEST_DIA) {
         dia_init(DIA, M, NDIAG);
         build_dia(MATRIX_PATH, M, LINES, SYMM, DIA);
         test_campary_spmv_dia<CAMPARY_PRECISION>(M, N, NDIAG, DIA, vectorX, INP_DIGITS);
         dia_clear(DIA);
-    }
+    }*/
 
     Logger::printDash();
 
@@ -269,12 +269,12 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
     ell_clear(ELL);
 
     //DIA
-    if(TEST_DIA) {
+    /*if(TEST_DIA) {
         dia_init(DIA, M, NDIAG);
         build_dia(MATRIX_PATH, M, LINES, SYMM, DIA);
         test_cump_spmv_dia(M, N, NDIAG, DIA, vectorX, MP_PRECISION, INP_DIGITS);
         dia_clear(DIA);
-    }
+    }*/
     cudaDeviceReset();
 }
 
