@@ -252,6 +252,11 @@ add_executable(test_spmv_csr_accuracy sparse/test_spmv_csr_accuracy.cu)
 target_compile_options(test_spmv_csr_accuracy PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_spmv_csr_accuracy gmp mpfr OpenMP::OpenMP_CXX)
 
+# Performance test for SpMV vs GEMV
+add_executable(test_spmv_gemv sparse/test_spmv_gemv.cu)
+target_compile_options(test_spmv_gemv PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_spmv_gemv gmp mpfr OpenMP::OpenMP_CXX cump)
+
 
 #########################
 ## Benchmarks for SpMV routines with multiple-precision matrix

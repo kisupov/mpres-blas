@@ -62,6 +62,7 @@ namespace Logger {
         SPMV_JAD_TEST,
         SPMV_TEST,
         SPMV_CSR_ACCURACY_TEST,
+        SPMV_VS_GEMV_TEST,
         CG_CSR_TEST
     };
 
@@ -135,6 +136,8 @@ namespace Logger {
                 return "Performance test for SpMV routines using the DIA matrix storage format (multiple precision matrix)";
             case SPMV_CSR_ACCURACY_TEST:
                 return "Accuracy test for SpMV routines using the CSR matrix storage format (double precision matrix)";
+            case SPMV_VS_GEMV_TEST:
+                return "Performance test for SpMV vs GEMV";
             case CG_CSR_TEST:
                 return "Test for CG and PCG iterative solvers using the CSR matrix storage format";
         }

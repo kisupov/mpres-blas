@@ -275,7 +275,13 @@ void evaluatePerformance(const char * MATRIX_PATH, const int M, const int N, con
         test_cump_spmv_dia(M, N, NDIAG, DIA, vectorX, MP_PRECISION, INP_DIGITS);
         dia_clear(DIA);
     }*/
-    cudaDeviceReset();
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+
+    //Cleanup
+    for(int i = 0; i < N; i++){
+        mpfr_clear(vectorX[i]);
+    }
+    delete[] vectorX;
 }
 
 int main(int argc, char *argv[]) {

@@ -405,6 +405,38 @@ void build_ell(const char filename[], const int m, const int maxnzr, const int l
     file.close();
 }
 
+
+/*!
+ * Converts a sparse matrix to a regular dense matrix stored in column-major order
+ * @param filename - path to the file with the matrix
+ * @param m - number of rows
+ * @param n -  number of columns
+ * @param lines - total number of lines with data
+ * @param symmetric - true if the input matrix is to be treated as symmetrical; otherwise false
+ * @param matrix - reference to the dense matrix to be defined
+ */
+void build_dense(const char filename[], const int m, const int n, const int lines, const bool symmetric, double * matrix) {
+    std::fill(matrix, matrix + m * n, 0);
+    std::ifstream file(filename);
+    while (file.peek() == '%') file.ignore(2048, '\n');
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    int *colNum = new int[m]();
+    for (int l = 0; l < lines; l++) {
+        double fileData = 0.0;
+        int row = 0, col = 0;
+        file >> row >> col >> fileData;
+        matrix[colNum[(row - 1)] * m + (row - 1)] = fileData;
+        colNum[row - 1]++;
+        if (symmetric && (row != col)) {
+            matrix[colNum[(col - 1)] * m + (col - 1)] = fileData;
+            colNum[col - 1]++;
+        }
+    }
+    delete[] colNum;
+    file.close();
+}
+
+
 /*!
  * Reads double-precision vector from file
  * @param filename - path to the file with the array
