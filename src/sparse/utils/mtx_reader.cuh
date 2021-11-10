@@ -420,19 +420,15 @@ void build_dense(const char filename[], const int m, const int n, const int line
     std::ifstream file(filename);
     while (file.peek() == '%') file.ignore(2048, '\n');
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    int *colNum = new int[m]();
     for (int l = 0; l < lines; l++) {
         double fileData = 0.0;
         int row = 0, col = 0;
         file >> row >> col >> fileData;
-        matrix[colNum[(row - 1)] * m + (row - 1)] = fileData;
-        colNum[row - 1]++;
+        matrix[(col - 1) * m + row - 1] = fileData;
         if (symmetric && (row != col)) {
-            matrix[colNum[(col - 1)] * m + (col - 1)] = fileData;
-            colNum[col - 1]++;
+            matrix[(row - 1) * m + col - 1] = fileData;
         }
     }
-    delete[] colNum;
     file.close();
 }
 

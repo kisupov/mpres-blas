@@ -56,17 +56,20 @@ void finalize() {
 __global__ static void gemv_kernel(int m, int n, double * A, mp_float_ptr x, mp_float_ptr y) {
     unsigned int threadId = threadIdx.x + blockIdx.x * blockDim.x;
     if (threadId < m) {
-        mp_float_t prod; //ПОСМОТРЕТЬ КАК БУДЕТ БЫСТРЕЕ - может в smem
+        mp_float_t prod;
         mp_float_t dot = cuda::MP_ZERO;
         for (int colId = 0; colId < n; colId++) {
-            cuda::mp_mul_d(&prod, x[colId], A[colId * m + threadId]);
-            cuda::mp_add(&dot, dot, prod);
+            double a = A[colId * m + threadId];
+            if(a != 0){
+                cuda::mp_mul_d(&prod, x[colId], a);
+                cuda::mp_add(&dot, dot, prod);
+            }
         }
         cuda::mp_set(&y[threadId], dot);
     }
 }
 
-void test_gemv_kernel(const int m, const int n, const int nnz, double * A, const mpfr_t * x){
+void test_gemv_kernel(const int m, const int n, double * A, const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS GEMV");
@@ -90,8 +93,8 @@ void test_gemv_kernel(const int m, const int n, const int nnz, double * A, const
 
     //GPU matrix
     double * dA;
-    cudaMalloc(&dA, sizeof(double ) * nnz);
-    cudaMemcpy(dA, A, nnz * sizeof(double), cudaMemcpyHostToDevice);
+    cudaMalloc(&dA, sizeof(double ) * m * n);
+    cudaMemcpy(dA, A, m * n * sizeof(double), cudaMemcpyHostToDevice);
 
     //Launch
     StartCudaTimer();
@@ -121,7 +124,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     csr_t CSR;
     jad_t JAD;
     ell_t ELL;
-    double * dense = new double [NNZ];
+    double * dense = new double [M * N];
 
 
     /*
@@ -151,7 +154,7 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     test_mpres_spmv_csrv<32>(M, N, NNZ, CSR, vectorX);
     test_mpres_spmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
     test_mpres_spmv_ell(M, N, MAXNZR, ELL, vectorX);
-    test_gemv_kernel(M, N, NNZ, dense, vectorX);
+    test_gemv_kernel(M, N, dense, vectorX);
 
     //Cleanup
     for(int i = 0; i < N; i++){
