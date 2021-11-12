@@ -31,7 +31,7 @@
 /////////
 //  SpMV jad kernel test
 /////////
-void test_mpres_spmv_jad(const int m, const int n, const int maxnzr, const int nnz, const jad_t &jad, const mpfr_t *x) {
+double test_mpres_spmv_jad(const int m, const int n, const int maxnzr, const int nnz, const jad_t &jad, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS JAD (mp_spmv_jad)");
@@ -76,6 +76,7 @@ void test_mpres_spmv_jad(const int m, const int n, const int maxnzr, const int n
     cudaFree(dx);
     cudaFree(dy);
     cuda::jad_clear(djad);
+    return _cuda_time;
 
 }
 

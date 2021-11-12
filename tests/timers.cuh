@@ -58,7 +58,9 @@ float calcTimeCUDA(cudaEvent_t start, cudaEvent_t stop) {
       cudaEventCreate(&cuda_timer_start);           \
       cudaEventCreate(&cuda_timer_end);
 
-#define StartCudaTimer(); cudaEventRecord(cuda_timer_start, 0);
+#define StartCudaTimer(); \
+    _cuda_time = 0; \
+    cudaEventRecord(cuda_timer_start, 0);
 
 #define EndCudaTimer();                                           \
       checkDeviceHasErrors(cudaEventRecord(cuda_timer_end, 0));      \
@@ -67,7 +69,7 @@ float calcTimeCUDA(cudaEvent_t start, cudaEvent_t stop) {
 
 #define PrintCudaTimer(msg);   \
     std::cout << msg << "(ms): " << _cuda_time << std::endl; \
-    _cuda_time = 0;
+    //_cuda_time = 0;
 
 /*
 * Delay in seconds

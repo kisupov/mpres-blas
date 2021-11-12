@@ -30,7 +30,7 @@
 /////////
 //  SpMV CSR scalar kernel
 /////////
-void test_mpres_spmv_csr(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
+double test_mpres_spmv_csr(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS CSR (mp_spmv_csr)");
@@ -75,6 +75,7 @@ void test_mpres_spmv_csr(const int m, const int n, const int nnz, const csr_t &c
     cudaFree(dx);
     cudaFree(dy);
     cuda::csr_clear(dcsr);
+    return _cuda_time;
 }
 
 #endif //TEST_MPRES_SPMV_CSR_CUH

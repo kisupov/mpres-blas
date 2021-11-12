@@ -30,7 +30,7 @@
 /////////
 //  SpMV ELLPACK kernel test
 /////////
-void test_mpres_spmv_ell(const int m, const int n, const int maxnzr, const ell_t &ell, const mpfr_t *x){
+double test_mpres_spmv_ell(const int m, const int n, const int maxnzr, const ell_t &ell, const mpfr_t *x){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS ELLPACK (mp_spmv_ell)");
@@ -75,6 +75,8 @@ void test_mpres_spmv_ell(const int m, const int n, const int maxnzr, const ell_t
     cudaFree(dx);
     cudaFree(dy);
     cuda::ell_clear(dell);
+    return _cuda_time;
+
 }
 
 #endif //TEST_MPRES_SPMV_ELL_CUH

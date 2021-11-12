@@ -69,7 +69,7 @@ __global__ static void gemv_kernel(int m, int n, double * A, mp_float_ptr x, mp_
     }
 }
 
-void test_gemv_kernel(const int m, const int n, double * A, const mpfr_t * x){
+double test_gemv_kernel(const int m, const int n, double * A, const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS GEMV");
@@ -114,6 +114,7 @@ void test_gemv_kernel(const int m, const int n, double * A, const mpfr_t * x){
     cudaFree(dx);
     cudaFree(dy);
     cudaFree(dA);
+    return _cuda_time;
 }
 
 void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, const int NNZ, const int MAXNZR, const bool SYMM, const string DATATYPE) {
@@ -138,23 +139,15 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     build_ell(MATRIX_PATH, M, MAXNZR, LINES, SYMM, ELL);
     build_dense(MATRIX_PATH, M, N, LINES, SYMM, dense);
 
-    /*
-     * Double and MPFR CSR tests
-     */
     test_double_spmv_csr(M, N, NNZ, CSR, vectorX);
     test_mpfr_spmv_csr(M, N, NNZ, CSR, vectorX, MP_PRECISION);
-
-    /*
-     * MPRES-BLAS tests
-     */
-
-    test_mpres_spmv_csr(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_csrv<4>(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_csrv<16>(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_csrv<32>(M, N, NNZ, CSR, vectorX);
-    test_mpres_spmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
-    test_mpres_spmv_ell(M, N, MAXNZR, ELL, vectorX);
-    test_gemv_kernel(M, N, dense, vectorX);
+    double csrScalarTime = test_mpres_spmv_csr(M, N, NNZ, CSR, vectorX);
+    double csrVector4Time = test_mpres_spmv_csrv<4>(M, N, NNZ, CSR, vectorX);
+    double csrVector16Time = test_mpres_spmv_csrv<16>(M, N, NNZ, CSR, vectorX);
+    double csrVector32Time = test_mpres_spmv_csrv<32>(M, N, NNZ, CSR, vectorX);
+    double jadTime = test_mpres_spmv_jad(M, N, MAXNZR, NNZ, JAD, vectorX);
+    double ellTime = test_mpres_spmv_ell(M, N, MAXNZR, ELL, vectorX);
+    double gemvTime = test_gemv_kernel(M, N, dense, vectorX);
 
     //Cleanup
     for(int i = 0; i < N; i++){
@@ -165,7 +158,10 @@ void test(const char * MATRIX_PATH, const int M, const int N, const int LINES, c
     jad_clear(JAD);
     ell_clear(ELL);
     delete [] dense;
-
+    Logger::printSpace();
+    Logger::printDDash();
+    std::cout << "CSR-scalar\tCSR-vector4\tCSR-vector16\tCSR-vector32\tJAD\tELL\tGEMV\t"<< std::endl;
+    std::cout << csrScalarTime <<"\t"<< csrVector4Time <<"\t"<< csrVector16Time <<"\t"<< csrVector32Time <<"\t"<< jadTime <<"\t"<< ellTime <<"\t"<< gemvTime <<"\t"<< std::endl;
 }
 
 int main(int argc, char *argv[]) {

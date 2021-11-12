@@ -31,7 +31,7 @@
 //  SpMV CSR vector kernel with multiple threads per matrix row
 /////////
 template<int threadsPerRow>
-void test_mpres_spmv_csrv(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
+double test_mpres_spmv_csrv(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS CSR Vector (mp_spmv_csrv)");
@@ -78,6 +78,7 @@ void test_mpres_spmv_csrv(const int m, const int n, const int nnz, const csr_t &
     cudaFree(dx);
     cudaFree(dy);
     cuda::csr_clear(dcsr);
+    return _cuda_time;
 }
 
 #endif //TEST_MPRES_SPMV_CSRV_CUH
