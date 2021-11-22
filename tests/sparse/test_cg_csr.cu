@@ -1,6 +1,7 @@
 /*
  *  Performance test for conjugate gradient linear solver using CSR
- *  Path to the matrix must be given as a command line argument, e.g., ../../tests/sparse/matrices/t3dl.mtx
+ *  The paths to the input matrix and the output residual vector, as well as the maximum number of iterations, must be given as command line arguments, e.g.,
+ *  ../../tests/sparse/matrices/cant.mtx ../../tests/sparse/matrices/cant 20000
  *
  *  Copyright 2021 by Konstantin Isupov.
  *
