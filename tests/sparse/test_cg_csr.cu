@@ -37,16 +37,16 @@ void initialize() {
     cudaCheckErrors();
 }
 
-void test(const char * MATRIX_PATH, const int N, const int LINES, const int NNZ, const bool SYMM, const string DATATYPE, const double TOL, const int MAXIT) {
+void test(const char * MATRIX_PATH, const char * RESIDUAL_PATH, const int N, const int LINES, const int NNZ, const bool SYMM, const string DATATYPE, const double TOL, const int MAXIT) {
     csr_t CSR;
     csr_init(CSR, N, NNZ);
     //Convert a sparse matrix to the double-precision CSR format
     build_csr(MATRIX_PATH, N, NNZ, LINES, SYMM, CSR);
     //Launch tests
-    test_double_cg_csr(N, NNZ, CSR, TOL, MAXIT);
-    test_double_pcg_diag_csr(N, NNZ, CSR, TOL, MAXIT);
-    test_mpres_cg_csr(N, NNZ, CSR, TOL, MAXIT);
-    test_mpres_pcg_diag_csr(N, NNZ, CSR, TOL, MAXIT);
+    //test_double_cg_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
+    test_double_pcg_diag_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
+    //test_mpres_cg_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
+    test_mpres_pcg_diag_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors(); //CUMP gives failure
     csr_clear(CSR);
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
     int LINES = 0; //number of lines in the input matrix file
     bool SYMM = false; //true if the input matrix is to be treated as symmetrical; otherwise false
     string DATATYPE; //defines type of data in MatrixMarket: real, integer, binary
-    const double TOL = 1e-6;
+    const double TOL = 1e-12;
     initialize();
     Logger::beginTestDescription(Logger::CG_CSR_TEST);
     if(argc<=1) {
@@ -73,7 +73,8 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     const char * MATRIX_PATH = argv[1];
-    const int MAXIT = atoi(argv[2]);
+    const char * RESIDUAL_PATH = argv[2];
+    const int MAXIT = atoi(argv[3]);
 
     Logger::beginSection("Matrix properties:");
     Logger::printParam("Path", MATRIX_PATH);
@@ -92,7 +93,7 @@ int main(int argc, char *argv[]) {
     Logger::printParam("TOLERANCE", TOL);
     Logger::printParam("MAXIT", MAXIT);
     Logger::endSection(true);
-    test(MATRIX_PATH, N, LINES, NNZ, SYMM, DATATYPE, TOL, MAXIT);
+    test(MATRIX_PATH, RESIDUAL_PATH, N, LINES, NNZ, SYMM, DATATYPE, TOL, MAXIT);
     Logger::endTestDescription();
     return 0;
 }

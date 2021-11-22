@@ -50,11 +50,11 @@
  * @param ptype - type of preconditioner
  * @param M - preconditioner matrix
  * @param x - initial residual and linear system solution
- * @param resvec - residual error returned as vector (residual history)
+ * @param resvec - residual error, returned as vector (residual history)
  * @return number of iterations
  */
 template <int threads = 64, int blocks_reduce = 256>
-int mp_pcg_csr(const int n, const csr_t &A, mp_float_ptr b, const double tol, const int maxit, enum preconditioner_type ptype, double *M, mp_float_ptr x, std::vector<double> resvec){
+int mp_pcg_csr(const int n, const csr_t &A, mp_float_ptr b, const double tol, const int maxit, enum preconditioner_type ptype, double *M, mp_float_ptr x, vector<double> &resvec){
     const int blocks = n / threads + 1;
     //Variables
     double epsilon = 0; //stopping criteria based on relative residual

@@ -35,10 +35,10 @@
  * @param tol - tolerance
  * @param maxit - maximum number of iterations
  * @param x - initial residual and linear system solution
- * @param resvec - residual error returned as vector (residual history)
+ * @param resvec - residual error, returned as vector (residual history)
  * @return number of iterations
  */
-int double_cg_csr(const int n, const csr_t &A, const double *b, const double tol, const int maxit, double *x, std::vector<double> resvec, int blocks, int threads){
+int double_cg_csr(const int n, const csr_t &A, const double *b, const double tol, const int maxit, double *x, vector<double> &resvec, int blocks, int threads){
     //variables
     double *r;
     double *p;

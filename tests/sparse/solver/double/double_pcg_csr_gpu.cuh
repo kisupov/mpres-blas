@@ -45,10 +45,10 @@
  * @param ptype - type of preconditioner
  * @param M - preconditioner matrix
  * @param x - initial residual and linear system solution
- * @param resvec - residual error returned as vector (residual history)
+ * @param resvec - residual error, returned as vector (residual history)
  * @return number of iterations
  */
-int double_pcg_csr(const int n, const csr_t &A, double * b, const double tol, const int maxit, enum preconditioner_type ptype, double *M, double * x, std::vector<double> resvec, int blocks, int threads){
+int double_pcg_csr(const int n, const csr_t &A, double * b, const double tol, const int maxit, enum preconditioner_type ptype, double *M, double * x, vector<double> &resvec, int blocks, int threads){
     //variables
     double *r;
     double *p;

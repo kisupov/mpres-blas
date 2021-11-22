@@ -29,7 +29,7 @@
 #include "sparse/msparse_enum.cuh"
 
 
-void test_mpres_pcg_diag_csr(const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
+void test_mpres_pcg_diag_csr(const char * RESIDUAL_PATH, const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS PCG CSR solver (mp_pcg_csr) with diagonal preconditioner");
@@ -42,7 +42,7 @@ void test_mpres_pcg_diag_csr(const int n, const int nnz, const csr_t &A, const d
     mdiag(A, n, hM); //hM = main diagonal of A
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
-        mp_set(&hx[i], MP_ZERO); //initial residual
+        mp_set(&hx[i], MP_ZERO); //initial guess
         mp_set(&hb[i], 1, 0, 0);
         assert(hM[i] != 0.0);
         hM[i] = 1.0 / hM[i]; //reciprocals
@@ -72,6 +72,9 @@ void test_mpres_pcg_diag_csr(const int n, const int nnz, const csr_t &A, const d
     cudaMemcpy(hx, dx, sizeof(mp_float_t) * n, cudaMemcpyDeviceToHost);
     std::cout << "iterations: " << iters << std::endl;
     print_residual(n, A, hx, hb);
+    //Write residual history
+    string postfix = "_pcg_res_" + std::to_string(RNS_MODULI_SIZE) +"-moduli.txt";
+    store_residual_history(std::string (RESIDUAL_PATH) + postfix, resvec);
     //Cleanup
     delete [] hx;
     delete [] hb;

@@ -27,7 +27,7 @@
 #include "../../timers.cuh"
 #include "sparse/solver/double/double_cg_csr_gpu.cuh"
 
-void test_double_cg_csr(const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
+void test_double_cg_csr(const char * RESIDUAL_PATH, const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
     int threads = 256;
     int blocks = n / threads + 1;
     InitCudaTimer();
@@ -61,6 +61,9 @@ void test_double_cg_csr(const int n, const int nnz, const csr_t &A, const double
     cudaMemcpy(hx, dx, sizeof(double) * n, cudaMemcpyDeviceToHost);
     std::cout << "iterations: " << iters << std::endl;
     print_residual(n, A, hx, hb);
+    //Write residual history
+    store_residual_history(std::string (RESIDUAL_PATH) + "_cg_res_double.txt", resvec);
+    //Cleanup
     delete [] hx;
     delete [] hb;
     cudaFree(db);

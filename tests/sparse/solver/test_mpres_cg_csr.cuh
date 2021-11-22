@@ -28,7 +28,7 @@
 #include "sparse/solver/cg_csr.cuh"
 
 
-void test_mpres_cg_csr(const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
+void test_mpres_cg_csr(const char * RESIDUAL_PATH, const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS CG CSR solver (mp_cg_csr)");
@@ -64,6 +64,9 @@ void test_mpres_cg_csr(const int n, const int nnz, const csr_t &A, const double 
     cudaMemcpy(hx, dx, sizeof(mp_float_t) * n, cudaMemcpyDeviceToHost);
     std::cout << "iterations: " << iters << std::endl;
     print_residual(n, A, hx, hb);
+    //Write residual history
+    string postfix = "_cg_res_" + std::to_string(RNS_MODULI_SIZE) +"-moduli.txt";
+    store_residual_history(std::string (RESIDUAL_PATH) + postfix, resvec);
     //Cleanup
     delete [] hx;
     delete [] hb;

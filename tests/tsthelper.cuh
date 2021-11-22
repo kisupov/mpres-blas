@@ -343,7 +343,7 @@ void print_residual(const int n, const csr_t &A, const mpfr_t *x, const mpfr_t *
     calc_norm2(n, y, norm2x, prec);
     calc_norm2(n, b, norm2b, prec);
     mpfr_div(norm2x, norm2x, norm2b, MPFR_RNDN);
-    std::cout << "relative residual: " << mpfr_get_d(norm2x, MPFR_RNDN) << std::endl;
+    std::cout << "true relative residual: " << mpfr_get_d(norm2x, MPFR_RNDN) << std::endl;
     mpfr_clear(norm2x);
     mpfr_clear(norm2b);
     for (int i = 0; i < n; i++) {
@@ -398,6 +398,13 @@ void print_residual(const int n, const csr_t &A, mp_float_ptr x, mp_float_ptr b)
     }
     delete [] mx;
     delete [] mb;
+}
+
+void store_residual_history(string path, vector<double> resvec){
+    std::ofstream outFile(path);
+    for (const auto &e : resvec) {
+        outFile << e << "\n";
+    }
 }
 
 #endif //MPRES_TEST_TSTHELPER_CUH
