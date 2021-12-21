@@ -26,6 +26,7 @@
 #include "omp.h"
 #include <random>
 #include <chrono>
+#include <fstream>
 #include <timers.cuh>
 #include "../src/arith/assign.cuh"
 #include "../src/arith/add.cuh"
@@ -400,7 +401,7 @@ void print_residual(const int n, const csr_t &A, mp_float_ptr x, mp_float_ptr b)
     delete [] mb;
 }
 
-void store_residual_history(string path, vector<double> resvec){
+void store_residual_history(std::string path, std::vector<double> resvec){
     std::ofstream outFile(path);
     for (const auto &e : resvec) {
         outFile << e << "\n";
