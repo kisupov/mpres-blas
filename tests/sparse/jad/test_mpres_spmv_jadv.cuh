@@ -65,7 +65,7 @@ void test_mpres_spmv_jadv(const int m, const int n, const int maxnzr, const int 
     StartCudaTimer();
     cuda::mp_spmv_jadv<32, threadsPerRow><<<blocks, threads>>>(m, maxnzr, djad, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

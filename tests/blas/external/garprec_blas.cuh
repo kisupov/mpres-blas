@@ -245,7 +245,7 @@ void garprec_sum_test(int n, mpfr_t *x, int prec, int convert_digits, int repeat
                 maxPrecWords);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     dx->fromGPU(hx, n);
@@ -319,7 +319,7 @@ void garprec_dot_test(int n, mpfr_t *x, mpfr_t *y, int prec, int convert_digits,
                 maxPrecWords);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     dx->fromGPU(hx, n);
@@ -377,7 +377,7 @@ void garprec_scal_test(int n, mpfr_t alpha, mpfr_t *x, int prec, int convert_dig
         garprec_scal_kernel<<<blocks, threads>>>(n, galpha->d_mpr, galpha->interval, gx->d_mpr, gx->interval, maxPrecWords);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     gx->fromGPU(lx, n);
@@ -441,7 +441,7 @@ void garprec_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int prec, int 
         garprec_axpy_kernel<<<blocks, threads>>>(n, galpha->d_mpr, galpha->interval, gx->d_mpr, gx->interval, gy->d_mpr, gy->interval, gtmp->d_mpr, gtmp->interval, maxPrecWords);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     gy->fromGPU(ly, n);
@@ -521,7 +521,7 @@ void garprec_rot_test(int n, mpfr_t *x, mpfr_t *y, mpfr_t c, mpfr_t s, int prec,
                 maxPrecWords);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     gy->fromGPU(ly, n);
@@ -623,7 +623,7 @@ void garprec_axpy_dot_test(int n, mpfr_t alpha, mpfr_t *w, mpfr_t *v, mpfr_t *u,
                 maxPrecWords);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     gu->fromGPU(lu, n);
@@ -716,7 +716,7 @@ void garprec_gemv_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x
                 maxPrecWords);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

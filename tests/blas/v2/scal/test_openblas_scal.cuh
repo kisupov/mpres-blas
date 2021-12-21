@@ -52,7 +52,7 @@ void test_openblas(const int n, mpfr_t alpha, mpfr_t *x, const int repeats){
         cblas_dscal(n, dalpha, dr, 1); // Call OpenBLAS
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_double_sum(dr, n);
     delete [] dx;
     delete [] dr;

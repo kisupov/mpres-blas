@@ -55,7 +55,7 @@ void test_double_cg_csr(const char * RESIDUAL_PATH, const int n, const int nnz, 
     StartCudaTimer();
     int iters = double_cg_csr(n, dA, db, tol, maxit, dx, resvec, blocks, threads)
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
     cudaMemcpy(hx, dx, sizeof(double) * n, cudaMemcpyDeviceToHost);

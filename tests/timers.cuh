@@ -50,7 +50,9 @@ float calcTimeCUDA(cudaEvent_t start, cudaEvent_t stop) {
 
 #define EndCpuTimer();        clock_gettime(CLOCK_MONOTONIC, &end);_cpu_time += calcTimeCPU(start, end);
 
-#define PrintCpuTimer(msg) std::cout << msg << "(ms): " << _cpu_time << std::endl;_cpu_time=0;
+#define PrintAndResetCpuTimer(msg) \
+       std::cout << msg << "(ms): " << _cpu_time << std::endl; \
+       _cpu_time=0;
 
 #define InitCudaTimer();                         \
       float _cuda_time = 0;                         \
@@ -59,7 +61,6 @@ float calcTimeCUDA(cudaEvent_t start, cudaEvent_t stop) {
       cudaEventCreate(&cuda_timer_end);
 
 #define StartCudaTimer(); \
-    _cuda_time = 0; \
     cudaEventRecord(cuda_timer_start, 0);
 
 #define EndCudaTimer();                                           \
@@ -67,9 +68,12 @@ float calcTimeCUDA(cudaEvent_t start, cudaEvent_t stop) {
       checkDeviceHasErrors(cudaEventSynchronize(cuda_timer_end));  \
       _cuda_time += calcTimeCUDA(cuda_timer_start, cuda_timer_end);
 
-#define PrintCudaTimer(msg);   \
+#define PrintAndResetCudaTimer(msg);   \
     std::cout << msg << "(ms): " << _cuda_time << std::endl; \
-    //_cuda_time = 0;
+    _cuda_time = 0;
+
+#define PrintCudaTimer(msg);   \
+    std::cout << msg << "(ms): " << _cuda_time << std::endl;
 
 /*
 * Delay in seconds

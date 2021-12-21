@@ -112,7 +112,7 @@ void test_cump_spmv_jad(const int m, const int n, const int maxnzr, const int nn
     StartCudaTimer();
     cump_spmv_jad_kernel<<<blocks, threads>>>(m, maxnzr, dja, das, djcp, dperm, dx, dy, dbuf);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hy, dy, m);

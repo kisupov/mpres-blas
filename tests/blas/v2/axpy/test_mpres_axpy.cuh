@@ -67,7 +67,7 @@ void test_mpres(const int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, const int repea
         cuda::mp_axpy<<<blocks, threads>>>(n, dalpha, dx, dy, dy);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

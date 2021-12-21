@@ -119,7 +119,7 @@ void openblas_test(CBLAS_TRANSPOSE transA, CBLAS_TRANSPOSE transB, const int m, 
         cblas_dgemm(CblasColMajor, transA, transB, m, n, k, dalpha, dA, lda, dB, ldb, dbeta, dC, ldc);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_double_sum(dC, ldc * n);
     delete [] dA;
     delete [] dB;
@@ -185,7 +185,7 @@ void mpres_test_notrans(const int m, const int n, const int k, mpfr_t alpha, mpf
                 (mblas_no_trans, mblas_no_trans, m, n, k, dalpha, dA, lda, dB, ldb, dbeta, dC, ldc, dbuffer);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -321,7 +321,7 @@ void mpres_test_straightforward(const int m, const int n, const int k, mpfr_t al
                 (m, n, k, dalpha, dA, lda, dB, ldb, dbeta, dC, ldc);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

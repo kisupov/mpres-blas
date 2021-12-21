@@ -103,7 +103,7 @@ void cublas_test(double *x, double *y, double alpha, int n){
         cublasDaxpy(handle, n, &alpha, dev_x, 1, dev_y, 1);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     cublasGetVector(n, sizeof(double), dev_y, 1, res_y, 1);
     print_double_sum(res_y, n);
 
@@ -136,7 +136,7 @@ void openblas_test(double *x, double *y, double alpha, int n){
         cblas_daxpy(n, alpha, x, 1, result, 1);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_double_sum(result, n);
     delete [] result;
 }
@@ -160,7 +160,7 @@ void xblas_test(double *x, double *y, double alpha, int n) {
         BLAS_dwaxpby_x(n, alpha, x, 1, 1, result, 1, result, 1, blas_prec_extra);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_double_sum(result, n);
     delete [] result;
 }
@@ -204,7 +204,7 @@ void mpfr_test(mpfr_t *x, mpfr_t *y, mpfr_t alpha, int n) {
         mpfr_axpy(n, x, mpfr_y, alpha, MP_PRECISION);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_mpfr_sum(mpfr_y, n);
 
     //Cleanup
@@ -256,7 +256,7 @@ void arprec_test(mpfr_t *x, mpfr_t *y, mpfr_t alpha, int n) {
         arprec_axpy(n, mp_real_x, mp_real_y, mp_real_alpha);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     for (int i = 1; i < n; i++) {
         mp_real::mpadd(mp_real_y[i], mp_real_y[0], mp_real_y[0], MP_PRECISION_DEC);
     }
@@ -317,7 +317,7 @@ void mpdecimal_test(mpfr_t *x, mpfr_t *y, mpfr_t alpha, int n){
         mpdecimal_axpy(n, mx, malpha, my, &ctx);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     for(int i = 1; i < n; i ++){
         mpd_add(my[0], my[i], my[0], &ctx);
     }
@@ -387,7 +387,7 @@ void mpres_test(mpfr_t * x, mpfr_t * y, mpfr_t alpha, int n) {
                 (n, dalpha, dx, 1, dy, 1, dbuffer);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();

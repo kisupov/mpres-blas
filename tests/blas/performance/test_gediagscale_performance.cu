@@ -133,7 +133,7 @@ void mpfr_test(int m, int n, mpfr_t *D, int incd, mpfr_t *A, int lda){
             EndCpuTimer();
         }
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_mpfr_sum(mA, lda * n);
 
     //Cleanup
@@ -185,7 +185,7 @@ void mpres_test(int m, int n, mpfr_t *D, int incd, mpfr_t *A, int lda, int lend)
                 ( ((SIDE == "R") ? mblas_right_side : mblas_left_side), m, n, dD, incd, dA, lda);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

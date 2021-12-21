@@ -57,7 +57,7 @@ void test_mpres_cg_csr(const char * RESIDUAL_PATH, const int n, const int nnz, c
     StartCudaTimer();
     int iters = mp_cg_csr(n, dA, db, tol, maxit, dx, resvec);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
     //Copying to the host

@@ -147,7 +147,7 @@ void test_mpfr(enum mblas_uplo_type uplo, int n, mpfr_t alpha, mpfr_t *A, int ld
         mpfr_symv(uplo, n, alpha, A, lda, x, beta, result);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_mpfr_sum(result, n);
 
     //Cleanup

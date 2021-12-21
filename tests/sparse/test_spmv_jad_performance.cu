@@ -106,7 +106,7 @@ void test_mpres_spmv_jad_smem_free(const int m, const int n, const int maxnzr, c
     StartCudaTimer();
     mp_spmv_jad_smem_free<<<blocks, threads>>>(m, maxnzr, djad, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

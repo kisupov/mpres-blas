@@ -131,7 +131,7 @@ void test_campary_spmv_mpmtx_csrv(const int m, const int n, const int nnz, const
     StartCudaTimer();
     campary_spmv_mpmtx_csrv_kernel<prec, threadsPerRow><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

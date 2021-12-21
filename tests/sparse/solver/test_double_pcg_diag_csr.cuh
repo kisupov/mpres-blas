@@ -66,7 +66,7 @@ void test_double_pcg_diag_csr(const char * RESIDUAL_PATH, const int n, const int
     StartCudaTimer();
     int iters = double_pcg_csr(n, dA, db, tol, maxit, diag, dM, dx, resvec, blocks, threads)
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
     cudaMemcpy(hx, dx, sizeof(double) * n, cudaMemcpyDeviceToHost);

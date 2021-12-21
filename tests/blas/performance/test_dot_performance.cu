@@ -100,7 +100,7 @@ void cublas_test(double *x, double *y, int n){
         cublasDdot(handle, n, dev_x, 1, dev_y, 1, res);
     }
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     printf("result: %lf\n", *res);
 
     cublasDestroy ( handle );
@@ -123,7 +123,7 @@ void openblas_test(double *dbl_x, double *dbl_y, int n){
         dbl_product = cblas_ddot((const int) n, (const double *) dbl_x, (const int) 1, (const double *) dbl_y, (const int) 1);
     }
     EndCpuTimer();
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     printf("result: %.70f \n", dbl_product);
 }
 
@@ -142,7 +142,7 @@ void xblas_test(double *dbl_x, double *dbl_y, int n){
         BLAS_ddot_x(blas_conj, n, 1, dbl_x, 1, 1, dbl_y, 1, &dbl_product, blas_prec_extra);
     }
     EndCpuTimer();
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     printf("result: %.70f \n", dbl_product);
 }
 
@@ -189,7 +189,7 @@ void mpfr_test(mpfr_t *x, mpfr_t *y, int n){
         mpfr_dot(mpfr_product, x, y, n, MP_PRECISION);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     mpfr_printf("result: %.70Rf \n", mpfr_product);
 
     //Clear
@@ -238,7 +238,7 @@ void arprec_test(mpfr_t *x, mpfr_t *y, int n){
         arprec_dot(n, mp_real_x, mp_real_y, &mp_real_product);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     printf("result: %.83s \n", mp_real_product.to_string().c_str());
 
     //Clear
@@ -301,7 +301,7 @@ void mpdecimal_test(mpfr_t *x, mpfr_t *y, int n){
         mpdecimal_dot(n, mx, my, product, &ctx);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     printf("result: %.83s \n", mpd_to_sci(product, 1));
 
     //Cleanup
@@ -367,7 +367,7 @@ void mpres_test(mpfr_t *x, mpfr_t *y, int n){
                 (n, dx, 1, dy, 1, dresult, dbuffer);
     }
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();

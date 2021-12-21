@@ -104,7 +104,7 @@ void test_cump_spmv_dia(const int m, const int n, const int ndiag, const dia_t &
     StartCudaTimer();
     cump_spmv_dia_kernel<<<blocks, threads>>>(m, n, ndiag, doffset, das, dx, dy, dbuf);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hy, dy, m);

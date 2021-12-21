@@ -77,7 +77,7 @@ void test_mpres_spmv_mpmtx_csr(const int m, const int n, const int nnz, const cs
     StartCudaTimer();
     cuda::mp_spmv_mpmtx_csr<<<blocks, threads>>>(m, dirp, dja, das, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

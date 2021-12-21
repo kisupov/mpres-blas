@@ -106,7 +106,7 @@ void test_cump_spmv_csr(const int m, const int n, const int nnz, const csr_t &cs
     StartCudaTimer();
     cump_spmv_csr_kernel<<<blocks, threads>>>(m, dirp, dja, das, dx, dy, dbuf);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hy, dy, m);

@@ -115,7 +115,7 @@ void mpfr_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t beta, mpfr
         mpfr_ge_acc(m, n, alpha, A, lda, beta, B, ldb);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_mpfr_sum(mB, ldb * n);
 
     //Cleanup
@@ -182,7 +182,7 @@ void mpres_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t beta, mpf
                 (m, n, dalpha, dA, lda, dbeta, dB, ldb, dbuf);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

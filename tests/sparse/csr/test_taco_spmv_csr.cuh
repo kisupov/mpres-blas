@@ -60,7 +60,7 @@ void test_taco_spmv_csr(const char * matrix_path, const mpfr_t * vectorX, const 
         for (int k = 0; k < result.getDimension(0); k++) {
             sum += result(k);
         }
-        PrintCpuTimer("took");
+        PrintAndResetCpuTimer("took");
         printf("result: %.70f\n", sum);
     }
 }

@@ -126,7 +126,7 @@ void openblas_test(const char *trans, const int m, const int n, int lenx, int le
         }
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_double_sum(dr, leny);
     delete [] dx;
     delete [] dy;
@@ -187,7 +187,7 @@ void mpfr_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr_t
         mpfr_gemv(m, n, alpha, A, lda, x, beta, result);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_mpfr_sum(result, m);
 
     //Cleanup
@@ -250,7 +250,7 @@ void arprec_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mpfr
         arprec_gemv(m, n, mp_alpha, lA, lda, lx, mp_beta, ly);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     for (int i = 1; i < m; i++) {
         ly[0] += ly[i];
     }
@@ -322,7 +322,7 @@ void mpres_test(enum mblas_trans_type trans, int m, int n, int lenx, int leny, m
                 (trans, m, n, dalpha, dA, lda, dx, incx, dbeta, dy, incy, dbuf1, dbuf2);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -422,7 +422,7 @@ void mpres_test_straightforward(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, 
         mp_gemv_straightforward<<<blocks_gemv, threads>>>(m, n, dA, lda, dx, dbeta, dy);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

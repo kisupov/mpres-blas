@@ -77,7 +77,7 @@ void test_double_spmv_jad(const int m, const int n, const int maxnzr, const int 
     StartCudaTimer();
     double_spmv_jad_kernel<<<blocks, threads>>>(m, maxnzr, djad, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

@@ -64,7 +64,7 @@ void test_mpres(const int n, mpfr_t *x, mpfr_t *y, const int repeats) {
         cuda::mp_dot<BLOCKS,THREADS>(n, dx, dy, dr);
     }
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

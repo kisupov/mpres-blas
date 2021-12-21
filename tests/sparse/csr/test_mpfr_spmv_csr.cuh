@@ -66,7 +66,7 @@ void test_mpfr_spmv_csr(const int m, const int n, const int nnz, const csr_t &cs
     StartCpuTimer();
     mpfr_mpspmv_csr(m, csr.irp, csr.ja, csr.as, x, y, prec);
     EndCpuTimer();
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_mpfr_sum(y, m);
 
     //Cleanup

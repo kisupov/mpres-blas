@@ -104,7 +104,7 @@ void test_cump_spmv_ell(const int m, const int n, const int maxnzr, const ell_t 
     StartCudaTimer();
     cump_spmv_ell_kernel<<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy, dbuf);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hy, dy, m);

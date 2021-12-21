@@ -71,7 +71,7 @@ void test_openblas(enum mblas_uplo_type uplo, const int n, int lenx, int leny, m
         }
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_double_sum(dr, leny);
     delete[] dx;
     delete[] dy;

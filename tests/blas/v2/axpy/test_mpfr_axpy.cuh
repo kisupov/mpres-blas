@@ -60,7 +60,7 @@ void test_mpfr(const int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, const int repeat
         mpfr_axpy(n, alpha, x, hr, hr);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_mpfr_sum(hr, n);
 
     //Cleanup

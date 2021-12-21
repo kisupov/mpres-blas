@@ -75,7 +75,7 @@ void test_double_spmv_dia(const int m, const int n, const int ndiag, const dia_t
     StartCudaTimer();
     double_spmv_dia_kernel<<<blocks, threads>>>(m, n, ndiag, ddia, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

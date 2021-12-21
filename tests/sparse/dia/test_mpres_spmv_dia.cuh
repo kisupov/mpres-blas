@@ -61,7 +61,7 @@ void test_mpres_spmv_dia(const int m, const int n, const int ndiag, const dia_t 
     StartCudaTimer();
     cuda::mp_spmv_dia<32><<<blocks, threads>>>(m, n, ndiag, ddia, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

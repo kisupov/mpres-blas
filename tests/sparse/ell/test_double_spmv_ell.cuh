@@ -75,7 +75,7 @@ void test_double_spmv_ell(const int m, const int n, const int maxnzr, const ell_
     StartCudaTimer();
     double_spmv_ell_kernel<<<blocks, threads>>>(m, maxnzr, dell, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

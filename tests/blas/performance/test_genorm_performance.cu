@@ -155,7 +155,7 @@ void mpfr_test(int m, int n, mpfr_t *A, int lda){
             EndCpuTimer();
         }
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     mpfr_printf("result: %.70Rf \n", result);
 
     //Cleanup
@@ -208,7 +208,7 @@ void mpres_test(int m, int n, mpfr_t *A, int lda){
                 ( ((NORM_TYPE == "ONE") ? mblas_one_norm : mblas_inf_norm), m, n, dA, lda, dresult, dbuf);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

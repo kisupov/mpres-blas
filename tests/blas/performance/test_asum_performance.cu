@@ -95,7 +95,7 @@ void cublas_test(double *x, int n){
         cublasDasum(handle, n, dev_x, 1, res); // Call cuBLAS
     }
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     printf("result: %.70f\n", *res);
 
     cublasDestroy ( handle );
@@ -118,7 +118,7 @@ void openblas_test(double *x, int n){
         result = cblas_dasum(n, x, 1); // Call OpenBLAS
     }
     EndCpuTimer();
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     printf("result: %.70f \n", result);
 }
 
@@ -137,7 +137,7 @@ void xblas_test(double *x, int n){
         BLAS_dsum_x(N, (double const *) x, 1, (double *) &result, blas_prec_extra); // Call XBLAS
     }
     EndCpuTimer();
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     printf("result: %.70f \n", result);
 }
 
@@ -184,7 +184,7 @@ void mpfr_test(mpfr_t *x, int n){
         mpfr_asum(result, x, n, MP_PRECISION);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     mpfr_printf("result: %.70Rf \n", result);
 
     //Clear
@@ -232,7 +232,7 @@ void arprec_test(mpfr_t *x, int n){
         arprec_asum(n, mp_real_x, &mp_real_result);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     printf("result: %.83s \n", mp_real_result.to_string().c_str());
 
     //Clear
@@ -291,7 +291,7 @@ void mpdecimal_test(mpfr_t *x, int n){
         mpdecimal_asum(n, mx, sum, &ctx);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     printf("result: %.83s \n", mpd_to_sci(sum, 1));
 
     //Cleanup
@@ -342,7 +342,7 @@ void mpres_test(mpfr_t *x, int n){
         cuda::mp_asum<MPRES_CUDA_BLOCKS_REDUCE, MPRES_CUDA_THREADS_REDUCE>(n, dx, 1, dresult);
     }
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();

@@ -156,7 +156,7 @@ void mpres_test(int n, mpfr_t alpha, mpfr_t * w, mpfr_t * v, mpfr_t * u) {
                 (n, dalpha, dw, 1, dv, 1, du, 1, dr, dbuffer);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();

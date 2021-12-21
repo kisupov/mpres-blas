@@ -86,7 +86,7 @@ void test_campary_spmv_dia(const int m, const int n, const int ndiag, const dia_
     StartCudaTimer();
     campary_spmv_dia_kernel<32, prec><<<blocks, threads>>>(m, n, ndiag, ddia, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

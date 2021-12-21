@@ -53,7 +53,7 @@ void test_mpfr(const int n, mpfr_t alpha, mpfr_t *x, const int repeats){
         mpfr_scal(n, alpha, hr, hr);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_mpfr_sum(hr, n);
 
     //Cleanup

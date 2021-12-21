@@ -110,7 +110,7 @@ void test_campary_spmv_csrv(const int m, const int n, const int nnz, const csr_t
     StartCudaTimer();
     campary_spmv_csrv_kernel<32, threadsPerRow, prec><<<blocks, threads>>>(m, dcsr, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

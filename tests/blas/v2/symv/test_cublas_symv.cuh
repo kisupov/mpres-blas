@@ -81,7 +81,7 @@ void test_cublas(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpf
         EndCudaTimer();
 
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     cublasGetVector(n, sizeof(double), dy, incy, hy, incy);
     print_double_sum(hy, leny);
     cublasDestroy ( handle );

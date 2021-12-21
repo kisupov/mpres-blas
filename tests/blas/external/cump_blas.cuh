@@ -335,7 +335,7 @@ void cump_sum_test(int n, mpfr_t *x, int prec, int convert_digits, int repeat){
         cump_sum_kernel2<<<1, blocks>>>(dblock_result, dresult);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(&hresult, dresult, 1);
@@ -414,7 +414,7 @@ void cump_dot_test(int n, mpfr_t *x, mpfr_t *y, int prec, int convert_digits, in
         cump_sum_kernel2<<<1, blocks_red>>>(dblock_result, dresult);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(&hresult, dresult, 1);
@@ -482,7 +482,7 @@ void cump_scal_test(int n, mpfr_t alpha, mpfr_t *x, int prec, int convert_digits
         cump_scal_kernel<<<blocks, threads>>>(n, dalpha, dx);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hx, dx, n);
@@ -553,7 +553,7 @@ void cump_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int prec, int con
         cump_axpy_kernel<<<blocks, threads>>>(n, dalpha, dx, dy);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hy, dy, n);
@@ -637,7 +637,7 @@ void cump_rot_test(int n, mpfr_t * x, mpfr_t * y, mpfr_t c, mpfr_t s, int prec, 
         cump_rot_kernel<<<blocks, threads>>>(n, dx, dy, dc, ds, dbuffer1, dbuffer2);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hx, dx, n);
@@ -746,7 +746,7 @@ void cump_axpy_dot_test(int n, mpfr_t alpha, mpfr_t *w, mpfr_t *v, mpfr_t *u, in
         cump_sum_kernel2<<<1, blocks_red>>>(dblock_result, dr);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(&hr, dr, 1);
@@ -850,7 +850,7 @@ void cump_gemv_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, m
         cump_gemv_kernel<<<blocks_gemv, threads>>>(m, n, dalpha, dA, lda, dx, dbeta, dy, dtemp);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hy, dy, m);
@@ -947,7 +947,7 @@ void cump_ger_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x, mp
         cump_ger_kernel <<<blocks_ger, threads>>> (m, n, dA, lda, dx, dy, dtemp);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hA, dA, lda * n);
@@ -1054,7 +1054,7 @@ void cump_gemm_test(int m, int n, int k, mpfr_t alpha, mpfr_t *A, int lda, mpfr_
         cump_gemm_kernel <<<dimGrid, dimBlock>>> (m, n, k, dalpha, dA, lda, dB, ldb, dbeta, dC, ldc, dbuf1, dbuf2);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hC, dC, ldc * n);
@@ -1157,7 +1157,7 @@ void cump_ge_add_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t bet
         cump_ge_add_kernel <<<dimGrid, dimBlock>>> (m, n, dalpha, dA, lda, dbeta, dB, ldb, dC, ldc, dbuf);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hC, dC, ldc * n);
@@ -1250,7 +1250,7 @@ void cump_ge_acc_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t bet
         cump_ge_acc_kernel <<<dimGrid, dimBlock>>> (m, n, dalpha, dA, lda, dbeta, dB, ldb, dbuf);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hB, dB, ldb * n);
@@ -1330,7 +1330,7 @@ void cump_ge_diag_scale_test(enum  mblas_side_type side, int m, int n, int lend,
             cump_ge_diag_scale_l_kernel <<< dimGrid, dimBlock >>> (m, n, dD, incd, dA, lda);EndCudaTimer();
         }
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hA, dA, lda * n);
@@ -1408,7 +1408,7 @@ void cump_ge_lrscale_test(int m, int n, mpfr_t *DL, int incdl, mpfr_t *DR, int i
         cump_ge_lrscale_kernel <<<dimGrid, dimBlock>>> (m, n, dDL, incdl, dDR, incdr, dA, lda);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     //Copying to the host
     mpf_array_set_cumpf(hA, dA, lda * n);

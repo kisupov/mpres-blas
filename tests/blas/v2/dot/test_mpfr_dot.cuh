@@ -62,7 +62,7 @@ void test_mpfr(const int n, mpfr_t *x, mpfr_t *y, const int repeats){
         mpfr_dot(n, x, y, dot);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     mpfr_printf("result: %.70Rf \n", dot);
     mpfr_clear(dot);
 }

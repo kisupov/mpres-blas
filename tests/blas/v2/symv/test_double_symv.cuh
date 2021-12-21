@@ -139,7 +139,7 @@ void test_double(enum mblas_uplo_type uplo, const int n, int lenx, int leny, mpf
         double_symv(uplo, n, dalpha, dA, lda, dx, dbeta, dr);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_double_sum(dr, leny);
     delete[] dx;
     delete[] dy;
@@ -219,7 +219,7 @@ void test_double_symv_cuda(enum mblas_uplo_type uplo, const int n, int lenx, int
         double_symv_cuda<<<blocks, threads>>>(uplo, n, dalpha, dA, lda, dx, dbeta, dy);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

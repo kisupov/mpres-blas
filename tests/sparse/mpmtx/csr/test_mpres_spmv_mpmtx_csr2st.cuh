@@ -82,7 +82,7 @@ void test_mpres_spmv_mpmtx_csr2st(const int m, const int n, const int nnz, const
     StartCudaTimer();
     cuda::mp_spmv_mpmtx_csr2st<gridDim1, blockDim1, gridDim2, blockDim3>(m, n, nnz, dirp, dja, das, dx, dy, dbuf);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

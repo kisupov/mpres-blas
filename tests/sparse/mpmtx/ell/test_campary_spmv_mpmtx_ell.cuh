@@ -98,7 +98,7 @@ void test_campary_spmv_mpmtx_ell(const int m, const int n, const int maxnzr, con
     StartCudaTimer();
     campary_spmv_mpmtx_ell_kernel<prec><<<blocks, threads>>>(m, maxnzr, dja, das, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

@@ -54,7 +54,7 @@ void test_openblas(const int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, const int re
         cblas_daxpy(n, dalpha, dx, 1, dr, 1); // Call OpenBLAS
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_double_sum(dr, n);
     delete [] dx;
     delete [] dy;

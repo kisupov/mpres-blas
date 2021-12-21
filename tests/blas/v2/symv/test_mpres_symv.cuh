@@ -78,7 +78,7 @@ void test_mpres_symv(enum mblas_uplo_type uplo, const int n, int lenx, int leny,
         cuda::mp_symv<32><<<blocks, threads>>>(uplo, n, dalpha, dA, lda, dx, incx, dbeta, dy, incy);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

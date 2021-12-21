@@ -62,7 +62,7 @@ void test_mpres(const int n, mpfr_t alpha, mpfr_t *x, const int repeats) {
         cuda::mp_scal<<<blocks, threads>>>(n, dalpha, dx, dx);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

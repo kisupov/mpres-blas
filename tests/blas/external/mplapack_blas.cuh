@@ -52,7 +52,7 @@ void mpack_asum_test(mpfr_t *x, int n, int precision, int repeats) {
     for (int i = 0; i < repeats; i++)
         mpreal_result = Rasum(n, mpreal_x, 1); // Call MPACK
     EndCpuTimer();
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     mpfr_printf("result: %.70Rf\n", &mpreal_result);
 
     //Clear
@@ -85,7 +85,7 @@ void mpack_dot_test(mpfr_t *x, mpfr_t *y, int n, int precision, int repeats) {
         mpreal_result = Rdot(n, mpreal_x, 1, mpreal_y, 1);
     }
     EndCpuTimer();
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     mpfr_printf("result: %.70Rf\n", &mpreal_result);
 
     //Cleanup
@@ -117,7 +117,7 @@ void mpack_scal_test(mpfr_t *x, mpfr_t alpha, int n, int precision, int repeats)
         Rscal(n, lalpha, lx, 1);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
 
     //Print
     mpreal result = 0.0;
@@ -158,7 +158,7 @@ void mpack_axpy_test(mpfr_t * x, mpfr_t *y, mpfr_t alpha, int n, int precision, 
         Raxpy(n, mpreal_alpha, mpreal_x, 1, mpreal_y, 1);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
 
     //Print
     mpreal mpreal_result = 0.0;
@@ -203,7 +203,7 @@ void mpack_rot_test( int n, mpfr_t * x, mpfr_t *y, mpfr_t c, mpfr_t s, int preci
         Rrot(n, mpreal_x, 1, mpreal_y, 1, mpreal_c, mpreal_s);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
 
     //Print
     for (int i = 1; i < n; i++) {
@@ -255,7 +255,7 @@ void mpack_gemv_test(const char * trans, int m, int n, int lenx, int leny, mpfr_
         Rgemv(trans, m, n, lalpha, lA, lda, lx, incx, lbeta, ly, incy);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
 
     //Print
     for (int i = 1; i < leny; i+= 1) {
@@ -307,7 +307,7 @@ void mpack_gemm_test(const char *transA, const char *transB, const int m, const 
         Rgemm(transA, transB, m, n, k, lalpha, lA, lda, lB, ldb, lbeta, lC, ldc);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
 
     //Print
     for (int i = 1; i < ldc * n; i+= 1) {
@@ -357,7 +357,7 @@ void mpack_ger_test(int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, i
         Rger(m, n, lalpha, lx, incx, ly, incy, lA, lda);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
 
     //Print
     for (int i = 1; i < lda * n; i+= 1) {

@@ -50,7 +50,7 @@ void test_openblas(const int n, mpfr_t *x, mpfr_t *y, const int repeats){
         dr = cblas_ddot((blasint) n, (const double *) dx, (blasint) 1, (const double *) dy, (blasint) 1);
     }
     EndCpuTimer();
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_double_sum(&dr, 1);
     delete[] dx;
     delete[] dy;

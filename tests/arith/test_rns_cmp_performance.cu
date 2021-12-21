@@ -156,7 +156,7 @@ static void run_test(int iterations) {
         hres[i] = rns_cmp(&hrx[i * RNS_MODULI_SIZE], &hry[i * RNS_MODULI_SIZE]);
     }
     EndCpuTimer();
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     checkResult(ref, hres, iterations);
     //---------------------------------------------------------
     Logger::printDash();
@@ -169,7 +169,7 @@ static void run_test(int iterations) {
     StartCudaTimer();
     testCudaRnsCmp<<<1,1>>>(dres, drx, dry, iterations);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     //Copying to the host
     cudaMemcpy(hres, dres, sizeof(int) * iterations , cudaMemcpyDeviceToHost);
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -186,7 +186,7 @@ static void run_test(int iterations) {
     StartCudaTimer();
     testCudaMrcCmp<<<1,1>>>(dres, drx, dry, iterations);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     //Copying to the host
     cudaMemcpy(hres, dres, sizeof(int) * iterations , cudaMemcpyDeviceToHost);
     checkDeviceHasErrors(cudaDeviceSynchronize());

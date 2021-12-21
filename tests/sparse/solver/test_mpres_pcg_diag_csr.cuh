@@ -65,7 +65,7 @@ void test_mpres_pcg_diag_csr(const char * RESIDUAL_PATH, const int n, const int 
     StartCudaTimer();
     int iters = mp_pcg_csr(n, dA, db, tol, maxit, diag, dM, dx, resvec);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
     //Copying to the host

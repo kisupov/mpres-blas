@@ -117,7 +117,7 @@ void openblas_test(int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, in
         cblas_dger(CblasColMajor, m, n, dalpha, dx, incx, dy, incy, dr, lda);
         EndCpuTimer();
     }
-    PrintCpuTimer("took");
+    PrintAndResetCpuTimer("took");
     print_double_sum(dr, lda * n);
     delete [] dx;
     delete [] dy;
@@ -182,7 +182,7 @@ void mpres_test(int m, int n, int lenx, int leny, mpfr_t alpha, mpfr_t *A, int l
                 (m, n, dalpha, dx, incx,dy, incy, dA, lda, dbuf1, dbuf2);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

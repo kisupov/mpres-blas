@@ -89,7 +89,7 @@ void test_campary_spmv_jad(const int m, const int n, const int maxnzr, const int
     StartCudaTimer();
     campary_spmv_jad_kernel<32, prec><<<blocks, threads, sizeof(multi_prec<prec>) * threads>>>(m, maxnzr, djad, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 

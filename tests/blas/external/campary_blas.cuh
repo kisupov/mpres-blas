@@ -542,7 +542,7 @@ void campary_asum_test(int n, mpfr_t *x, int convert_digits, int repeats) {
         campary_asum<prec>(n, dx, dres);
     }
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -600,7 +600,7 @@ void campary_dot_test(int n, mpfr_t *x, mpfr_t *y, int convert_digits, int repea
         campary_dot<prec>(n, dx, dy, dres);
     }
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
 
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -659,7 +659,7 @@ void campary_scal_test(int n, mpfr_t alpha, mpfr_t *x, int convert_digits, int r
         campary_scal<prec>(n, dalpha, dx);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -721,7 +721,7 @@ void campary_axpy_test(int n, mpfr_t alpha, mpfr_t *x, mpfr_t *y, int convert_di
         campary_axpy<prec>(n, dalpha, dx, dy);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -789,7 +789,7 @@ void campary_rot_test(int n, mpfr_t *x, mpfr_t *y, mpfr_t c, mpfr_t s, int conve
         campary_rot<prec>(n, dx, dy, dc, ds);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -865,7 +865,7 @@ void campary_axpy_dot_test(int n, mpfr_t alpha, mpfr_t *w, mpfr_t *v, mpfr_t *u,
         campary_axpy_dot<prec>(n, dalpha, dw, dv, du, dr);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -954,7 +954,7 @@ void campary_gemv_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t *x
         campary_gemv_kernel<prec><<<BLOCKS, CAMPARY_VECTOR_MULTIPLY_THREADS>>>(m, n, dA, lda, dx, dbeta, dy);
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -1037,7 +1037,7 @@ void campary_gemm_test(int m, int n, int k, mpfr_t alpha, mpfr_t *A, int lda, mp
         campary_gemm<prec>(m, n, k, dalpha, dA, lda, dB, ldb, dbeta, dC, ldc)
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -1119,7 +1119,7 @@ void campary_ge_add_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t 
         campary_ge_add<prec>(m, n, dalpha, dA, lda, dbeta, dB, ldb, dC, ldc)
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -1193,7 +1193,7 @@ void campary_ge_acc_test(int m, int n, mpfr_t alpha, mpfr_t *A, int lda, mpfr_t 
         campary_ge_acc<prec>(m, n, dalpha, dA, lda, dbeta, dB, ldb)
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -1255,7 +1255,7 @@ void campary_ge_diag_scale_test(enum  mblas_side_type side, int m, int n, int le
         campary_ge_diag_scale<prec>(side, m, n, dD, incd, dA, lda)
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -1326,7 +1326,7 @@ void campary_ge_lrscale_test(int m, int n,  mpfr_t *DL, int incdl, mpfr_t *DR, i
         campary_ge_lrscale<prec>(m, n, dDL, incdl, dDR, incdr, dA, lda)
         EndCudaTimer();
     }
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
