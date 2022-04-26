@@ -27,8 +27,8 @@
 #include "sparse/utils/csr_utils.cuh"
 #include "sparse/solver/test_double_cg_csr.cuh"
 #include "sparse/solver/test_double_pcg_csr.cuh"
-#include "sparse/solver//test_mpres_cg_csr.cuh"
-#include "sparse/solver//test_mpres_pcg_csr.cuh"
+#include "sparse/solver/test_mpres_cg_csr.cuh"
+#include "sparse/solver/test_mpres_pcg_csr.cuh"
 
 void initialize() {
     cudaDeviceReset();
@@ -49,7 +49,7 @@ void test(const char * MATRIX_PATH, const char * RESIDUAL_PATH, const int N, con
     //test_mpres_cg_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
     test_mpres_pcg_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
     checkDeviceHasErrors(cudaDeviceSynchronize());
-    cudaCheckErrors(); //CUMP gives failure
+    cudaCheckErrors();
     csr_clear(CSR);
     cudaDeviceReset();
 }
