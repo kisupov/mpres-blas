@@ -19,8 +19,8 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_PCG_DIAG_CSR_CUH
-#define TEST_MPRES_PCG_DIAG_CSR_CUH
+#ifndef TEST_MPRES_PCG_CSR_CUH
+#define TEST_MPRES_PCG_CSR_CUH
 
 #include "../../tsthelper.cuh"
 #include "../../logger.cuh"
@@ -29,7 +29,7 @@
 #include "sparse/msparse_enum.cuh"
 
 
-void test_mpres_pcg_diag_csr(const char * RESIDUAL_PATH, const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
+void test_mpres_pcg_csr(const char * RESIDUAL_PATH, const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS PCG CSR solver (mp_pcg_csr) with diagonal preconditioner");
@@ -87,4 +87,4 @@ void test_mpres_pcg_diag_csr(const char * RESIDUAL_PATH, const int n, const int 
     resvec.shrink_to_fit();
 }
 
-#endif //TEST_MPRES_PCG_DIAG_CSR_CUH
+#endif //TEST_MPRES_PCG_CSR_CUH

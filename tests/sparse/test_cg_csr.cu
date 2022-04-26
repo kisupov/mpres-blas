@@ -26,9 +26,9 @@
 #include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/csr_utils.cuh"
 #include "sparse/solver/test_double_cg_csr.cuh"
-#include "sparse/solver/test_double_pcg_diag_csr.cuh"
+#include "sparse/solver/test_double_pcg_csr.cuh"
 #include "sparse/solver//test_mpres_cg_csr.cuh"
-#include "sparse/solver//test_mpres_pcg_diag_csr.cuh"
+#include "sparse/solver//test_mpres_pcg_csr.cuh"
 
 void initialize() {
     cudaDeviceReset();
@@ -45,9 +45,9 @@ void test(const char * MATRIX_PATH, const char * RESIDUAL_PATH, const int N, con
     build_csr(MATRIX_PATH, N, NNZ, LINES, SYMM, CSR);
     //Launch tests
     //test_double_cg_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
-    test_double_pcg_diag_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
+    test_double_pcg_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
     //test_mpres_cg_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
-    test_mpres_pcg_diag_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
+    test_mpres_pcg_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors(); //CUMP gives failure
     csr_clear(CSR);

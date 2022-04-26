@@ -28,7 +28,7 @@
 #include "sparse/solver/double/double_pcg_csr_gpu.cuh"
 #include "sparse/msparse_enum.cuh"
 
-void test_double_pcg_diag_csr(const char * RESIDUAL_PATH, const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
+void test_double_pcg_csr(const char * RESIDUAL_PATH, const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {
     int threads = 256;
     int blocks = n / threads + 1;
     InitCudaTimer();
