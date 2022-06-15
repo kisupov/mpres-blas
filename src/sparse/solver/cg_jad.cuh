@@ -1,8 +1,8 @@
 /*
- *  Multiple precision CG iterative method for solving linear systems using the CSR matrix storage format
+ *  Multiple precision CG iterative method for solving linear systems using the Jagged Diagonal storage format
  *  TODO: Current timings is suboptimal, for convergence and numerical robustness studies only
  *
- *  Copyright 2021 by Konstantin Isupov
+ *  Copyright 2022 by Konstantin Isupov
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -21,8 +21,8 @@
  */
 
 
-#ifndef MPRES_CG_CSR_CUH
-#define MPRES_CG_CSR_CUH
+#ifndef MPRES_CG_JAD_CUH
+#define MPRES_CG_JAD_CUH
 
 #include "arith/assign.cuh"
 #include "arith/div.cuh"
@@ -31,17 +31,18 @@
 #include "blas/v2/dot_v2.cuh"
 #include "blas/v2/axpy_v2.cuh"
 #include "blas/v2/maxpy_v2.cuh"
-#include "sparse/spmv/spmv_csr.cuh"
+#include "sparse/spmv/spmv_jad.cuh"
 
 /**
- * Multiple precision conjugate gradient linear solver (Ax = b) using CSR for storing the matrix
+ * Multiple precision conjugate gradient linear solver (Ax = b) using JAD storage for the matrix
  * ASSUMPTIONS:
  * - The appropriate GPU memory for x has been allocated and set to zero.
  * - The relative residual or maximum number of iterations are used as a stopping criteria: ||r_k|| <= ||r_0|| * tol or k > maxiter
  * @tparam threads - number of threads fo cuda kernels
  * @tparam blocks_reduce - number of blocks for norm2 and dot product (reduction operations)
  * @param n - operation size
- * @param A - sparse double-precision matrix in the CSR storage format
+ * @param maxnzr - maximum number of nonzeros per row in the matrix A
+ * @param A - sparse double-precision matrix in the JAD storage format
  * @param b - right-hand side vector in gpu memory
  * @param tol - tolerance
  * @param maxit - maximum number of iterations
@@ -50,7 +51,7 @@
  * @return number of iterations
  */
 template <int threads = 32, int blocks_reduce = 256>
-int mp_cg_csr(const int n, const csr_t &A, mp_float_ptr b, const double tol, const int maxit, mp_float_ptr x, std::vector<double> &resvec){
+int mp_cg_jad(const int n, const int maxnzr, const jad_t &A, mp_float_ptr b, const double tol, const int maxit, mp_float_ptr x, std::vector<double> &resvec){
     const int blocks = n / threads + 1;
     //Variables
     double epsilon = 0; //stopping criteria based on relative residual
@@ -75,7 +76,7 @@ int mp_cg_csr(const int n, const csr_t &A, mp_float_ptr b, const double tol, con
     cudaMalloc(&beta, sizeof(mp_float_t));
     cudaMalloc(&pqDot, sizeof(mp_float_t));
     //Initial residual r = b − Ax (using initial guess in x):
-    cuda::mp_spmv_csr<threads><<<blocks, threads>>>(n, A, x, r);
+    cuda::mp_spmv_jad<threads><<<blocks, threads>>>(n, maxnzr, A, x, r);
     cuda::mp_diff<<<blocks, threads>>>(n, b, r, r);
     //Initial residual norm ||r||
     norm0 = cuda::mp_norm2<blocks_reduce, threads>(n, r);
@@ -94,7 +95,7 @@ int mp_cg_csr(const int n, const csr_t &A, mp_float_ptr b, const double tol, con
             cuda::mp_div(beta, rho, rhop); //beta = rho_{k-1} / rho_{k-2}
             cuda::mp_axpy<<<blocks, threads>>>(n, beta, p, r, p); // pk = r_{k−1} + β_{k−1} * p_{k−1}
         }
-        cuda::mp_spmv_csr<threads><<<blocks, threads>>>(n, A, p, q);
+        cuda::mp_spmv_jad<threads><<<blocks, threads>>>(n, maxnzr, A, p, q);
         cuda::mp_dot<blocks_reduce,threads>(n, p, q, pqDot); //pqDot = p^{T} q
         cuda::mp_div(alpha, rho, pqDot); //alpha = rho / pqDot
         cuda::mp_axpy<<<blocks, threads>>>(n, alpha, p, x, x); // xk = x_{k−1} + α_k * p_k
@@ -114,4 +115,4 @@ int mp_cg_csr(const int n, const csr_t &A, mp_float_ptr b, const double tol, con
     return k;
 }
 
-#endif //MPRES_CG_CSR_CUH
+#endif //MPRES_CG_JAD_CUH
