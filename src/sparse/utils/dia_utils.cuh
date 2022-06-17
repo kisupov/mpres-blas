@@ -32,8 +32,23 @@ void dia_init(dia_t &dia, const int m, const int ndiag) {
 }
 
 void dia_clear(dia_t &dia) {
-    delete [] dia.as;
-    delete [] dia.offset;
+    delete[] dia.as;
+    delete[] dia.offset;
+}
+
+//calculate the main diagonal of the matrix
+void dia_mdiag(const dia_t &dia, const int m, const int ndiag, double *md) {
+    for (int row = 0; row < m; row++) {
+        md[row] = 0;
+    }
+    for (int i = 0; i < ndiag; i++) {
+        if (dia.offset[i] == 0) {
+            for (int row = 0; row < m; row++) {
+                md[row] = dia.as[m * i + row];
+            }
+            break;
+        }
+    }
 }
 
 namespace cuda {

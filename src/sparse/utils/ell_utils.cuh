@@ -36,6 +36,19 @@ void ell_clear(ell_t &ell) {
     delete [] ell.ja;
 }
 
+//calculate the main diagonal of the matrix
+void ell_mdiag(const ell_t &ell, const int m, const int maxnzr, double *md){
+    for(int row = 0; row < m; row++){
+        md[row] = 0;
+        for (int col = 0; col < maxnzr; col++) {
+            if(ell.ja[col * m + row] == row){
+                md[row] = ell.as[col * m + row];
+                break;
+            }
+        }
+    }
+}
+
 namespace cuda {
 
     void ell_init(ell_t &ell, const int m, const int maxnzr) {

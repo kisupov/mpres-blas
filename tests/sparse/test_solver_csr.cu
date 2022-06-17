@@ -25,6 +25,9 @@
 #include "logger.cuh"
 #include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/csr_utils.cuh"
+#include "sparse/utils/ell_utils.cuh"
+#include "sparse/utils/dia_utils.cuh"
+#include "sparse/utils/jad_utils.cuh"
 #include "sparse/solver/test_double_cg_csr.cuh"
 #include "sparse/solver/test_double_pcg_csr.cuh"
 #include "sparse/solver/test_mpres_cg_csr.cuh"
@@ -43,6 +46,57 @@ void test(const char * MATRIX_PATH, const char * RESIDUAL_PATH, const int N, con
     csr_init(CSR, N, NNZ);
     //Convert a sparse matrix to the double-precision CSR format
     build_csr(MATRIX_PATH, N, NNZ, LINES, SYMM, CSR);
+
+    //TODO: for debug
+
+/*    ell_t ELL;
+    ell_init(ELL, N, MAXMZR);
+    //Convert a sparse matrix to the double-precision CSR format
+    build_ell(MATRIX_PATH, N, MAXMZR, LINES, SYMM, ELL);
+
+    dia_t DIA;
+    int NDIAG = calc_ndiag(MATRIX_PATH, LINES, SYMM);
+    dia_init(DIA, N, NDIAG);
+    //Convert a sparse matrix to the double-precision CSR format
+    build_dia(MATRIX_PATH, N, LINES, SYMM, DIA);
+
+    jad_t JAD;
+    jad_init(JAD, N, MAXMZR, NNZ);
+    //Convert a sparse matrix to the double-precision CSR format
+    build_jad(MATRIX_PATH, N, MAXMZR, NNZ, LINES, SYMM, JAD);
+
+    auto *diag_CSR = new double [N];
+    auto *diag_ELL = new double [N];
+    auto *diag_DIA = new double [N];
+    auto *diag_JAD = new double [N];
+
+    csr_mdiag(CSR, N, diag_CSR); //M = main diagonal of A
+    ell_mdiag(ELL, N, MAXMZR, diag_ELL); //M = main diagonal of A
+    dia_mdiag(DIA, N, NDIAG, diag_DIA); //M = main diagonal of A
+    jad_mdiag(JAD, N, MAXMZR, diag_JAD); //M = main diagonal of A
+
+    Logger::beginSection("CSR Main Diagonal:");
+    for(int i = 0; i < N; i++){
+        printf("%lf, ", diag_CSR[i]);
+    }
+    printf("\n");
+    Logger::beginSection("ELL Main Diagonal:");
+    for(int i = 0; i < N; i++){
+        printf("%lf, ", diag_ELL[i]);
+    }
+    printf("\n");
+    Logger::beginSection("DIA Main Diagonal:");
+    for(int i = 0; i < N; i++){
+        printf("%lf, ", diag_DIA[i]);
+    }
+    printf("\n");
+    Logger::beginSection("JAD Main Diagonal:");
+    for(int i = 0; i < N; i++){
+        printf("%lf, ", diag_JAD[i]);
+    }
+    printf("\n");
+    Logger::beginSection("End");*/
+
     //Launch tests
     //test_double_cg_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);
     test_double_pcg_csr(RESIDUAL_PATH, N, NNZ, CSR, TOL, MAXIT);

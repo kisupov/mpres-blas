@@ -39,7 +39,7 @@ void csr_clear(csr_t &csr) {
 }
 
 //calculate the main diagonal of the matrix
-void mdiag(const csr_t &csr, const int m, double *md){
+void csr_mdiag(const csr_t &csr, const int m, double *md){
     for(int row = 0; row < m; row++){
         md[row] = 0;
         int row_start = csr.irp[row];

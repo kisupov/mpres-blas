@@ -40,7 +40,7 @@ void test_double_pcg_csr(const char * RESIDUAL_PATH, const int n, const int nnz,
     auto *hM = new double [n];
     std::vector<double> resvec;
     //Construct Jacobi preconditioner M and compute M^{-1}
-    mdiag(A, n, hM); //M = main diagonal of A
+    csr_mdiag(A, n, hM); //M = main diagonal of A
     #pragma omp parallel for
     for(int i = 0; i < n; i++){
         hx[i] = 0;

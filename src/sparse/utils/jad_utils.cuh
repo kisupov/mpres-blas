@@ -40,6 +40,22 @@ void jad_clear(jad_t &jad) {
     delete [] jad.perm;
 }
 
+//calculate the main diagonal of the matrix
+/*void jad_mdiag(const jad_t &jad, const int m, const int maxnzr, double *md){
+    for(int row = 0; row < m; row++){
+        md[row] = 0;
+        auto j = 0;
+        auto index = row;
+        while (j < maxnzr && index < jad.jcp[j + 1]) {
+            auto col = jad.ja[index];
+            if(col == jad.perm[row]){
+                md[jad.perm[row]] = jad.as[index];
+            }
+            index = row + jad.jcp[++j];
+        }
+    }
+}*/
+
 namespace cuda {
 
     void jad_init(jad_t &jad, const int m, const int maxnzr, const int nnz) {
