@@ -41,9 +41,9 @@ void jad_clear(jad_t &jad) {
 }
 
 //calculate the main diagonal of the matrix
-/*void jad_mdiag(const jad_t &jad, const int m, const int maxnzr, double *md){
+void jad_mdiag(const jad_t &jad, const int m, const int maxnzr, double *md){
     for(int row = 0; row < m; row++){
-        md[row] = 0;
+        md[jad.perm[row]] = 0;
         auto j = 0;
         auto index = row;
         while (j < maxnzr && index < jad.jcp[j + 1]) {
@@ -54,7 +54,7 @@ void jad_clear(jad_t &jad) {
             index = row + jad.jcp[++j];
         }
     }
-}*/
+}
 
 namespace cuda {
 
