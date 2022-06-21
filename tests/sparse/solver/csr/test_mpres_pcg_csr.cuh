@@ -22,11 +22,11 @@
 #ifndef TEST_MPRES_PCG_CSR_CUH
 #define TEST_MPRES_PCG_CSR_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "sparse/solver/pcg_csr.cuh"
 #include "sparse/msparse_enum.cuh"
+#include "sparse/solver/pcg_csr.cuh"
+#include "../../../tsthelper.cuh"
+#include "../../../logger.cuh"
+#include "../../../timers.cuh"
 
 
 void test_mpres_pcg_csr(const char * RESIDUAL_PATH, const int n, const int nnz, const csr_t &A, const double tol, const int maxit) {

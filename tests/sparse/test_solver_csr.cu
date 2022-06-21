@@ -25,10 +25,10 @@
 #include "logger.cuh"
 #include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/csr_utils.cuh"
-#include "sparse/solver/test_double_cg_csr.cuh"
-#include "sparse/solver/test_double_pcg_csr.cuh"
-#include "sparse/solver/test_mpres_cg_csr.cuh"
-#include "sparse/solver/test_mpres_pcg_csr.cuh"
+#include "sparse/solver/csr/test_double_cg_csr.cuh"
+#include "sparse/solver/csr/test_double_pcg_csr.cuh"
+#include "sparse/solver/csr/test_mpres_cg_csr.cuh"
+#include "sparse/solver/csr/test_mpres_pcg_csr.cuh"
 
 void initialize() {
     cudaDeviceReset();
