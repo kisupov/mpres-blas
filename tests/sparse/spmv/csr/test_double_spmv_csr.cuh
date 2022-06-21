@@ -1,5 +1,5 @@
 /*
- *  Accuracy test for the MPRES-BLAS library SpMV routine mp_spmv_csr (double precision matrix)
+ *  Performance test for the regular double precision SpMV CSR routine (scalar kernel)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,12 +19,16 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_DOUBLE_SPMV_CSR_ACCURACY_CUH
-#define TEST_DOUBLE_SPMV_CSR_ACCURACY_CUH
+#ifndef TEST_DOUBLE_SPMV_CSR_CUH
+#define TEST_DOUBLE_SPMV_CSR_CUH
 
-#include "../../tsthelper.cuh"
-#include "sparse/spmv/spmv_csr.cuh"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
 
+/////////
+// Double precision
+/////////
 __global__ static void double_spmv_csr_kernel(const int m, const csr_t csr, const double *x, double *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
     if(row < m){
@@ -38,14 +42,19 @@ __global__ static void double_spmv_csr_kernel(const int m, const csr_t csr, cons
     }
 }
 
-//returns result in y
-void test_double_spmv_csr_accuracy(const int m, const int n, const int nnz, const int maxnzr, const csr_t &csr, const double * x, mpfr_t *y){
+
+void test_double_spmv_csr(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t *x) {
+    InitCudaTimer();
+    Logger::printDash();
+    PrintTimerName("[GPU] double SpMV CSR");
 
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
+    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
-    // Host data
+    //Host data
+    auto *hx = new double[n];
     auto *hy = new double[m];
 
     // GPU vectors
@@ -53,7 +62,8 @@ void test_double_spmv_csr_accuracy(const int m, const int n, const int nnz, cons
     double *dy;
     cudaMalloc(&dx, sizeof(double) * n);
     cudaMalloc(&dy, sizeof(double) * m);
-    cudaMemcpy(dx, x, sizeof(double) * n, cudaMemcpyHostToDevice);
+    convert_vector(hx, x, n);
+    cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
 
     //GPU matrix
     csr_t dcsr;
@@ -61,20 +71,22 @@ void test_double_spmv_csr_accuracy(const int m, const int n, const int nnz, cons
     cuda::csr_host2device(dcsr, csr, m, nnz);
 
     //Launch
+    StartCudaTimer();
     double_spmv_csr_kernel<<<blocks, threads>>>(m, dcsr, dx, dy);
+    EndCudaTimer();
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
-    //Set output vector
+    //Copying to the host
     cudaMemcpy(hy, dy, sizeof(double) * m , cudaMemcpyDeviceToHost);
-    for(int i = 0; i < m; i++){
-        mpfr_set_d(y[i], hy[i], MPFR_RNDN);
-    }
-    //Cleanup
+    print_double_sum(hy, m);
+
+    delete [] hx;
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
     cuda::csr_clear(dcsr);
 }
 
-#endif //TEST_DOUBLE_SPMV_CSR_ACCURACY_CUH
+#endif //TEST_DOUBLE_SPMV_CSR_CUH

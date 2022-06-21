@@ -1,5 +1,5 @@
 /*
- *  Performance test for the regular double precision SpMV CSR routine (scalar kernel)
+ *  Performance test for the MPRES-BLAS library SpMV routine mp_spmv_csr (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,51 +19,38 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_DOUBLE_SPMV_CSR_CUH
-#define TEST_DOUBLE_SPMV_CSR_CUH
+#ifndef TEST_MPRES_SPMV_CSR_CUH
+#define TEST_MPRES_SPMV_CSR_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
+#include "sparse/spmv/spmv_csr.cuh"
 
 /////////
-// Double precision
+//  SpMV CSR scalar kernel
 /////////
-__global__ static void double_spmv_csr_kernel(const int m, const csr_t csr, const double *x, double *y) {
-    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    if(row < m){
-        double dot = 0;
-        int row_start = csr.irp[row];
-        int row_end = csr.irp[row+1];
-        for (int i = row_start; i < row_end; i++) {
-            dot += csr.as[i] * x[csr.ja[i]];
-        }
-        y[row] = dot;
-    }
-}
-
-
-void test_double_spmv_csr(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t *x) {
+double test_mpres_spmv_csr(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] double SpMV CSR");
+    PrintTimerName("[GPU] MPRES-BLAS CSR (mp_spmv_csr)");
 
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
-    //Host data
-    auto *hx = new double[n];
-    auto *hy = new double[m];
+    // Host data
+    auto hx = new mp_float_t[n];
+    auto hy = new mp_float_t[m];
 
     // GPU vectors
-    double *dx;
-    double *dy;
-    cudaMalloc(&dx, sizeof(double) * n);
-    cudaMalloc(&dy, sizeof(double) * m);
+    mp_float_ptr dx;
+    mp_float_ptr dy;
+    cudaMalloc(&dx, sizeof(mp_float_t) * n);
+    cudaMalloc(&dy, sizeof(mp_float_t) * m);
     convert_vector(hx, x, n);
-    cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
 
     //GPU matrix
     csr_t dcsr;
@@ -72,21 +59,23 @@ void test_double_spmv_csr(const int m, const int n, const int nnz, const csr_t &
 
     //Launch
     StartCudaTimer();
-    double_spmv_csr_kernel<<<blocks, threads>>>(m, dcsr, dx, dy);
+    cuda::mp_spmv_csr<32><<<blocks, threads>>>(m, dcsr, dx, dy);
     EndCudaTimer();
-    PrintAndResetCudaTimer("took");
+    PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Copying to the host
-    cudaMemcpy(hy, dy, sizeof(double) * m , cudaMemcpyDeviceToHost);
-    print_double_sum(hy, m);
+    cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    print_mp_sum(hy, m);
 
+    //Cleanup
     delete [] hx;
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
     cuda::csr_clear(dcsr);
+    return _cuda_time;
 }
 
-#endif //TEST_DOUBLE_SPMV_CSR_CUH
+#endif //TEST_MPRES_SPMV_CSR_CUH

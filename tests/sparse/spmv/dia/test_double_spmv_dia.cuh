@@ -1,5 +1,5 @@
 /*
- *  Performance test for the regular double precision SpMV ELLPACK routine (scalar kernel)
+ *  Performance test for the regular double precision SpMV DIA routine (scalar kernel)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,46 +19,46 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_DOUBLE_SPMV_ELL_CUH
-#define TEST_DOUBLE_SPMV_ELL_CUH
+#ifndef TEST_DOUBLE_SPMV_DIA_CUH
+#define TEST_DOUBLE_SPMV_DIA_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
+#include "../../../tsthelper.cuh"
+#include "../../../logger.cuh"
+#include "../../../timers.cuh"
 
 /////////
 // Double precision
 /////////
-__global__ static void double_spmv_ell_kernel(const int m, const int maxnzr, const ell_t ell, const double *x, double *y) {
+__global__ static void double_spmv_dia_kernel(const int m, const int n, const int ndiag, const dia_t dia, const double *x, double *y) {
     unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
-    if(row < m){
+    if(row < m) {
         double dot = 0;
-        for (int col = 0; col < maxnzr; col++) {
-            int j = ell.ja[col * m + row];
-            double val = ell.as[col * m + row];
-            if(val != 0){
-                dot += val * x[j];
-            }
+        for (int i = 0; i < ndiag; i++) {
+            int col = row + dia.offset[i];
+            double val = dia.as[m * i + row];
+            if(col  >= 0 && col < n && val != 0)
+                dot += val * x[col];
         }
         y[row] = dot;
     }
 }
 
-void test_double_spmv_ell(const int m, const int n, const int maxnzr, const ell_t &ell, const mpfr_t *x) {
+void test_double_spmv_dia(const int m, const int n, const int ndiag, const dia_t &dia, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] double SpMV ELLPACK");
+    PrintTimerName("[GPU] double SpMV DIA");
 
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
-    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
+    printf("Exec. config: blocks = %i, threads = %i\n", blocks, threads);
+    printf("Matrix (AS array) size (MB): %lf\n", get_double_array_size_in_mb(m * ndiag));
 
     //host data
     auto *hx = new double[n];
     auto *hy = new double[m];
 
-    // GPU vectors
+    //GPU vectors
     double *dx;
     double *dy;
     cudaMalloc(&dx, sizeof(double) * n);
@@ -67,13 +67,13 @@ void test_double_spmv_ell(const int m, const int n, const int maxnzr, const ell_
     cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
 
     //GPU matrix
-    ell_t dell;
-    cuda::ell_init(dell, m, maxnzr);
-    cuda::ell_host2device(dell, ell, m, maxnzr);
+    dia_t ddia;
+    cuda::dia_init(ddia, m, ndiag);
+    cuda::dia_host2device(ddia, dia, m, ndiag);
 
     //Launch
     StartCudaTimer();
-    double_spmv_ell_kernel<<<blocks, threads>>>(m, maxnzr, dell, dx, dy);
+    double_spmv_dia_kernel<<<blocks, threads>>>(m, n, ndiag, ddia, dx, dy);
     EndCudaTimer();
     PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -87,7 +87,7 @@ void test_double_spmv_ell(const int m, const int n, const int maxnzr, const ell_
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cuda::ell_clear(dell);
+    cuda::dia_clear(ddia);
 }
 
-#endif //TEST_DOUBLE_SPMV_ELL_CUH
+#endif //TEST_DOUBLE_SPMV_DIA_CUH

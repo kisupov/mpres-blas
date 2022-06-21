@@ -23,10 +23,10 @@
 #ifndef TEST_CAMPARY_SPMV_CSRV_CUH
 #define TEST_CAMPARY_SPMV_CSRV_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "../../lib/campary_common.cuh"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
+#include "lib/campary_common.cuh"
 
 /*
  * Performs the matrix-vector operation y = A * x where x and y are dense vectors and A is a sparse matrix.

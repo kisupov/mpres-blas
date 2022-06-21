@@ -23,10 +23,10 @@
 #ifndef TEST_TACO_SPMV_CSR_CUH
 #define TEST_TACO_SPMV_CSR_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "../../../../../../../../usr/local/include/taco.h"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
+#include "taco.h"
 
 void test_taco_spmv_csr(const char * matrix_path, const mpfr_t * vectorX, const string matrix_type){
     if (matrix_type == "real") {

@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mp_spmv_csr (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mp_spmv_csrv (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,25 +19,28 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_SPMV_CSR_CUH
-#define TEST_MPRES_SPMV_CSR_CUH
+#ifndef TEST_MPRES_SPMV_CSRV_CUH
+#define TEST_MPRES_SPMV_CSRV_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "sparse/spmv/spmv_csr.cuh"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
+#include "sparse/spmv/spmv_csrv.cuh"
 
 /////////
-//  SpMV CSR scalar kernel
+//  SpMV CSR vector kernel with multiple threads per matrix row
 /////////
-double test_mpres_spmv_csr(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
+template<int threadsPerRow>
+double test_mpres_spmv_csrv(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS CSR (mp_spmv_csr)");
+    PrintTimerName("[GPU] MPRES-BLAS CSR Vector (mp_spmv_csrv)");
 
     //Execution configuration
-    int threads = 32;
-    int blocks = m / threads + 1;
+    const int threads = 32;
+    const int blocks = m / (threads/threadsPerRow) + 1;
+    //int blocks = 32;
+    printf("\tThreads per row = %i\n", threadsPerRow);
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
     // Host data
@@ -59,7 +62,7 @@ double test_mpres_spmv_csr(const int m, const int n, const int nnz, const csr_t 
 
     //Launch
     StartCudaTimer();
-    cuda::mp_spmv_csr<32><<<blocks, threads>>>(m, dcsr, dx, dy);
+    cuda::mp_spmv_csrv<32, threadsPerRow><<<blocks, threads>>>(m, dcsr, dx, dy);
     EndCudaTimer();
     PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -78,4 +81,4 @@ double test_mpres_spmv_csr(const int m, const int n, const int nnz, const csr_t 
     return _cuda_time;
 }
 
-#endif //TEST_MPRES_SPMV_CSR_CUH
+#endif //TEST_MPRES_SPMV_CSRV_CUH

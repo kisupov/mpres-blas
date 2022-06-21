@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mp_spmv_jadv (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mp_spmv_jad (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,29 +19,26 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_SPMV_JADV_CUH
-#define TEST_MPRES_SPMV_JADV_CUH
+#ifndef TEST_MPRES_SPMV_JAD_CUH
+#define TEST_MPRES_SPMV_JAD_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "sparse/spmv/spmv_jadv.cuh"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
+#include "sparse/spmv/spmv_jad.cuh"
 #include "sparse/utils/jad_utils.cuh"
 
 /////////
 //  SpMV jad kernel test
 /////////
-
-template<int threadsPerRow>
-void test_mpres_spmv_jadv(const int m, const int n, const int maxnzr, const int nnz, const jad_t &jad, const mpfr_t *x) {
+double test_mpres_spmv_jad(const int m, const int n, const int maxnzr, const int nnz, const jad_t &jad, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS JAD Vector (mp_spmv_jadv)");
+    PrintTimerName("[GPU] MPRES-BLAS JAD (mp_spmv_jad)");
 
     //Execution configuration
     int threads = 32;
-    const int blocks = m / (threads/threadsPerRow) + 1;
-    printf("\tThreads per row = %i\n", threadsPerRow);
+    int blocks = m / threads + 1;
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
     // Host data
@@ -63,9 +60,9 @@ void test_mpres_spmv_jadv(const int m, const int n, const int maxnzr, const int 
 
     //Launch
     StartCudaTimer();
-    cuda::mp_spmv_jadv<32, threadsPerRow><<<blocks, threads>>>(m, maxnzr, djad, dx, dy);
+    cuda::mp_spmv_jad<32><<<blocks, threads>>>(m, maxnzr, djad, dx, dy);
     EndCudaTimer();
-    PrintAndResetCudaTimer("took");
+    PrintCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -79,6 +76,8 @@ void test_mpres_spmv_jadv(const int m, const int n, const int maxnzr, const int 
     cudaFree(dx);
     cudaFree(dy);
     cuda::jad_clear(djad);
+    return _cuda_time;
+
 }
 
-#endif //TEST_MPRES_SPMV_JADV_CUH
+#endif //TEST_MPRES_SPMV_JAD_CUH

@@ -25,9 +25,9 @@
 #include "logger.cuh"
 #include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/csr_utils.cuh"
-#include "sparse/accuracy/spmv_csr_accuracy_utils.cuh"
-#include "sparse/accuracy/test_mpres_spmv_csr_accuracy.cuh"
-#include "sparse/accuracy/test_double_spmv_csr_accuracy.cuh"
+#include "sparse/spmv/accuracy/spmv_csr_accuracy_utils.cuh"
+#include "sparse/spmv/accuracy/test_mpres_spmv_csr_accuracy.cuh"
+#include "sparse/spmv/accuracy/test_double_spmv_csr_accuracy.cuh"
 
 void initialize() {
     cudaDeviceReset();

@@ -24,9 +24,9 @@
 #include "logger.cuh"
 #include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/csr_utils.cuh"
-#include "sparse/csr/test_mpfr_spmv_csr.cuh"
-#include "sparse/csr/test_double_spmv_csr.cuh"
-#include "sparse/csr/test_mpres_spmv_csr.cuh"
+#include "sparse/spmv/csr/test_mpfr_spmv_csr.cuh"
+#include "sparse/spmv/csr/test_double_spmv_csr.cuh"
+#include "sparse/spmv/csr/test_mpres_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits

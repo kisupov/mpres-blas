@@ -1,7 +1,7 @@
 /*
- *  Performance test for the regular double precision SpMV JAD (JDS) routine
+ *  Performance test for the regular double precision SpMV ELLPACK routine (scalar kernel)
  *
- *  Copyright 2020 by Konstantin Isupov and Ivan Babeshko.
+ *  Copyright 2020 by Konstantin Isupov.
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -19,36 +19,35 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_DOUBLE_SPMV_JAD_CUH
-#define TEST_DOUBLE_SPMV_JAD_CUH
+#ifndef TEST_DOUBLE_SPMV_ELL_CUH
+#define TEST_DOUBLE_SPMV_ELL_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "sparse/utils/jad_utils.cuh"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
 
 /////////
 // Double precision
 /////////
-__global__ static void double_spmv_jad_kernel(const int m, const int maxnzr, const jad_t jad, const double *x, double *y) {
-    auto row = threadIdx.x + blockIdx.x * blockDim.x;
-    while (row < m) {
+__global__ static void double_spmv_ell_kernel(const int m, const int maxnzr, const ell_t ell, const double *x, double *y) {
+    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
+    if(row < m){
         double dot = 0;
-        auto j = 0;
-        auto index = row;
-        while (j < maxnzr && index < jad.jcp[j + 1]) {
-            dot += jad.as[index] * x[jad.ja[index]];
-            index = row + jad.jcp[++j];
+        for (int col = 0; col < maxnzr; col++) {
+            int j = ell.ja[col * m + row];
+            double val = ell.as[col * m + row];
+            if(val != 0){
+                dot += val * x[j];
+            }
         }
-        y[jad.perm[row]] = dot;
-        row +=  gridDim.x * blockDim.x;
+        y[row] = dot;
     }
 }
 
-void test_double_spmv_jad(const int m, const int n, const int maxnzr, const int nnz, const jad_t &jad, const mpfr_t *x) {
+void test_double_spmv_ell(const int m, const int n, const int maxnzr, const ell_t &ell, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] double SpMV JAD (JDS)");
+    PrintTimerName("[GPU] double SpMV ELLPACK");
 
     //Execution configuration
     int threads = 32;
@@ -59,7 +58,7 @@ void test_double_spmv_jad(const int m, const int n, const int maxnzr, const int 
     auto *hx = new double[n];
     auto *hy = new double[m];
 
-    //GPU vectors
+    // GPU vectors
     double *dx;
     double *dy;
     cudaMalloc(&dx, sizeof(double) * n);
@@ -68,14 +67,13 @@ void test_double_spmv_jad(const int m, const int n, const int maxnzr, const int 
     cudaMemcpy(dx, hx, sizeof(double) * n, cudaMemcpyHostToDevice);
 
     //GPU matrix
-    jad_t djad;
-    cuda::jad_init(djad, m, maxnzr, nnz);
-    cuda::jad_host2device(djad, jad, m, maxnzr, nnz);
-
+    ell_t dell;
+    cuda::ell_init(dell, m, maxnzr);
+    cuda::ell_host2device(dell, ell, m, maxnzr);
 
     //Launch
     StartCudaTimer();
-    double_spmv_jad_kernel<<<blocks, threads>>>(m, maxnzr, djad, dx, dy);
+    double_spmv_ell_kernel<<<blocks, threads>>>(m, maxnzr, dell, dx, dy);
     EndCudaTimer();
     PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
@@ -89,8 +87,7 @@ void test_double_spmv_jad(const int m, const int n, const int maxnzr, const int 
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cuda::jad_clear(djad);
+    cuda::ell_clear(dell);
 }
 
-
-#endif //TEST_DOUBLE_SPMV_JAD_CUH
+#endif //TEST_DOUBLE_SPMV_ELL_CUH

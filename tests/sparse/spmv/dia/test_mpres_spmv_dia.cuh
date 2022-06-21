@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mp_spmv_ell (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mp_spmv_dia (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,21 +19,21 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_SPMV_ELL_CUH
-#define TEST_MPRES_SPMV_ELL_CUH
+#ifndef TEST_MPRES_SPMV_DIA_CUH
+#define TEST_MPRES_SPMV_DIA_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "sparse/spmv/spmv_ell.cuh"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
+#include "sparse/spmv/spmv_dia.cuh"
 
 /////////
-//  SpMV ELLPACK kernel test
+//  SpMV DIA kernel test
 /////////
-double test_mpres_spmv_ell(const int m, const int n, const int maxnzr, const ell_t &ell, const mpfr_t *x){
+void test_mpres_spmv_dia(const int m, const int n, const int ndiag, const dia_t &dia, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS ELLPACK (mp_spmv_ell)");
+    PrintTimerName("[GPU] MPRES-BLAS DIA (mp_spmv_dia)");
 
     //Execution configuration
     int threads = 32;
@@ -44,7 +44,7 @@ double test_mpres_spmv_ell(const int m, const int n, const int maxnzr, const ell
     auto hx = new mp_float_t[n];
     auto hy = new mp_float_t[m];
 
-    //GPU vectors
+    // GPU vectors
     mp_float_ptr dx;
     mp_float_ptr dy;
     cudaMalloc(&dx, sizeof(mp_float_t) * n);
@@ -53,15 +53,15 @@ double test_mpres_spmv_ell(const int m, const int n, const int maxnzr, const ell
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
 
     //GPU matrix
-    ell_t dell;
-    cuda::ell_init(dell, m, maxnzr);
-    cuda::ell_host2device(dell, ell, m, maxnzr);
+    dia_t ddia;
+    cuda::dia_init(ddia, m, ndiag);
+    cuda::dia_host2device(ddia, dia, m, ndiag);
 
     //Launch
     StartCudaTimer();
-    cuda::mp_spmv_ell<32><<<blocks, threads>>>(m, maxnzr, dell, dx, dy);
+    cuda::mp_spmv_dia<32><<<blocks, threads>>>(m, n, ndiag, ddia, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -74,9 +74,7 @@ double test_mpres_spmv_ell(const int m, const int n, const int maxnzr, const ell
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cuda::ell_clear(dell);
-    return _cuda_time;
-
+    cuda::dia_clear(ddia);
 }
 
-#endif //TEST_MPRES_SPMV_ELL_CUH
+#endif //TEST_MPRES_SPMV_DIA_CUH

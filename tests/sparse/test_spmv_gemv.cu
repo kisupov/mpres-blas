@@ -25,12 +25,12 @@
 #include "sparse/utils/csr_utils.cuh"
 #include "sparse/utils/jad_utils.cuh"
 #include "sparse/utils/ell_utils.cuh"
-#include "sparse/csr/test_double_spmv_csr.cuh"
-#include "sparse/csr/test_mpfr_spmv_csr.cuh"
-#include "sparse/csr/test_mpres_spmv_csr.cuh"
-#include "sparse/csr/test_mpres_spmv_csrv.cuh"
-#include "sparse/jad/test_mpres_spmv_jad.cuh"
-#include "sparse/ell/test_mpres_spmv_ell.cuh"
+#include "sparse/spmv/csr/test_double_spmv_csr.cuh"
+#include "sparse/spmv/csr/test_mpfr_spmv_csr.cuh"
+#include "sparse/spmv/csr/test_mpres_spmv_csr.cuh"
+#include "sparse/spmv/csr/test_mpres_spmv_csrv.cuh"
+#include "sparse/spmv/jad/test_mpres_spmv_jad.cuh"
+#include "sparse/spmv/ell/test_mpres_spmv_ell.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits

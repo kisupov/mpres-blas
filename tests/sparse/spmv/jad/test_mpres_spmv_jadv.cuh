@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mp_spmv_csrv (double precision matrix)
+ *  Performance test for the MPRES-BLAS library SpMV routine mp_spmv_jadv (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,27 +19,28 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_SPMV_CSRV_CUH
-#define TEST_MPRES_SPMV_CSRV_CUH
+#ifndef TEST_MPRES_SPMV_JADV_CUH
+#define TEST_MPRES_SPMV_JADV_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "sparse/spmv/spmv_csrv.cuh"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
+#include "sparse/spmv/spmv_jadv.cuh"
+#include "sparse/utils/jad_utils.cuh"
 
 /////////
-//  SpMV CSR vector kernel with multiple threads per matrix row
+//  SpMV jad kernel test
 /////////
+
 template<int threadsPerRow>
-double test_mpres_spmv_csrv(const int m, const int n, const int nnz, const csr_t &csr, const mpfr_t * x){
+void test_mpres_spmv_jadv(const int m, const int n, const int maxnzr, const int nnz, const jad_t &jad, const mpfr_t *x) {
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS CSR Vector (mp_spmv_csrv)");
+    PrintTimerName("[GPU] MPRES-BLAS JAD Vector (mp_spmv_jadv)");
 
     //Execution configuration
-    const int threads = 32;
+    int threads = 32;
     const int blocks = m / (threads/threadsPerRow) + 1;
-    //int blocks = 32;
     printf("\tThreads per row = %i\n", threadsPerRow);
     printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
@@ -56,15 +57,15 @@ double test_mpres_spmv_csrv(const int m, const int n, const int nnz, const csr_t
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
 
     //GPU matrix
-    csr_t dcsr;
-    cuda::csr_init(dcsr, m, nnz);
-    cuda::csr_host2device(dcsr, csr, m, nnz);
+    jad_t djad;
+    cuda::jad_init(djad, m, maxnzr, nnz);
+    cuda::jad_host2device(djad, jad, m, maxnzr, nnz);
 
     //Launch
     StartCudaTimer();
-    cuda::mp_spmv_csrv<32, threadsPerRow><<<blocks, threads>>>(m, dcsr, dx, dy);
+    cuda::mp_spmv_jadv<32, threadsPerRow><<<blocks, threads>>>(m, maxnzr, djad, dx, dy);
     EndCudaTimer();
-    PrintCudaTimer("took");
+    PrintAndResetCudaTimer("took");
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
@@ -73,12 +74,11 @@ double test_mpres_spmv_csrv(const int m, const int n, const int nnz, const csr_t
     print_mp_sum(hy, m);
 
     //Cleanup
-    delete [] hx;
-    delete [] hy;
+    delete[] hx;
+    delete[] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cuda::csr_clear(dcsr);
-    return _cuda_time;
+    cuda::jad_clear(djad);
 }
 
-#endif //TEST_MPRES_SPMV_CSRV_CUH
+#endif //TEST_MPRES_SPMV_JADV_CUH

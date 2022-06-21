@@ -1,5 +1,5 @@
 /*
- *  Performance test for the MPRES-BLAS library SpMV routine mp_spmv_jad (double precision matrix)
+ *  Accuracy test for the MPRES-BLAS library SpMV routine mp_spmv_csr (double precision matrix)
  *
  *  Copyright 2020 by Konstantin Isupov.
  *
@@ -19,27 +19,19 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_SPMV_JAD_CUH
-#define TEST_MPRES_SPMV_JAD_CUH
+#ifndef TEST_MPRES_SPMV_CSR_ACCURACY_CUH
+#define TEST_MPRES_SPMV_CSR_ACCURACY_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "sparse/spmv/spmv_jad.cuh"
-#include "sparse/utils/jad_utils.cuh"
+#include "tsthelper.cuh"
+#include "sparse/spmv/spmv_csr.cuh"
 
-/////////
-//  SpMV jad kernel test
-/////////
-double test_mpres_spmv_jad(const int m, const int n, const int maxnzr, const int nnz, const jad_t &jad, const mpfr_t *x) {
-    InitCudaTimer();
-    Logger::printDash();
-    PrintTimerName("[GPU] MPRES-BLAS JAD (mp_spmv_jad)");
+
+//returns result in y
+void test_mpres_spmv_csr_accuracy(const int m, const int n, const int nnz, const int maxnzr, const csr_t &csr, const double * x, mpfr_t *y){
 
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
-    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
 
     // Host data
     auto hx = new mp_float_t[n];
@@ -54,30 +46,26 @@ double test_mpres_spmv_jad(const int m, const int n, const int maxnzr, const int
     cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
 
     //GPU matrix
-    jad_t djad;
-    cuda::jad_init(djad, m, maxnzr, nnz);
-    cuda::jad_host2device(djad, jad, m, maxnzr, nnz);
+    csr_t dcsr;
+    cuda::csr_init(dcsr, m, nnz);
+    cuda::csr_host2device(dcsr, csr, m, nnz);
 
     //Launch
-    StartCudaTimer();
-    cuda::mp_spmv_jad<32><<<blocks, threads>>>(m, maxnzr, djad, dx, dy);
-    EndCudaTimer();
-    PrintCudaTimer("took");
+    cuda::mp_spmv_csr<32><<<blocks, threads>>>(m, dcsr, dx, dy);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
-    //Copying to the host
+    //Set output vector
     cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
-    print_mp_sum(hy, m);
-
+    for(int i = 0; i < m; i++){
+        mp_get_mpfr(y[i], hy[i]); //actual result
+    }
     //Cleanup
-    delete[] hx;
-    delete[] hy;
+    delete [] hx;
+    delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
-    cuda::jad_clear(djad);
-    return _cuda_time;
-
+    cuda::csr_clear(dcsr);
 }
 
-#endif //TEST_MPRES_SPMV_JAD_CUH
+#endif //TEST_MPRES_SPMV_CSR_ACCURACY_CUH

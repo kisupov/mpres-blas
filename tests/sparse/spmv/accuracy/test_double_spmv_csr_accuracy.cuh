@@ -19,31 +19,41 @@
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_MPRES_SPMV_CSR_ACCURACY_CUH
-#define TEST_MPRES_SPMV_CSR_ACCURACY_CUH
+#ifndef TEST_DOUBLE_SPMV_CSR_ACCURACY_CUH
+#define TEST_DOUBLE_SPMV_CSR_ACCURACY_CUH
 
-#include "../../tsthelper.cuh"
+#include "tsthelper.cuh"
 #include "sparse/spmv/spmv_csr.cuh"
 
+__global__ static void double_spmv_csr_kernel(const int m, const csr_t csr, const double *x, double *y) {
+    unsigned int row = threadIdx.x + blockIdx.x * blockDim.x;
+    if(row < m){
+        double dot = 0;
+        int row_start = csr.irp[row];
+        int row_end = csr.irp[row+1];
+        for (int i = row_start; i < row_end; i++) {
+            dot += csr.as[i] * x[csr.ja[i]];
+        }
+        y[row] = dot;
+    }
+}
 
 //returns result in y
-void test_mpres_spmv_csr_accuracy(const int m, const int n, const int nnz, const int maxnzr, const csr_t &csr, const double * x, mpfr_t *y){
+void test_double_spmv_csr_accuracy(const int m, const int n, const int nnz, const int maxnzr, const csr_t &csr, const double * x, mpfr_t *y){
 
     //Execution configuration
     int threads = 32;
     int blocks = m / threads + 1;
 
     // Host data
-    auto hx = new mp_float_t[n];
-    auto hy = new mp_float_t[m];
+    auto *hy = new double[m];
 
     // GPU vectors
-    mp_float_ptr dx;
-    mp_float_ptr dy;
-    cudaMalloc(&dx, sizeof(mp_float_t) * n);
-    cudaMalloc(&dy, sizeof(mp_float_t) * m);
-    convert_vector(hx, x, n);
-    cudaMemcpy(dx, hx, n * sizeof(mp_float_t), cudaMemcpyHostToDevice);
+    double *dx;
+    double *dy;
+    cudaMalloc(&dx, sizeof(double) * n);
+    cudaMalloc(&dy, sizeof(double) * m);
+    cudaMemcpy(dx, x, sizeof(double) * n, cudaMemcpyHostToDevice);
 
     //GPU matrix
     csr_t dcsr;
@@ -51,21 +61,20 @@ void test_mpres_spmv_csr_accuracy(const int m, const int n, const int nnz, const
     cuda::csr_host2device(dcsr, csr, m, nnz);
 
     //Launch
-    cuda::mp_spmv_csr<32><<<blocks, threads>>>(m, dcsr, dx, dy);
+    double_spmv_csr_kernel<<<blocks, threads>>>(m, dcsr, dx, dy);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
 
     //Set output vector
-    cudaMemcpy(hy, dy, m * sizeof(mp_float_t), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hy, dy, sizeof(double) * m , cudaMemcpyDeviceToHost);
     for(int i = 0; i < m; i++){
-        mp_get_mpfr(y[i], hy[i]); //actual result
+        mpfr_set_d(y[i], hy[i], MPFR_RNDN);
     }
     //Cleanup
-    delete [] hx;
     delete [] hy;
     cudaFree(dx);
     cudaFree(dy);
     cuda::csr_clear(dcsr);
 }
 
-#endif //TEST_MPRES_SPMV_CSR_ACCURACY_CUH
+#endif //TEST_DOUBLE_SPMV_CSR_ACCURACY_CUH

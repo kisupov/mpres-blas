@@ -24,11 +24,11 @@
 #include "tsthelper.cuh"
 #include "sparse/utils/mtx_reader.cuh"
 #include "sparse/utils/ell_utils.cuh"
-#include "sparse/ell/test_double_spmv_ell.cuh"
-#include "sparse/ell/test_mpres_spmv_ell.cuh"
-#include "sparse/ell/test_campary_spmv_ell.cuh"
-#include "sparse/ell/test_cump_spmv_ell.cuh"
-#include "sparse/csr/test_taco_spmv_csr.cuh"
+#include "sparse/spmv/ell/test_double_spmv_ell.cuh"
+#include "sparse/spmv/ell/test_mpres_spmv_ell.cuh"
+#include "sparse/spmv/ell/test_campary_spmv_ell.cuh"
+#include "sparse/spmv/ell/test_cump_spmv_ell.cuh"
+#include "sparse/spmv/csr/test_taco_spmv_csr.cuh"
 
 int INP_BITS; //in bits
 int INP_DIGITS; //in decimal digits

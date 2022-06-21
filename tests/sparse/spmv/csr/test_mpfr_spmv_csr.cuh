@@ -22,10 +22,10 @@
 #ifndef TEST_MPFR_SPMV_CSR_CUH
 #define TEST_MPFR_SPMV_CSR_CUH
 
-#include "../../../../../../../../usr/include/mpfr.h"
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
+#include "mpfr.h"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
 
 /////////
 // MPFR SpMV routine using double precision matrix

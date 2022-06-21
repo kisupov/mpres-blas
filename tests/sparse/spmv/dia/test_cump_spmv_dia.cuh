@@ -23,10 +23,10 @@
 #ifndef TEST_CUMP_SPMV_DIA_CUH
 #define TEST_CUMP_SPMV_DIA_CUH
 
-#include "../../tsthelper.cuh"
-#include "../../logger.cuh"
-#include "../../timers.cuh"
-#include "../../lib/cump_common.cuh"
+#include "tsthelper.cuh"
+#include "logger.cuh"
+#include "timers.cuh"
+#include "lib/cump_common.cuh"
 
 /*
  * Performs the matrix-vector operation y = A * x
