@@ -109,7 +109,7 @@ namespace cuda {
         __syncthreads();
     }
 
-    /*
+    /*!
      * Computes the dot product of two vectors, r[0] = x0*y0 + x1*y1 + ... + xn*yn
      * @tparam blocks - number of blocks
      * @tparam threads - thread block size
