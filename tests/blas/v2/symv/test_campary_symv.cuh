@@ -94,7 +94,6 @@ void test_campary_symv(enum mblas_uplo_type uplo, const int n, int lenx, int len
     cudaMalloc(&dalpha, sizeof(multi_prec<prec>));
     cudaMalloc(&dbeta, sizeof(multi_prec<prec>));
 
-    // Convert from MPFR
     //Convert from MPFR
     #pragma omp parallel for
     for(int i = 0; i < lenx; i ++){

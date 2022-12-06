@@ -1,7 +1,7 @@
 /*
- *  Performance test for OpenBLAS SYMV
+ *  Performance test for OpenBLAS general rank-1 update (GER)
  *
- *  Copyright 2021 by Konstantin Isupov.
+ *  Copyright 2022 by Konstantin Isupov.
  *
  *  This file is part of the MPRES-BLAS library.
  *

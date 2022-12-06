@@ -1,7 +1,7 @@
 /*
- *  Performance test for BLAS GER routines (rank-1 update)
+ *  Performance test for BLAS GER routines (general rank-1 update)
  *
- *  Copyright 2021 by Konstantin Isupov.
+ *  Copyright 2022 by Konstantin Isupov.
  *
  *  This file is part of the MPRES-BLAS library.
  *
@@ -22,15 +22,15 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "blas/mblas_enum.cuh"
-//#include "test_double_symv.cuh"
-//#include "test_mpfr_symv.cuh"
+#include "test_double_ger.cuh"
+#include "test_mpfr_ger.cuh"
 #include "test_openblas_ger.cuh"
-//#include "test_cublas_symv.cuh"
+#include "test_cublas_ger.cuh"
 #include "test_mpres_ger.cuh"
-//#include "test_campary_symv.cuh"
+#include "test_campary_ger.cuh"
 
-#define M 500  // Number of matrix rows and the vector X dimension
-#define N 500  // Number of matrix columns and the vector Y dimension
+#define M 5000  // Number of matrix rows and the vector X dimension
+#define N 5000  // Number of matrix columns and the vector Y dimension
 #define INCX 1 // Specifies the increment for the elements of x.
 #define INCY 1 // Specifies the increment for the elements of y.
 #define LDA (M) // Specifies the leading dimension of A as declared in the calling (sub)program.
@@ -71,12 +71,12 @@ void test() {
     mpfr_t *alpha = create_random_array(1, INP_BITS);
     //Launch tests
     test_openblas(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, REPEAT_TEST);
-   // test_double(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, REPEAT_TEST);
-   // test_mpfr(UPLO, N, alpha[0], matrixA, LDA, vectorX, beta[0], vectorY, REPEAT_TEST);
-  //  test_cublas(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY, REPEAT_TEST);
-  //  test_double_symv_cuda(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY, REPEAT_TEST);
+    test_double(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, REPEAT_TEST);
+    test_mpfr(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, REPEAT_TEST);
+    test_cublas(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, REPEAT_TEST);
+    test_double_cuda(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, REPEAT_TEST);
     test_mpres_ger(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, REPEAT_TEST);
-  //  test_campary_symv<CAMPARY_PRECISION>(UPLO, N, lenx, leny, alpha[0], matrixA, LDA, vectorX, INCX, beta[0], vectorY, INCY, INP_DIGITS, REPEAT_TEST);
+    test_campary_ger<CAMPARY_PRECISION>(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, INP_DIGITS, REPEAT_TEST);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
     //Cleanup

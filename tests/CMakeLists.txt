@@ -197,7 +197,7 @@ target_link_libraries(test_axpy_v2_performance gmp mpfr openblas OpenMP::OpenMP_
 # Performance test for GER
 add_executable(test_ger_v2_performance blas/v2/ger/test_ger_v2_performance.cu)
 target_compile_options(test_ger_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
-target_link_libraries(test_ger_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX)
+target_link_libraries(test_ger_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX cublas)
 
 #########################
 ## Accuracy tests for BLAS routines
