@@ -30,7 +30,7 @@
 namespace cuda {
     /*!
      * Performs the rank-1 update operation
-     * A = alpha*x*y^T + A
+     * A = A + alpha * x * y^T
      * where alpha is a scalar, x is an m element vector, y is an n element vector and A is an m by n matrix.
      * The matrix should be stored in column-major order.
      *
@@ -40,11 +40,11 @@ namespace cuda {
      * @param m - specifies the number of rows of the matrix A.
      * @param n - specifies the number of columns of the matrix A.
      * @param alpha - buffer holding the input scalar alpha in the GPU memory.
-     * @param x - buffer holding the input vector x in the GPU memory, size m.
+     * @param x - buffer holding the input vector x in the GPU memory, size at least (1 + (m - 1)*abs(incx)).
      * @param incx - specifies the increment for the elements of x. The value of incx must not be zero.
-     * @param y - buffer holding the input vector y in the GPU memory, size n.
-     * @param incx - specifies the increment for the elements of y. The value of incy must not be zero.
-     * @param A - buffer holding the updated matrix A in the GPU memory, size m * n.
+     * @param y - buffer holding the input vector y in the GPU memory, size at least (1 + (n - 1)*abs(incy)).
+     * @param incy - specifies the increment for the elements of y. The value of incy must not be zero.
+     * @param A - buffer holding the updated matrix A in the GPU memory, size at least lda * n.
      * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. Must be positive and at least m as column major layout is used.
      */
     __global__ void mp_ger(const int m, const int n, mp_float_ptr alpha, mp_float_ptr x, const int incx, mp_float_ptr y, const int incy, mp_float_ptr A, const int lda) {
