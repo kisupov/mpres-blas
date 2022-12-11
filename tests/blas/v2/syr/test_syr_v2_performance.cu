@@ -92,7 +92,7 @@ void test() {
 }
 int main() {
     initialize();
-    Logger::beginTestDescription(Logger::BLAS_SYMV_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::BLAS_SYR_PERFORMANCE_TEST);
     Logger::printTestParameters(N * N, REPEAT_TEST, MP_PRECISION, MP_PRECISION_DEC);
     Logger::beginSection("Operation info:");
     Logger::printParam("Matrix rows and columns, N", N);
