@@ -79,6 +79,8 @@ void test_cublas(const int m, const int n, mpfr_t alpha, mpfr_t *x, const int in
         EndCudaTimer();
 
     }
+    checkDeviceHasErrors(cudaDeviceSynchronize());
+    cudaCheckErrors();
     PrintAndResetCudaTimer("took");
     cublasGetVector(lda * n, sizeof(double), dA, 1, hA, 1);
     print_double_sum(hA, lda * n);

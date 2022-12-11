@@ -30,15 +30,15 @@
 
 template<int prec>
 __global__ static void campary_ger_kernel(int m, int n, multi_prec<prec> *alpha, multi_prec<prec> *x, const int incx, multi_prec<prec> *y, const int incy, multi_prec<prec> *A, int lda) {
-    auto col = blockIdx.x * blockDim.x + threadIdx.x;
-    auto row = blockIdx.y * blockDim.y + threadIdx.y;
+    auto row = blockIdx.x * blockDim.x + threadIdx.x;
+    auto col = blockIdx.y * blockDim.y + threadIdx.y;
     while (col < n && row < m) {
         auto indexA = row + col * lda;
         auto ix = incx > 0 ? row * incx : (-m + row + 1) * incx;
         auto iy = incy > 0 ? col * incy : (-n + col + 1) * incy;
         A[indexA] = A[indexA] + alpha * x[ix] * y[iy];
-        col += gridDim.x * blockDim.x;
-        row += gridDim.y * blockDim.y;
+        row += gridDim.x * blockDim.x;
+        col += gridDim.y * blockDim.y;
     }
 }
 
@@ -55,11 +55,12 @@ void test_campary_ger(const int m, const int n, mpfr_t alpha, mpfr_t *x, const i
 
     //Execution configuration
     int threadsX = 32;
-    int threadsY = 32;
+    int threadsY = 1;
     dim3 dimBlock(threadsX, threadsY);
-    dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
-    printf("\tExec. config: threads.x = %i, threads.y = %i, blocks.x = %i, blocks.y = %i\n", threadsX, threadsY, (n + dimBlock.x - 1) / dimBlock.x,
-           (m + dimBlock.y - 1) / dimBlock.y);
+    int blocksX = (m + dimBlock.x - 1) / dimBlock.x;
+    int blocksY = (n + dimBlock.y - 1) / dimBlock.y;
+    dim3 dimGrid(blocksX, blocksY);
+    printf("\tExec. config: threads.x = %i, threads.y = %i, blocks.x = %i, blocks.y = %i\n", threadsX, threadsY, blocksX, blocksY);
 
     //Host data
     multi_prec<prec> halpha;

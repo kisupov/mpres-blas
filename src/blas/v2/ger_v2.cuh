@@ -50,21 +50,21 @@ namespace cuda {
     __global__ void mp_ger(const int m, const int n, mp_float_ptr alpha, mp_float_ptr x, const int incx, mp_float_ptr y, const int incy, mp_float_ptr A, const int lda) {
         __shared__ mp_float_t a;
         mp_float_t axy;
-        auto col = blockIdx.x * blockDim.x + threadIdx.x;
-        auto row = blockIdx.y * blockDim.y + threadIdx.y;
+        auto row = blockIdx.x * blockDim.x + threadIdx.x;
+        auto col = blockIdx.y * blockDim.y + threadIdx.y;
         if (threadIdx.x == 0 && threadIdx.y == 0) {
             a = alpha[0];
         }
         __syncthreads();
-        while (col < n && row < m) {
+        while (row < m && col < n) {
             auto indexA = row + col * lda;
             auto ix = incx > 0 ? row * incx : (-m + row + 1) * incx;
             auto iy = incy > 0 ? col * incy : (-n + col + 1) * incy;
             cuda::mp_mul(&axy, a, x[ix]);
             cuda::mp_mul(&axy, axy, y[iy]);
             cuda::mp_add(&A[indexA], A[indexA], axy);
-            col += gridDim.x * blockDim.x;
-            row += gridDim.y * blockDim.y;
+            row += gridDim.x * blockDim.x;
+            col += gridDim.y * blockDim.y;
         }
     }
 } // namespace cuda

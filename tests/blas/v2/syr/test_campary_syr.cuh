@@ -30,23 +30,23 @@
 
 template<int prec>
 __global__ static void campary_syr_kernel(enum mblas_uplo_type uplo, int n, multi_prec<prec> *alpha, multi_prec<prec> *x, const int incx, multi_prec<prec> *A, int lda) {
-    auto col = blockIdx.x * blockDim.x + threadIdx.x;
-    auto row = blockIdx.y * blockDim.y + threadIdx.y;
+    auto row = blockIdx.x * blockDim.x + threadIdx.x;
+    auto col = blockIdx.y * blockDim.y + threadIdx.y;
     if (uplo == mblas_upper) { //Access the upper part of the matrix
         while (col < n && row <= col) {
             auto ir = incx > 0 ? row * incx : (-n + row + 1) * incx;
             auto ic = incx > 0 ? col * incx : (-n + col + 1) * incx;
             A[row + col * lda] = A[row + col * lda] + alpha * x[ir] * x[ic];
-            col += gridDim.x * blockDim.x;
-            row += gridDim.y * blockDim.y;
+            row += gridDim.x * blockDim.x;
+            col += gridDim.y * blockDim.y;
         }
     } else { //Access the lower part of the matrix
         while (row < n && col <= row) {
             auto ir = incx > 0 ? row * incx : (-n + row + 1) * incx;
             auto ic = incx > 0 ? col * incx : (-n + col + 1) * incx;
             A[row + col * lda] = A[row + col * lda] + alpha * x[ir] * x[ic];
-            col += gridDim.x * blockDim.x;
-            row += gridDim.y * blockDim.y;
+            row += gridDim.x * blockDim.x;
+            col += gridDim.y * blockDim.y;
         }
     }
 }
@@ -58,13 +58,16 @@ void test_campary_syr(enum mblas_uplo_type uplo, const int n, mpfr_t alpha, mpfr
     PrintTimerName("[GPU] CAMPARY syr");
     //Actual length of the vector
     int lenx = (1 + (n - 1) * abs(incx));
+
     //Execution configuration
     int threadsX = 32;
-    int threadsY = 32;
+    int threadsY = 1;
     dim3 dimBlock(threadsX, threadsY);
-    dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (n + dimBlock.y - 1) / dimBlock.y);
-    printf("\tExec. config: threads.x = %i, threads.y = %i, blocks.x = %i, blocks.y = %i\n", threadsX, threadsY, (n + dimBlock.x - 1) / dimBlock.x,
-           (n + dimBlock.y - 1) / dimBlock.y);
+    int blocksX = (n + dimBlock.x - 1) / dimBlock.x;
+    int blocksY = (n + dimBlock.y - 1) / dimBlock.y;
+    dim3 dimGrid(blocksX, blocksY);
+    printf("\tExec. config: threads.x = %i, threads.y = %i, blocks.x = %i, blocks.y = %i\n", threadsX, threadsY, blocksX, blocksY);
+
     //Host data
     multi_prec<prec> halpha;
     auto *hx = new multi_prec<prec>[lenx];

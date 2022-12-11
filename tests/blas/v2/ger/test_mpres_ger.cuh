@@ -39,8 +39,10 @@ void test_mpres_ger(const int m, const int n, mpfr_t alpha, mpfr_t *x, const int
     int threadsX = 32;
     int threadsY = 1;
     dim3 dimBlock(threadsX, threadsY);
-    dim3 dimGrid((n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
-    printf("\tExec. config: threads.x = %i, threads.y = %i, blocks.x = %i, blocks.y = %i\n", threadsX, threadsY, (n + dimBlock.x - 1) / dimBlock.x, (m + dimBlock.y - 1) / dimBlock.y);
+    int blocksX = (m + dimBlock.x - 1) / dimBlock.x;
+    int blocksY = (n + dimBlock.y - 1) / dimBlock.y;
+    dim3 dimGrid(blocksX, blocksY);
+    printf("\tExec. config: threads.x = %i, threads.y = %i, blocks.x = %i, blocks.y = %i\n", threadsX, threadsY, blocksX, blocksY);
 
     //Host data
     mp_float_ptr hx = new mp_float_t[lenx];

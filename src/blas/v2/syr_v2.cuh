@@ -48,8 +48,8 @@ namespace cuda {
     __global__ void mp_syr(enum mblas_uplo_type uplo, const int n, mp_float_ptr alpha, mp_float_ptr x, const int incx, mp_float_ptr A, const int lda) {
         __shared__ mp_float_t a;
         mp_float_t axx;
-        auto col = blockIdx.x * blockDim.x + threadIdx.x;
-        auto row = blockIdx.y * blockDim.y + threadIdx.y;
+        auto row = blockIdx.x * blockDim.x + threadIdx.x;
+        auto col = blockIdx.y * blockDim.y + threadIdx.y;
         if (threadIdx.x == 0 && threadIdx.y == 0) {
             a = alpha[0];
         }
@@ -61,8 +61,8 @@ namespace cuda {
                 cuda::mp_mul(&axx, x[ir], x[ic]);
                 cuda::mp_mul(&axx, axx, a);
                 cuda::mp_add(&A[row + col * lda], A[row + col * lda], axx);
-                col += gridDim.x * blockDim.x;
-                row += gridDim.y * blockDim.y;
+                row += gridDim.x * blockDim.x;
+                col += gridDim.y * blockDim.y;
             }
         } else { //Access the lower part of the matrix
             while (row < n && col <= row) {
@@ -71,8 +71,8 @@ namespace cuda {
                 cuda::mp_mul(&axx, x[ir], x[ic]);
                 cuda::mp_mul(&axx, axx, a);
                 cuda::mp_add(&A[row + col * lda], A[row + col * lda], axx);
-                col += gridDim.x * blockDim.x;
-                row += gridDim.y * blockDim.y;
+                row += gridDim.x * blockDim.x;
+                col += gridDim.y * blockDim.y;
             }
         }
 
