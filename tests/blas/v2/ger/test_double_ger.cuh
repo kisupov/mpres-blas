@@ -114,13 +114,13 @@ void test_double_cuda(const int m, const int n, mpfr_t alpha, mpfr_t *x, const i
     int leny = (1 + (n - 1) * abs(incy));
 
     //Execution configuration
-    int threadsX = 16;
-    int threadsY = 16;
+    auto threadsX = 16;
+    auto threadsY = 16;
     dim3 dimBlock(threadsX, threadsY);
-    int blocksX = (m + dimBlock.x - 1) / dimBlock.x;
-    int blocksY = (n + dimBlock.y - 1) / dimBlock.y;
+    auto blocksX = (m + dimBlock.x - 1) / dimBlock.x;
+    auto blocksY = (n + dimBlock.y - 1) / dimBlock.y;
     dim3 dimGrid(blocksX, blocksY);
-    printf("\tExec. config: threads.x = %i, threads.y = %i, blocks.x = %i, blocks.y = %i\n", threadsX, threadsY, blocksX, blocksY);
+    Logger::printKernelExecutionConfig2D(threadsX, threadsY, blocksX, blocksY);
 
     //Host data
     double *hx = new double[lenx];

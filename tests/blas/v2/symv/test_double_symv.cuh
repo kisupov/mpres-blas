@@ -185,9 +185,9 @@ void test_double_symv_cuda(enum mblas_uplo_type uplo, const int n, int lenx, int
     PrintTimerName("[GPU] double symv");
 
     //Execution configuration
-    int threads = 32;
-    int blocks = n / threads + 1;
-    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
+    auto threads = 32;
+    auto blocks = n / threads + 1;
+    Logger::printKernelExecutionConfig1D(threads, blocks);
 
     //Host data
     double *hx = new double[lenx];

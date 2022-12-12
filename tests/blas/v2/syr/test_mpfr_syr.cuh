@@ -42,6 +42,7 @@ void mpfr_syr(enum mblas_uplo_type uplo, int n, mpfr_t alpha, mpfr_t *x, int inc
                     mpfr_add(A[row + col * lda], A[row + col * lda], axx, MPFR_RNDN);
                 }
             }
+            mpfr_clear(axx);
         }
     } else { //Access the upper part of the matrix
         #pragma omp parallel shared(n, A, x)
@@ -58,6 +59,7 @@ void mpfr_syr(enum mblas_uplo_type uplo, int n, mpfr_t alpha, mpfr_t *x, int inc
                     mpfr_add(A[row + col * lda], A[row + col * lda], axx, MPFR_RNDN);
                 }
             }
+            mpfr_clear(axx);
         }
     }
 }

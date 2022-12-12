@@ -204,6 +204,11 @@ add_executable(test_syr_v2_performance blas/v2/syr/test_syr_v2_performance.cu)
 target_compile_options(test_syr_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_syr_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX cublas)
 
+# Performance test for SYR2
+add_executable(test_syr2_v2_performance blas/v2/syr2/test_syr2_v2_performance.cu)
+target_compile_options(test_syr2_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_syr2_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX cublas)
+
 #########################
 ## Accuracy tests for BLAS routines
 #########################

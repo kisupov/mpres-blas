@@ -70,16 +70,16 @@ void test_campary_symv(enum mblas_uplo_type uplo, const int n, int lenx, int len
     PrintTimerName("[GPU] CAMPARY symv");
 
     //Execution configuration
-    int threads = 32;
-    int blocks = n / threads + 1;
-    printf("\tExec. config: blocks = %i, threads = %i\n", blocks, threads);
+    auto threads = 32;
+    auto blocks = n / threads + 1;
+    Logger::printKernelExecutionConfig1D(threads, blocks);
 
     //Host data
     multi_prec<prec> halpha;
     multi_prec<prec> hbeta;
-    multi_prec<prec> *hx = new multi_prec<prec>[lenx];
-    multi_prec<prec> *hy = new multi_prec<prec>[leny];
-    multi_prec<prec> *hA = new multi_prec<prec>[lda * n];
+    auto *hx = new multi_prec<prec>[lenx];
+    auto *hy = new multi_prec<prec>[leny];
+    auto *hA = new multi_prec<prec>[lda * n];
 
     // GPU data
     multi_prec<prec> *dalpha;

@@ -29,7 +29,7 @@
 
 namespace cuda {
     /*!
-     * Performs the rank-1 update operation
+     * Performs the general rank-1 update operation
      * A = A + alpha * x * y^T
      * where alpha is a scalar, x is an m element vector, y is an n element vector and A is an m by n matrix.
      * The matrix should be stored in column-major order.

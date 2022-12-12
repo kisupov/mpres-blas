@@ -41,6 +41,7 @@ void mpfr_ger(int m, int n, mpfr_t alpha, mpfr_t *x, int incx, mpfr_t *y, int in
                 mpfr_add(A[row + col * lda], A[row + col * lda], axy, MPFR_RNDN);
             }
         }
+        mpfr_clear(axy);
     }
 }
 

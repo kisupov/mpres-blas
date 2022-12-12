@@ -39,6 +39,7 @@ namespace Logger {
         BLAS_SYMV_PERFORMANCE_TEST,
         BLAS_GER_PERFORMANCE_TEST,
         BLAS_SYR_PERFORMANCE_TEST,
+        BLAS_SYR2_PERFORMANCE_TEST,
         BLAS_GE_ADD_PERFORMANCE_TEST,
         BLAS_GE_ACC_PERFORMANCE_TEST,
         BLAS_GE_DIAG_SCALE_PERFORMANCE_TEST,
@@ -91,6 +92,8 @@ namespace Logger {
                 return "Performance test for BLAS GER routines";
             case BLAS_SYR_PERFORMANCE_TEST:
                 return "Performance test for BLAS SYR routines";
+            case BLAS_SYR2_PERFORMANCE_TEST:
+                return "Performance test for BLAS SYR2 routines";
             case BLAS_GE_ADD_PERFORMANCE_TEST:
                 return "Performance test for BLAS GE_ADD routines";
             case BLAS_GE_ACC_PERFORMANCE_TEST:
@@ -192,6 +195,14 @@ namespace Logger {
 
     void printParam(const char *param, const double value) {
         std::cout << "- " << param << ": " << value << std::endl;
+    }
+
+    void printKernelExecutionConfig1D(unsigned int threads, unsigned int blocks){
+        printf("\tExec. config: threads = %i, blocks = %i\n", threads, blocks);
+    }
+
+    void printKernelExecutionConfig2D(unsigned int threadsX, unsigned int threadsY, unsigned int blocksX, unsigned int blocksY){
+        printf("\tExec. config: threads.x = %i, threads.y = %i, blocks.x = %i, blocks.y = %i\n", threadsX, threadsY, blocksX, blocksY);
     }
 
     void beginTestDescription(TestHeader header) {

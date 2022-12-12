@@ -35,13 +35,13 @@ void test_mpres_syr(enum mblas_uplo_type uplo, const int n, mpfr_t alpha, mpfr_t
     int lenx = (1 + (n - 1) * abs(incx));
 
     //Execution configuration
-    int threadsX = 32;
-    int threadsY = 1;
+    auto threadsX = 32;
+    auto threadsY = 1;
     dim3 dimBlock(threadsX, threadsY);
-    int blocksX = (n + dimBlock.x - 1) / dimBlock.x;
-    int blocksY = (n + dimBlock.y - 1) / dimBlock.y;
+    auto blocksX = (n + dimBlock.x - 1) / dimBlock.x;
+    auto blocksY = (n + dimBlock.y - 1) / dimBlock.y;
     dim3 dimGrid(blocksX, blocksY);
-    printf("\tExec. config: threads.x = %i, threads.y = %i, blocks.x = %i, blocks.y = %i\n", threadsX, threadsY, blocksX, blocksY);
+    Logger::printKernelExecutionConfig2D(threadsX, threadsY, blocksX, blocksY);
 
     //Host data
     mp_float_ptr hx = new mp_float_t[lenx];

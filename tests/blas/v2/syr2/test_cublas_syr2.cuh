@@ -1,5 +1,5 @@
 /*
- *  Performance test for cuBLAS general rank-1 update (GER)
+ *  Performance test for cuBLAS symmetric rank-2 update (SYR2)
  *
  *  Copyright 2022 by Konstantin Isupov.
  *
@@ -18,18 +18,18 @@
  *  You should have received a copy of the GNU General Public License
  *  along with MPRES-BLAS.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef TEST_CUBLAS_GER_CUH
-#define TEST_CUBLAS_GER_CUH
+#ifndef TEST_CUBLAS_SYR2_CUH
+#define TEST_CUBLAS_SYR2_CUH
 
 #include "logger.cuh"
 #include "timers.cuh"
 #include "tsthelper.cuh"
 #include "cublas_v2.h"
 
-void test_cublas(const int m, const int n, mpfr_t alpha, mpfr_t *x, const int incx, mpfr_t *y, const int  incy, mpfr_t *A, const int lda, const int repeats){
+void test_cublas(enum mblas_uplo_type uplo, const int n, mpfr_t alpha, mpfr_t *x, const int incx, mpfr_t *y, const int incy, mpfr_t *A, const int lda, const int repeats){
     InitCudaTimer();
     Logger::printDash();
-    PrintTimerName("[GPU] cuBLAS ger");
+    PrintTimerName("[GPU] cuBLAS syr2");
 
     cublasStatus_t stat;
     cublasHandle_t handle;
@@ -38,46 +38,41 @@ void test_cublas(const int m, const int n, mpfr_t alpha, mpfr_t *x, const int in
         printf ("cuBLAS initialization failed\n");
         return;
     }
-
     //Actual length of the vectors
-    int lenx = (1 + (m - 1) * abs(incx));
+    int lenx = (1 + (n - 1) * abs(incx));
     int leny = (1 + (n - 1) * abs(incy));
-
     //Host data
     double *hx = new double[lenx];
     double *hy = new double[leny];
     double *hA = new double[lda * n];
-
     for (int i = 0; i < lenx; i++) {
         hx[i] = mpfr_get_d(x[i], MPFR_RNDN);
     }
-
     for (int i = 0; i < leny; i++) {
         hy[i] = mpfr_get_d(y[i], MPFR_RNDN);
     }
-
     for (int i = 0; i < lda * n; i++) {
         hA[i] = mpfr_get_d(A[i], MPFR_RNDN);
     }
-
     //GPU data
     double *dx;
     double *dy;
     double *dA;
     double dalpha = mpfr_get_d(alpha, MPFR_RNDN);
-
     cudaMalloc(&dx, sizeof(double) * lenx);
     cudaMalloc(&dy, sizeof(double) * leny);
     cudaMalloc(&dA, sizeof(double) * lda * n);
-    cublasSetVector(m, sizeof(double), hx, incx, dx, incx);
+    cublasSetVector(n, sizeof(double), hx, incx, dx, incx);
     cublasSetVector(n, sizeof(double), hy, incy, dy, incy);
-
     for(int i = 0; i < repeats; i ++) {
         cublasSetVector(lda * n, sizeof(double), hA, 1, dA, 1);
         StartCudaTimer();
-        cublasDger(handle, m, n, &dalpha, dx, incx, dy, incy, dA, lda);
+        if (uplo == mblas_upper) {
+            cublasDsyr2(handle, CUBLAS_FILL_MODE_UPPER, n, &dalpha, dx, incx, dy, incy, dA, lda);
+        } else{
+            cublasDsyr2(handle, CUBLAS_FILL_MODE_LOWER, n, &dalpha, dx, incx, dy, incy, dA, lda);
+        }
         EndCudaTimer();
-
     }
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
@@ -93,4 +88,4 @@ void test_cublas(const int m, const int n, mpfr_t alpha, mpfr_t *x, const int in
     cudaFree(dA);
 }
 
-#endif //TEST_CUBLAS_GER_CUH
+#endif //TEST_CUBLAS_SYR2_CUH
