@@ -39,18 +39,18 @@ namespace cuda
      *
      * @tparam threads - thread block size
      * @param uplo - specifies whether the upper or lower triangular part of the array a is used.
-     * @param n - specifies the order of the matrix A. The value of n must be at least zero.
-     * @param alpha - specifies the scalar alpha.
+     * @param n - the order of the matrix A. The value of n must be at least zero.
+     * @param alpha - the input scalar alpha.
      * @param A - array, size (lda, n). Before entry with uplo = mblas_upper, the leading n-by-n upper triangular part of the array A
      *            must contain the upper triangular part of the symmetric matrix A and the strictly lower triangular part of A is not referenced.
      *            Before entry with uplo != mblas_upper, the leading n-by-n lower triangular part of the array A must contain the lower triangular
      *            part of the symmetric matrix A and the strictly upper triangular part of a is not referenced.
-     * @param lda - specifies the leading dimension of a as declared in the calling (sub)program. The value of lda must be at least max(1, n).
+     * @param lda - the leading dimension of a. It must be at least max(1, n).
      * @param x - array, size at least (1 + (n - 1)*abs(incx)). Before entry, the incremented array x must contain the n-element vector x.
-     * @param incx - specifies the increment for the elements of x. The value of incx must not be zero.
-     * @param beta - specifies the scalar beta. When beta is supplied as zero, then y need not be set on input.
+     * @param incx - the increment for the elements of x. The value of incx must not be zero.
+     * @param beta - the input scalar beta. When beta is supplied as zero, then y need not be set on input.
      * @param y - array, size at least (1 + (n - 1)*abs(incy)). Overwritten by the updated vector y. Before entry, the incremented array y must contain the n-element vector y.
-     * @param incy - specifies the increment for the elements of y. The value of incy must not be zero.
+     * @param incy - the increment for the elements of y. The value of incy must not be zero.
      *
      */
     template<int threads>

@@ -25,7 +25,6 @@
 
 #include "arith/add.cuh"
 #include "arith/mul.cuh"
-#include "blas/mblas_enum.cuh"
 
 namespace cuda {
     /*!
@@ -39,13 +38,13 @@ namespace cuda {
      *
      * @param m - specifies the number of rows of the matrix A.
      * @param n - specifies the number of columns of the matrix A.
-     * @param alpha - buffer holding the input scalar alpha in the GPU memory.
-     * @param x - buffer holding the input vector x in the GPU memory, size at least (1 + (m - 1)*abs(incx)).
+     * @param alpha - the input scalar alpha in the GPU memory.
+     * @param x - the input vector x in the GPU memory, size at least (1 + (m - 1)*abs(incx)).
      * @param incx - specifies the increment for the elements of x. The value of incx must not be zero.
-     * @param y - buffer holding the input vector y in the GPU memory, size at least (1 + (n - 1)*abs(incy)).
+     * @param y - the input vector y in the GPU memory, size at least (1 + (n - 1)*abs(incy)).
      * @param incy - specifies the increment for the elements of y. The value of incy must not be zero.
-     * @param A - buffer holding the updated matrix A in the GPU memory, size at least lda * n.
-     * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. Must be positive and at least m as column major layout is used.
+     * @param A - the input/output matrix A in the GPU memory, size at least lda * n.
+     * @param lda - specifies the leading dimension of A. It must be positive and at least m as column major layout is used.
      */
     __global__ void mp_ger(const int m, const int n, mp_float_ptr alpha, mp_float_ptr x, const int incx, mp_float_ptr y, const int incy, mp_float_ptr A, const int lda) {
         __shared__ mp_float_t a;

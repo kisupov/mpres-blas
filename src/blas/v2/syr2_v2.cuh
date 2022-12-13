@@ -39,13 +39,13 @@ namespace cuda {
      * @note No global memory buffer is required
      *
      * @param n - number of columns of A, must be at least zero.
-     * @param alpha - buffer holding the input scalar alpha in the GPU memory.
-     * @param x - buffer holding the input vector x in the GPU memory, size at least (1 + (n - 1)*abs(incx)).
-     * @param incx - specifies the increment for the elements of x. The value of incx must not be zero.
-     * @param y - buffer holding the input vector xy in the GPU memory, size at least (1 + (n - 1)*abs(incy)).
-     * @param incy - specifies the increment for the elements of y. The value of incy must not be zero.
-     * @param A - buffer holding the updated matrix A in the GPU memory, size at least lda * n.
-     * @param lda - specifies the leading dimension of A as declared in the calling (sub)program. Must be positive and at least n.
+     * @param alpha - the input scalar alpha in the GPU memory.
+     * @param x - the input vector x in the GPU memory, size at least (1 + (n - 1)*abs(incx)).
+     * @param incx - the increment for the elements of x. The value of incx must not be zero.
+     * @param y - the input vector xy in the GPU memory, size at least (1 + (n - 1)*abs(incy)).
+     * @param incy - the increment for the elements of y. The value of incy must not be zero.
+     * @param A - the input/output matrix A in the GPU memory, size at least lda * n.
+     * @param lda - the leading dimension of A. Must be positive and at least n.
      */
     __global__ void mp_syr2(enum mblas_uplo_type uplo, const int n, mp_float_ptr alpha, mp_float_ptr x, const int incx, mp_float_ptr y, const int incy, mp_float_ptr A, const int lda) {
         __shared__ mp_float_t a;
