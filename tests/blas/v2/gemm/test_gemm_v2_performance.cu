@@ -23,13 +23,10 @@
 #include "tsthelper.cuh"
 #include "test_mpres_gemm.cuh"
 #include "test_openblas_gemm.cuh"
-
-/*
-#include "test_double_ger.cuh"
-#include "test_mpfr_ger.cuh"
-#include "test_cublas_ger.cuh"
-#include "test_campary_ger.cuh"
-*/
+#include "test_double_gemm.cuh"
+#include "test_mpfr_gemm.cuh"
+#include "test_campary_gemm.cuh"
+#include "test_cublas_gemm.cuh"
 
 #define M 500  // Specifies the number of rows of the matrix A and of the matrix C.
 #define N 500   // Specifies the number of columns of the matrix B and the number of columns of the matrix C.
@@ -83,12 +80,12 @@ void test() {
     mpfr_t *beta = create_random_array(1, INP_BITS);
     //Launch tests
     test_openblas(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
-   // test_double(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, REPEAT_TEST);
-   // test_mpfr(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, REPEAT_TEST);
-   // test_cublas(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, REPEAT_TEST);
-   // test_double_cuda(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, REPEAT_TEST);
+    test_double(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
+    test_mpfr(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
+    test_cublas(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
+    test_double_cuda(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
     test_mpres_gemm(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
-   // test_campary_ger<CAMPARY_PRECISION>(M, N, alpha[0], vectorX, INCX, vectorY, INCY, matrixA, LDA, INP_DIGITS, REPEAT_TEST);
+    test_campary_gemm<CAMPARY_PRECISION>(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, INP_DIGITS, REPEAT_TEST);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
     //Cleanup
@@ -126,7 +123,7 @@ int main() {
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-   // Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
+    Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
     test();
     finalize();
