@@ -1,5 +1,5 @@
 /*
- *  Multiple-precision SYRk function for GPU (BLAS Level-3)
+ *  Multiple-precision SYRK function for GPU (BLAS Level-3)
  *  Performs a rank-k update of a symmetric matrix C by a general matrix A.
  *
  *  Copyright 2022 by Konstantin Isupov.
@@ -48,7 +48,7 @@ namespace cuda {
      * @note No global memory buffer is required
      *
      * @param uplo - specifies whether the upper or lower triangular part of the matrix C is used.
-     * @param transa - specifies the form of op(A), the transposition operation applied to A.
+     * @param trans - specifies the form of op(A), the transposition operation applied to A.
      * @param n - number of rows and columns in C, must be at least zero.
      * @param k - number of columns in op(A), must be at least zero.
      * @param alpha - scaling factor for the rank-k update.
@@ -58,7 +58,7 @@ namespace cuda {
      * @param C - the input/output matrix C, size at least ldc * n.
      * @param ldc - specifies the leading dimension of C. It must be positive and at least n.
      */
-    __global__ void mp_syrk(enum mblas_uplo_type uplo, enum mblas_trans_type transa, const int n, const int k,
+    __global__ void mp_syrk(enum mblas_uplo_type uplo, enum mblas_trans_type trans, const int n, const int k,
             mp_float_ptr alpha, mp_float_ptr A, const int lda, mp_float_ptr beta, mp_float_ptr C, const int ldc) {
         auto row = blockIdx.x * blockDim.x + threadIdx.x;
         auto col = blockIdx.y * blockDim.y + threadIdx.y;
@@ -69,7 +69,7 @@ namespace cuda {
             for (int i = 0; i < k; i++) {
                 unsigned int indexA = row + lda * i;
                 unsigned int indexAT = i + lda * col;
-                if (transa == mblas_trans) {
+                if (trans == mblas_trans) {
                     indexA = i + lda * row;
                     indexAT = col + lda * i;
                 }
