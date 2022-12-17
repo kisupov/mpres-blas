@@ -28,6 +28,15 @@
 #include "blas/mblas_enum.cuh"
 
 namespace cuda {
+
+    /**
+     * Checks whether iterations should be continued depending on the uplo parameter
+     * @return true if iterations over the rows/columns of the matrix are not completed
+     */
+    DEVICE_CUDA_FORCEINLINE bool continues(enum mblas_uplo_type uplo, const unsigned int n, const unsigned int row, const unsigned int col) {
+        return (uplo == mblas_upper && col < n && row <= col) || (uplo == mblas_lower && row < n && col <= row);
+    }
+
     /*!
      * Performs the symmetric rank-1 update operation
      * A = A + alpha * x * x^T
@@ -55,29 +64,15 @@ namespace cuda {
             a = alpha[0];
         }
         __syncthreads();
-        if (uplo == mblas_upper) { //Access the upper part of the matrix
-            while (col < n && row <= col) {
-                auto ir = incx > 0 ? row * incx : (-n + row + 1) * incx;
-                auto ic = incx > 0 ? col * incx : (-n + col + 1) * incx;
-                cuda::mp_mul(&axx, x[ir], x[ic]);
-                cuda::mp_mul(&axx, axx, a);
-                cuda::mp_add(&A[row + col * lda], A[row + col * lda], axx);
-                row += gridDim.x * blockDim.x;
-                col += gridDim.y * blockDim.y;
-            }
-        } else { //Access the lower part of the matrix
-            while (row < n && col <= row) {
-                auto ir = incx > 0 ? row * incx : (-n + row + 1) * incx;
-                auto ic = incx > 0 ? col * incx : (-n + col + 1) * incx;
-                cuda::mp_mul(&axx, x[ir], x[ic]);
-                cuda::mp_mul(&axx, axx, a);
-                cuda::mp_add(&A[row + col * lda], A[row + col * lda], axx);
-                row += gridDim.x * blockDim.x;
-                col += gridDim.y * blockDim.y;
-            }
+        while (continues(uplo, n, row, col)) {
+            auto ir = incx > 0 ? row * incx : (-n + row + 1) * incx;
+            auto ic = incx > 0 ? col * incx : (-n + col + 1) * incx;
+            cuda::mp_mul(&axx, x[ir], x[ic]);
+            cuda::mp_mul(&axx, axx, a);
+            cuda::mp_add(&A[row + col * lda], A[row + col * lda], axx);
+            row += gridDim.x * blockDim.x;
+            col += gridDim.y * blockDim.y;
         }
-
-
     }
 } // namespace cuda
 

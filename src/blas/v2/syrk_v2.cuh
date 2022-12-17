@@ -28,6 +28,14 @@
 #include "blas/mblas_enum.cuh"
 
 namespace cuda {
+    /**
+     * Checks whether iterations should be continued depending on the uplo parameter
+     * @return true if iterations over the rows/columns of the matrix are not completed
+     */
+    DEVICE_CUDA_FORCEINLINE bool continues(enum mblas_uplo_type uplo, const unsigned int n, const unsigned int row, const unsigned int col) {
+        return (uplo == mblas_upper && col < n && row <= col) || (uplo == mblas_lower && row < n && col <= row);
+    }
+
     /*!
      * Performs the symmetric rank-1 update operation
      * C = alpha * op(A) * op(A^T) + beta * C
@@ -56,44 +64,23 @@ namespace cuda {
         auto col = blockIdx.y * blockDim.y + threadIdx.y;
         mp_float_t mul;
         mp_float_t sum;
-        if (uplo == mblas_upper) { //Access the upper part of matrix A
-            while (col < n && row <= col) {
-                sum = cuda::MP_ZERO;
-                for (int i = 0; i < k; i++) {
-                    unsigned int indexA = row + lda * i;
-                    unsigned int indexAT = i + lda * col;
-                    if (transa == mblas_trans) {
-                        indexA = i + lda * row;
-                        indexAT = col + lda * i;
-                    }
-                    cuda::mp_mul(&mul, A[indexA], A[indexAT]);
-                    cuda::mp_add(&sum, sum, mul);
+        while (continues(uplo, n, row, col)) {
+            sum = cuda::MP_ZERO;
+            for (int i = 0; i < k; i++) {
+                unsigned int indexA = row + lda * i;
+                unsigned int indexAT = i + lda * col;
+                if (transa == mblas_trans) {
+                    indexA = i + lda * row;
+                    indexAT = col + lda * i;
                 }
-                cuda::mp_mul(&sum, sum, alpha[0]);
-                cuda::mp_mul(&mul, C[row + col * ldc], beta[0]);
-                cuda::mp_add(&C[row + col * ldc], sum, mul);
-                row += gridDim.x * blockDim.x;
-                col += gridDim.y * blockDim.y;
+                cuda::mp_mul(&mul, A[indexA], A[indexAT]);
+                cuda::mp_add(&sum, sum, mul);
             }
-        } else { //Access the lower part of matrix C
-            while (row < n && col <= row) {
-                sum = cuda::MP_ZERO;
-                for (int i = 0; i < k; i++) {
-                    unsigned int indexA = row + lda * i;
-                    unsigned int indexAT = i + lda * col;
-                    if (transa == mblas_trans) {
-                        indexA = i + lda * row;
-                        indexAT = col + lda * i;
-                    }
-                    cuda::mp_mul(&mul, A[indexA], A[indexAT]);
-                    cuda::mp_add(&sum, sum, mul);
-                }
-                cuda::mp_mul(&sum, sum, alpha[0]);
-                cuda::mp_mul(&mul, C[row + col * ldc], beta[0]);
-                cuda::mp_add(&C[row + col * ldc], sum, mul);
-                row += gridDim.x * blockDim.x;
-                col += gridDim.y * blockDim.y;
-            }
+            cuda::mp_mul(&sum, sum, alpha[0]);
+            cuda::mp_mul(&mul, C[row + col * ldc], beta[0]);
+            cuda::mp_add(&C[row + col * ldc], sum, mul);
+            row += gridDim.x * blockDim.x;
+            col += gridDim.y * blockDim.y;
         }
     }
 } // namespace cuda

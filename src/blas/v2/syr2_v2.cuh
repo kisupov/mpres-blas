@@ -28,6 +28,14 @@
 #include "blas/mblas_enum.cuh"
 
 namespace cuda {
+    /**
+     * Checks whether iterations should be continued depending on the uplo parameter
+     * @return true if iterations over the rows/columns of the matrix are not completed
+     */
+    DEVICE_CUDA_FORCEINLINE bool continues(enum mblas_uplo_type uplo, const unsigned int n, const unsigned int row, const unsigned int col) {
+        return (uplo == mblas_upper && col < n && row <= col) || (uplo == mblas_lower && row < n && col <= row);
+    }
+
     /*!
      * Performs the symmetric rank-2 update operation
      * A = A + alpha * x * y^T + alpha * y * x^T
@@ -58,39 +66,20 @@ namespace cuda {
             a = alpha[0];
         }
         __syncthreads();
-        if (uplo == mblas_upper) { //Access the upper part of the matrix
-            while (col < n && row <= col) {
-                auto irx = incx > 0 ? row * incx : (-n + row + 1) * incx;
-                auto icx = incx > 0 ? col * incx : (-n + col + 1) * incx;
-                auto iry = incy > 0 ? row * incy : (-n + row + 1) * incy;
-                auto icy = incy > 0 ? col * incy : (-n + col + 1) * incy;
-                cuda::mp_mul(&axy, x[irx], y[icy]);
-                cuda::mp_mul(&axy, axy, a);
-                cuda::mp_mul(&ayx, y[iry], x[icx]);
-                cuda::mp_mul(&ayx, ayx, a);
-                cuda::mp_add(&axy, axy, ayx);
-                cuda::mp_add(&A[row + col * lda], A[row + col * lda], axy);
-                row += gridDim.x * blockDim.x;
-                col += gridDim.y * blockDim.y;
-            }
-        } else { //Access the lower part of the matrix
-            while (row < n && col <= row) {
-                auto irx = incx > 0 ? row * incx : (-n + row + 1) * incx;
-                auto icx = incx > 0 ? col * incx : (-n + col + 1) * incx;
-                auto iry = incy > 0 ? row * incy : (-n + row + 1) * incy;
-                auto icy = incy > 0 ? col * incy : (-n + col + 1) * incy;
-                cuda::mp_mul(&axy, x[irx], y[icy]);
-                cuda::mp_mul(&axy, axy, a);
-                cuda::mp_mul(&ayx, y[iry], x[icx]);
-                cuda::mp_mul(&ayx, ayx, a);
-                cuda::mp_add(&axy, axy, ayx);
-                cuda::mp_add(&A[row + col * lda], A[row + col * lda], axy);
-                row += gridDim.x * blockDim.x;
-                col += gridDim.y * blockDim.y;
-            }
+        while (continues(uplo, n, row, col)) {
+            auto irx = incx > 0 ? row * incx : (-n + row + 1) * incx;
+            auto icx = incx > 0 ? col * incx : (-n + col + 1) * incx;
+            auto iry = incy > 0 ? row * incy : (-n + row + 1) * incy;
+            auto icy = incy > 0 ? col * incy : (-n + col + 1) * incy;
+            cuda::mp_mul(&axy, x[irx], y[icy]);
+            cuda::mp_mul(&axy, axy, a);
+            cuda::mp_mul(&ayx, y[iry], x[icx]);
+            cuda::mp_mul(&ayx, ayx, a);
+            cuda::mp_add(&axy, axy, ayx);
+            cuda::mp_add(&A[row + col * lda], A[row + col * lda], axy);
+            row += gridDim.x * blockDim.x;
+            col += gridDim.y * blockDim.y;
         }
-
-
     }
 } // namespace cuda
 

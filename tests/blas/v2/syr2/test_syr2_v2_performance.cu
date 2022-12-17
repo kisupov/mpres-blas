@@ -31,7 +31,7 @@
 
 #define N 5000  // Number of matrix columns and the vector X dimension
 #define LDA (N) // Specifies the leading dimension of A as declared in the calling (sub)program.
-#define UPLO mblas_lower // Specifies whether the upper or lower triangular part of the array A is used.
+#define UPLO mblas_upper // Specifies whether the upper or lower triangular part of the array A is used.
 #define INCX 1 // Specifies the increment for the elements of x.
 #define INCY 1 // Specifies the increment for the elements of y.
 #define REPEAT_TEST 10 //Number of repeats
