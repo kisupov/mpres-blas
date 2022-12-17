@@ -209,6 +209,11 @@ add_executable(test_syr2_v2_performance blas/v2/syr2/test_syr2_v2_performance.cu
 target_compile_options(test_syr2_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
 target_link_libraries(test_syr2_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX cublas)
 
+# Performance test for SYRK
+add_executable(test_syrk_v2_performance blas/v2/syrk/test_syrk_v2_performance.cu)
+target_compile_options(test_syrk_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)
+target_link_libraries(test_syrk_v2_performance gmp mpfr openblas OpenMP::OpenMP_CXX cublas)
+
 # Performance test for GEMM
 add_executable(test_gemm_v2_performance blas/v2/gemm/test_gemm_v2_performance.cu)
 target_compile_options(test_gemm_v2_performance PRIVATE  $<${cuda_lang}:$<BUILD_INTERFACE:${GLOBAL_COMPILE_OPTIONS}>>)

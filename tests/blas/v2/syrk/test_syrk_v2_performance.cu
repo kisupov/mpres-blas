@@ -22,11 +22,11 @@
 #include "logger.cuh"
 #include "tsthelper.cuh"
 #include "test_mpres_syrk.cuh"
-//#include "test_openblas_gemm.cuh"
-//#include "test_double_gemm.cuh"
-//#include "test_mpfr_gemm.cuh"
-//#include "test_campary_gemm.cuh"
-//#include "test_cublas_gemm.cuh"
+#include "test_openblas_syrk.cuh"
+#include "test_double_syrk.cuh"
+#include "test_mpfr_syrk.cuh"
+#include "test_campary_syrk.cuh"
+#include "test_cublas_syrk.cuh"
 
 #define N 500 // Specifies the number of rows and columns in matrix C.
 #define K 500  // Specifies the number of columns of matrix A.
@@ -61,22 +61,19 @@ void finalize() {
 
 void test() {
     //Inputs
-    auto SIZE_A = LDA * K;
-    if(TRANSA == mblas_trans){
-        SIZE_A = LDA * N;
-    }
+    auto SIZE_A = (TRANS == mblas_trans) ? LDA * N : LDA * K;
     mpfr_t *matrixA = create_random_array(SIZE_A, INP_BITS);
     mpfr_t *matrixC = create_random_array(LDC * N, INP_BITS);
     mpfr_t *alpha = create_random_array(1,  INP_BITS);
     mpfr_t *beta = create_random_array(1, INP_BITS);
     //Launch tests
-//    test_openblas(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
-//    test_double(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
-//    test_mpfr(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
-//    test_cublas(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
-//    test_double_cuda(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, REPEAT_TEST);
-    test_mpres_gemm(UPLO, TRANS, N, K, alpha[0], matrixA, LDA, beta[0], matrixC, LDC, REPEAT_TEST);
-//    test_campary_gemm<CAMPARY_PRECISION>(TRANSA, TRANSB, M, N, K, alpha[0], matrixA, LDA, matrixB, LDB, beta[0], matrixC, LDC, INP_DIGITS, REPEAT_TEST);
+    test_openblas(UPLO, TRANS, N, K, alpha[0], matrixA, LDA, beta[0], matrixC, LDC, REPEAT_TEST);
+    test_double(UPLO, TRANS, N, K, alpha[0], matrixA, LDA, beta[0], matrixC, LDC, REPEAT_TEST);
+    test_mpfr(UPLO, TRANS, N, K, alpha[0], matrixA, LDA, beta[0], matrixC, LDC, REPEAT_TEST);
+    test_cublas(UPLO, TRANS, N, K, alpha[0], matrixA, LDA, beta[0], matrixC, LDC, REPEAT_TEST);
+    test_double_cuda(UPLO, TRANS, N, K, alpha[0], matrixA, LDA, beta[0], matrixC, LDC, REPEAT_TEST);
+    test_mpres_syrk(UPLO, TRANS, N, K, alpha[0], matrixA, LDA, beta[0], matrixC, LDC, REPEAT_TEST);
+    test_campary_syrk<CAMPARY_PRECISION>(UPLO, TRANS, N, K, alpha[0], matrixA, LDA, beta[0], matrixC, LDC, INP_DIGITS, REPEAT_TEST);
     checkDeviceHasErrors(cudaDeviceSynchronize());
     cudaCheckErrors();
     //Cleanup
@@ -96,7 +93,7 @@ void test() {
 }
 int main() {
     initialize();
-    Logger::beginTestDescription(Logger::BLAS_GEMM_PERFORMANCE_TEST);
+    Logger::beginTestDescription(Logger::BLAS_SYRK_PERFORMANCE_TEST);
     Logger::printTestParameters(0, REPEAT_TEST, MP_PRECISION, MP_PRECISION_DEC);
     Logger::beginSection("Operation info:");
     Logger::printParam("N", N);
@@ -108,7 +105,7 @@ int main() {
     Logger::printDash();
     Logger::beginSection("Additional info:");
     Logger::printParam("RNS_MODULI_SIZE", RNS_MODULI_SIZE);
-    //Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
+    Logger::printParam("CAMPARY_PRECISION (n-double)", CAMPARY_PRECISION);
     Logger::endSection(true);
     test();
     finalize();

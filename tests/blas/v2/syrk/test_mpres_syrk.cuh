@@ -26,7 +26,7 @@
 #include "tsthelper.cuh"
 #include "blas/v2/syrk_v2.cuh"
 
-void test_mpres_gemm(enum mblas_uplo_type uplo, enum mblas_trans_type trans, const int n, const int k, mpfr_t alpha, mpfr_t *A, const int lda, mpfr_t beta, mpfr_t *C, const int ldc, const int repeats) {
+void test_mpres_syrk(enum mblas_uplo_type uplo, enum mblas_trans_type trans, const int n, const int k, mpfr_t alpha, mpfr_t *A, const int lda, mpfr_t beta, mpfr_t *C, const int ldc, const int repeats) {
     InitCudaTimer();
     Logger::printDash();
     PrintTimerName("[GPU] MPRES-BLAS syrk");
@@ -35,16 +35,13 @@ void test_mpres_gemm(enum mblas_uplo_type uplo, enum mblas_trans_type trans, con
     auto threadsX = 16;
     auto threadsY = 16;
     dim3 dimBlock(threadsX, threadsY);
-    auto blocksX = (m + dimBlock.x - 1) / dimBlock.x;
+    auto blocksX = (n + dimBlock.x - 1) / dimBlock.x;
     auto blocksY = (n + dimBlock.y - 1) / dimBlock.y;
     dim3 dimGrid(blocksX, blocksY);
     Logger::printKernelExecutionConfig2D(threadsX, threadsY, blocksX, blocksY);
 
-    //Size of arrays storing matrices
-    auto sizeA = lda * k;
-    if(trans == mblas_trans){
-        sizeA = lda * n;
-    }
+    //Size of an array storing matrix A
+    auto sizeA = (trans == mblas_trans) ? lda * n : lda * k;
 
     //Host data
     mp_float_ptr hA = new mp_float_t[sizeA];

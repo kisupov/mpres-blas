@@ -32,7 +32,7 @@ namespace cuda {
      * Checks whether iterations should be continued depending on the uplo parameter
      * @return true if iterations over the rows/columns of the matrix are not completed
      */
-    DEVICE_CUDA_FORCEINLINE bool continues(enum mblas_uplo_type uplo, const unsigned int n, const unsigned int row, const unsigned int col) {
+    static  DEVICE_CUDA_FORCEINLINE bool continues(enum mblas_uplo_type uplo, const unsigned int n, const unsigned int row, const unsigned int col) {
         return (uplo == mblas_upper && col < n && row <= col) || (uplo == mblas_lower && row < n && col <= row);
     }
 
@@ -67,11 +67,11 @@ namespace cuda {
         while (continues(uplo, n, row, col)) {
             sum = cuda::MP_ZERO;
             for (int i = 0; i < k; i++) {
-                unsigned int indexA = row + lda * i;
-                unsigned int indexAT = i + lda * col;
+                auto indexA = row + lda * i;
+                auto indexAT = col + lda * i;
                 if (trans == mblas_trans) {
                     indexA = i + lda * row;
-                    indexAT = col + lda * i;
+                    indexAT = i + lda * col;
                 }
                 cuda::mp_mul(&mul, A[indexA], A[indexAT]);
                 cuda::mp_add(&sum, sum, mul);
