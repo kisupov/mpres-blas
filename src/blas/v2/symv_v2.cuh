@@ -38,9 +38,9 @@ namespace cuda
      * @note No global memory buffer is required
      *
      * @tparam threads - thread block size
-     * @param uplo - specifies whether the upper or lower triangular part of the array a is used.
+     * @param uplo - specifies whether the upper or lower triangular part of the matrix A is used.
      * @param n - the order of the matrix A. The value of n must be at least zero.
-     * @param alpha - the input scalar alpha.
+     * @param alpha - scaling factor for the matrix-vector product.
      * @param A - array, size (lda, n). Before entry with uplo = mblas_upper, the leading n-by-n upper triangular part of the array A
      *            must contain the upper triangular part of the symmetric matrix A and the strictly lower triangular part of A is not referenced.
      *            Before entry with uplo != mblas_upper, the leading n-by-n lower triangular part of the array A must contain the lower triangular
@@ -48,7 +48,7 @@ namespace cuda
      * @param lda - the leading dimension of a. It must be at least max(1, n).
      * @param x - array, size at least (1 + (n - 1)*abs(incx)). Before entry, the incremented array x must contain the n-element vector x.
      * @param incx - the increment for the elements of x. The value of incx must not be zero.
-     * @param beta - the input scalar beta. When beta is supplied as zero, then y need not be set on input.
+     * @param beta - scaling factor for vector y.
      * @param y - array, size at least (1 + (n - 1)*abs(incy)). Overwritten by the updated vector y. Before entry, the incremented array y must contain the n-element vector y.
      * @param incy - the increment for the elements of y. The value of incy must not be zero.
      *

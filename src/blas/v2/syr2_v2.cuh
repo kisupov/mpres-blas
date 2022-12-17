@@ -38,8 +38,9 @@ namespace cuda {
      * @note Each operation using multiple precision is performed as a single thread
      * @note No global memory buffer is required
      *
+     * @param uplo - specifies whether the upper or lower triangular part of the matrix A is used.
      * @param n - number of columns of A, must be at least zero.
-     * @param alpha - the input scalar alpha in the GPU memory.
+     * @param alpha - scaling factor for the rank-2 update.
      * @param x - the input vector x in the GPU memory, size at least (1 + (n - 1)*abs(incx)).
      * @param incx - the increment for the elements of x. The value of incx must not be zero.
      * @param y - the input vector xy in the GPU memory, size at least (1 + (n - 1)*abs(incy)).
