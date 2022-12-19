@@ -37,7 +37,7 @@ namespace cuda {
     }
 
     /*!
-     * Performs the symmetric rank-1 update operation
+     * Performs the symmetric rank-k update operation
      * C = alpha * op(A) * op(A^T) + beta * C
      * where op(X) is one of op(X) = X or op(X) = X^T, alpha and beta are scalars,
      * C is a symmetric matrix and A is a general matrix.
